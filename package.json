@@ -1,0 +1,12 @@
+{
+  "name": "e-tawelco",
+  "version": "1.0.0",
+  "private": true,
+  "description": "E-TAWELCO public site and role-based service dashboard",
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "^2.0.1",
+    "@netlify/functions": "^6.0.2",
+    "@netlify/identity": "^2.0.0"
+  }
+}
