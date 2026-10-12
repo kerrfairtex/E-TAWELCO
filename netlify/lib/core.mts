@@ -13,8 +13,10 @@ export interface Session {
 
 export const db = () => getDatabase()
 
-export const json = (data: unknown, status = 200) => Response.json(data, { status })
-export const fail = (error: string, status = 400) => Response.json({ error }, { status })
+const responseHeaders = { 'Cache-Control': 'no-store' }
+
+export const json = (data: unknown, status = 200) => Response.json(data, { status, headers: responseHeaders })
+export const fail = (error: string, status = 400) => Response.json({ error }, { status, headers: responseHeaders })
 
 // Roles live in app_metadata.roles (read by @netlify/identity) and app_metadata.authorization.roles
 // (this site's JWT roles path, read by the CDN for role-based redirects). Accept either.
@@ -68,9 +70,11 @@ export async function authorize(req: Request, roles?: Role[]): Promise<Session |
 export const isStaff = (s: Session | null) => !!s && (s.role === 'staff' || s.role === 'admin')
 
 export async function readBody(req: Request): Promise<Record<string, unknown>> {
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > 1_000_000) return {}
   try {
     const data = await req.json()
-    return data && typeof data === 'object' ? data : {}
+    return data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : {}
   } catch {
     return {}
   }
