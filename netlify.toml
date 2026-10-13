@@ -1,0 +1,4 @@
+[build]
+  # Bundles the dashboard's browser script (src/dashboard) into dashboard/app.js
+  command = "npm run build"
+  publish = "."

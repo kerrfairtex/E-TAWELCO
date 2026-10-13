@@ -1,0 +1,671 @@
+import {
+  AuthError, MissingIdentityError, getUser, handleAuthCallback, login, logout, onAuthChange,
+  refreshSession, requestPasswordRecovery, signup, updateUser, acceptInvite,
+} from '@netlify/identity'
+
+const $ = (s, el = document) => el.querySelector(s)
+const $$ = (s, el = document) => [...el.querySelectorAll(s)]
+
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
+const REPORT_STATUS = { received: 'Received', assigned: 'Assigned', in_progress: 'In progress', resolved: 'Resolved' }
+const AREA_STATUS = { steady: 'Steady', limited: 'Limited hours', outage: 'Outage reported' }
+const ROLE_LABEL = { member: 'Member', staff: 'Staff', admin: 'Admin' }
+const OBSERVATIONS = ['No power at my house', 'Whole street is out', 'Fallen line', 'Flickering']
+
+const badge = (kind, map) => `<span class="badge b-${esc(kind)}">${esc(map[kind] ?? kind)}</span>`
+const fmtNum = (n) => new Intl.NumberFormat('en-PH').format(n ?? 0)
+const fmtDate = (d) => new Date(d).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+const fmtDay = (d, opts = { month: 'short', day: 'numeric' }) => new Date(`${d}T00:00:00`).toLocaleDateString('en-PH', opts)
+const ago = (d) => {
+  const mins = Math.round((Date.now() - new Date(d).getTime()) / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
+  const h = Math.round(mins / 60)
+  if (h < 48) return `${h} h ago`
+  return `${Math.round(h / 24)} days ago`
+}
+
+const state = { session: null, profile: null, areas: [], team: null }
+const isStaff = () => state.session && state.session.role !== 'member'
+const isAdmin = () => state.session?.role === 'admin'
+
+// ---------- API ----------
+async function api(path, opts = {}) {
+  await refreshSession().catch(() => null)
+  const res = await fetch(path, {
+    method: opts.method ?? 'GET',
+    credentials: 'same-origin',
+    headers: opts.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (res.status === 401) { showAuth(); throw new Error('Please log in again') }
+  if (!res.ok) throw new Error(data.error || `Something went wrong (${res.status})`)
+  return data
+}
+
+const setMsg = (el, text, kind = 'err') => { el.textContent = text; el.className = `msg ${text ? kind : ''}` }
+
+async function busy(btn, fn) {
+  btn.disabled = true
+  try { return await fn() } finally { btn.disabled = false }
+}
+
+function authMessage(error) {
+  if (error instanceof MissingIdentityError) return 'Log-in is not available on this site yet.'
+  if (error instanceof AuthError) {
+    if (error.status === 401 || error.status === 400) return 'That email and password do not match.'
+    if (error.status === 403) return 'New sign-ups are closed. Ask the cooperative for an invite.'
+    if (error.status === 422) return 'Check your email and choose a password of at least 8 characters.'
+    return error.message
+  }
+  return error?.message || 'Something went wrong. Please try again.'
+}
+
+// ---------- Auth views ----------
+function showTab(name) {
+  $$('#auth [data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name })
+  $$('#authTabs [data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)))
+  $('#authTabs').hidden = name === 'setpw'
+  $(`#auth [data-panel="${name}"] input`)?.focus()
+}
+
+function showAuth(tab = 'login') {
+  state.session = null
+  $('#loading').hidden = true
+  $('#app').hidden = true
+  $('#who').hidden = true
+  $('#auth').hidden = false
+  showTab(tab)
+}
+
+$$('#authTabs [data-tab]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)))
+$$('[data-tab-go]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tabGo)))
+
+$('#loginForm').addEventListener('submit', (e) => {
+  e.preventDefault()
+  const msg = $('.msg', e.target)
+  const email = $('#lEmail').value.trim(), pw = $('#lPw').value
+  if (!email || !pw) return setMsg(msg, 'Enter your email and password.')
+  busy($('button[type=submit]', e.target), async () => {
+    try { await login(email, pw); setMsg(msg, ''); await start() } catch (err) { setMsg(msg, authMessage(err)) }
+  })
+})
+
+$('#signupForm').addEventListener('submit', (e) => {
+  e.preventDefault()
+  const msg = $('.msg', e.target)
+  const name = $('#sName').value.trim(), email = $('#sEmail').value.trim(), pw = $('#sPw').value
+  if (!name || !email) return setMsg(msg, 'Enter your name and email.')
+  if (pw.length < 8) return setMsg(msg, 'Choose a password of at least 8 characters.')
+  busy($('button[type=submit]', e.target), async () => {
+    try {
+      const user = await signup(email, pw, { full_name: name })
+      if (user.emailVerified || user.confirmedAt) await start()
+      else { e.target.reset(); setMsg(msg, 'Check your email for a link to confirm your account.', 'ok') }
+    } catch (err) { setMsg(msg, authMessage(err)) }
+  })
+})
+
+$('#forgotForm').addEventListener('submit', (e) => {
+  e.preventDefault()
+  const msg = $('.msg', e.target)
+  const email = $('#fEmail').value.trim()
+  if (!email) return setMsg(msg, 'Enter your email.')
+  busy($('button[type=submit]', e.target), async () => {
+    try { await requestPasswordRecovery(email); setMsg(msg, 'If that email has an account, a reset link is on its way.', 'ok') } catch (err) { setMsg(msg, authMessage(err)) }
+  })
+})
+
+let inviteToken = null
+$('#setPwForm').addEventListener('submit', (e) => {
+  e.preventDefault()
+  const msg = $('.msg', e.target)
+  const pw = $('#nPw').value
+  if (pw.length < 8) return setMsg(msg, 'Choose a password of at least 8 characters.')
+  busy($('button[type=submit]', e.target), async () => {
+    try {
+      if (inviteToken) { await acceptInvite(inviteToken, pw); inviteToken = null } else await updateUser({ password: pw })
+      await start()
+    } catch (err) { setMsg(msg, authMessage(err)) }
+  })
+})
+
+$('#logoutBtn').addEventListener('click', async () => {
+  try { await logout() } catch {}
+  location.hash = ''
+  showAuth()
+})
+
+onAuthChange((event) => { if (event === 'logout' && state.session) showAuth() })
+
+// ---------- Charts ----------
+// Single-series column chart (one hue), baseline-anchored with 4px rounded tops and a hover tooltip per column.
+function columnChart(points, { label, height = 200 }) {
+  const W = 640, H = height, pad = { t: 18, r: 8, b: 26, l: 30 }
+  const max = Math.max(1, ...points.map((p) => p.value))
+  const step = niceStep(max)
+  const top = Math.ceil(max / step) * step
+  const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b
+  const slot = iw / points.length, bw = Math.max(4, Math.min(28, slot - 2))
+  const y = (v) => pad.t + ih - (v / top) * ih
+  const ticks = []
+  for (let v = 0; v <= top; v += step) ticks.push(v)
+  const maxIdx = points.reduce((m, p, i) => (p.value > points[m].value ? i : m), 0)
+
+  const grid = ticks.map((v) => `<line class="${v ? 'gridline' : 'baseline'}" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/>
+    <text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('')
+  const bars = points.map((p, i) => {
+    const x = pad.l + i * slot + (slot - bw) / 2, h = (p.value / top) * ih, yb = pad.t + ih
+    const showX = points.length <= 8 || i % 2 === (points.length - 1) % 2
+    return `<g data-i="${i}">
+      <rect class="hit" x="${pad.l + i * slot}" y="${pad.t}" width="${slot}" height="${ih + pad.b}"/>
+      ${p.value ? `<path class="bar" d="${roundedTop(x, yb, bw, h)}"/>` : ''}
+      ${i === maxIdx && p.value ? `<text class="val" x="${x + bw / 2}" y="${y(p.value) - 6}" text-anchor="middle">${p.value}</text>` : ''}
+      ${showX ? `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${esc(p.short)}</text>` : ''}
+    </g>`
+  }).join('')
+
+  return `<div class="chart" data-chart>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}"><g class="axis">${grid}${bars}</g></svg>
+    <div class="tip" hidden></div>
+  </div>
+  ${tableView(['Day', 'Reports'], points.map((p) => [p.long, p.value]))}`
+}
+
+// Horizontal single-series bar chart, sorted, every bar direct-labeled (few bars, so labels don't crowd).
+function barChart(rows, { label }) {
+  const rowH = 30, W = 640, lw = 150, vw = 36
+  const H = rows.length * rowH + 4
+  const max = Math.max(1, ...rows.map((r) => r.value))
+  const iw = W - lw - vw
+  const bars = rows.map((r, i) => {
+    const yy = i * rowH + 4, w = (r.value / max) * iw
+    return `<g data-i="${i}">
+      <rect class="hit" x="0" y="${yy}" width="${W}" height="${rowH}"/>
+      <text class="lbl" x="${lw - 10}" y="${yy + rowH / 2 + 4}" text-anchor="end">${esc(r.label)}</text>
+      ${r.value ? `<path class="bar" d="${roundedRight(lw, yy + 5, w, rowH - 10)}"/>` : ''}
+      <text class="val" x="${lw + w + 6}" y="${yy + rowH / 2 + 4}">${r.value}</text>
+    </g>`
+  }).join('')
+  return `<div class="chart" data-chart>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
+      <line class="baseline" x1="${lw}" x2="${lw}" y1="0" y2="${H}"/>${bars}
+    </svg>
+    <div class="tip" hidden></div>
+  </div>
+  ${tableView(['Area', 'Open reports'], rows.map((r) => [r.label, r.value]))}`
+}
+
+function niceStep(max) {
+  const raw = max / 4
+  const mag = 10 ** Math.floor(Math.log10(raw || 1))
+  const n = raw / mag
+  return Math.max(1, (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag)
+}
+function roundedTop(x, yb, w, h) {
+  const r = Math.min(4, h, w / 2)
+  return `M${x},${yb}V${yb - h + r}Q${x},${yb - h} ${x + r},${yb - h}H${x + w - r}Q${x + w},${yb - h} ${x + w},${yb - h + r}V${yb}Z`
+}
+function roundedRight(x, y, w, h) {
+  const r = Math.min(4, w, h / 2)
+  return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`
+}
+function tableView(head, rows) {
+  return `<details class="as-table"><summary>Show as table</summary>
+    <div class="table-wrap" style="margin-top:8px"><table><thead><tr>${head.map((h, i) => `<th class="${i ? 'num' : ''}">${esc(h)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`
+}
+function wireTips(root, tipFor) {
+  $$('[data-chart]', root).forEach((chart, ci) => {
+    const tip = $('.tip', chart), svg = $('svg', chart)
+    $$('g[data-i]', svg).forEach((g) => {
+      const show = () => {
+        const bar = $('.bar', g)
+        $$('.bar.on', svg).forEach((b) => b.classList.remove('on'))
+        bar?.classList.add('on')
+        const box = (bar ?? $('.hit', g)).getBoundingClientRect(), cb = chart.getBoundingClientRect()
+        tip.innerHTML = tipFor(ci, Number(g.dataset.i))
+        tip.style.left = `${box.left - cb.left + box.width / 2}px`
+        tip.style.top = `${box.top - cb.top}px`
+        tip.hidden = false
+      }
+      g.addEventListener('mouseenter', show)
+      g.addEventListener('mouseleave', () => { tip.hidden = true; $('.bar', g)?.classList.remove('on') })
+    })
+  })
+}
+
+// ---------- Views ----------
+const VIEWS = { overview, outages, areas: areasView, people, profile: profileView }
+
+function route() {
+  let name = location.hash.replace('#', '') || 'overview'
+  const link = $(`#sideNav [data-view="${name}"]`)
+  if (!VIEWS[name] || !link || link.hidden) name = 'overview'
+  $$('#sideNav a').forEach((a) => a.toggleAttribute('aria-current', a.dataset.view === name) || a.removeAttribute('aria-current'))
+  $(`#sideNav [data-view="${name}"]`).setAttribute('aria-current', 'page')
+  const view = $('#view')
+  view.innerHTML = '<p class="loading">Loading…</p>'
+  VIEWS[name](view).catch((err) => { view.innerHTML = `<div class="card"><p class="msg err">${esc(err.message)}</p></div>` })
+}
+window.addEventListener('hashchange', () => { if (state.session) route() })
+
+const head = (title, sub, actions = '') => `<div class="page-head"><div><h1>${esc(title)}</h1>${sub ? `<p class="muted">${sub}</p>` : ''}</div>${actions}</div>`
+
+async function overview(view) {
+  const stats = await api('/api/stats')
+  const first = esc((state.profile?.full_name || state.session.email).split(/[\s@]/)[0])
+
+  if (stats.scope === 'mine') {
+    const { reports } = await api('/api/outages?scope=mine')
+    const s = stats.byStatus
+    const open = (s.received ?? 0) + (s.assigned ?? 0) + (s.in_progress ?? 0)
+    view.innerHTML = `${head(`Hello, ${first}`, 'Your outage reports and account at a glance.', '<a class="btn btn-primary" href="#outages">Report an outage</a>')}
+      <div class="stack">
+        <div class="tiles">
+          <div class="tile accent"><span class="tile-label">Open reports</span><span class="tile-num">${fmtNum(open)}</span><div class="tile-note">Being handled by the cooperative</div></div>
+          <div class="tile"><span class="tile-label">Resolved</span><span class="tile-num">${fmtNum(s.resolved)}</span></div>
+          <div class="tile"><span class="tile-label">Your island</span><span class="tile-num" style="font-size:1.35rem;margin-top:12px">${esc(areaName(state.profile?.area_id) || 'Not set')}</span>
+            <div class="tile-note">${state.profile?.area_id ? areaBadge(state.profile.area_id) : '<a href="#profile">Add it to your profile</a>'}</div></div>
+        </div>
+        <section class="card"><div class="card-head"><h2>Recent reports</h2><a href="#outages" class="small">See all</a></div>
+          ${reports.length ? reportTable(reports.slice(0, 5), false) : '<p class="empty">You have not reported an outage yet.</p>'}
+        </section>
+      </div>`
+    bindReportRows(view)
+    return
+  }
+
+  const t = stats.totals, s = stats.byStatus
+  const daily = stats.daily.map((d) => ({ value: d.n, short: fmtDay(d.day, { day: 'numeric' }), long: fmtDay(d.day, { weekday: 'short', month: 'short', day: 'numeric' }) }))
+  const byArea = stats.byArea.filter((a) => a.open > 0)
+  const areaRows = (byArea.length ? byArea : []).slice(0, 8).map((a) => ({ label: a.name, value: a.open }))
+  const total14 = daily.reduce((n, d) => n + d.value, 0)
+
+  view.innerHTML = `${head(`Hello, ${first}`, `Cooperative-wide outage picture · updated ${esc(new Date().toLocaleTimeString('en-PH', { timeStyle: 'short' }))}`,
+    '<button class="btn btn-secondary" type="button" id="refreshBtn">Refresh</button>')}
+    <div class="stack">
+      <div class="tiles">
+        <div class="tile accent"><span class="tile-label">Open reports</span><span class="tile-num">${fmtNum(t.open)}</span><div class="tile-note">Not yet resolved</div></div>
+        <div class="tile"><span class="tile-label">Unassigned</span><span class="tile-num">${fmtNum(t.unassigned)}</span><div class="tile-note">${t.unassigned ? '<a href="#outages">Assign a crew</a>' : 'Every open report has an owner'}</div></div>
+        <div class="tile"><span class="tile-label">Assigned to you</span><span class="tile-num">${fmtNum(t.mine)}</span><div class="tile-note">Open and in your queue</div></div>
+        <div class="tile"><span class="tile-label">New this week</span><span class="tile-num">${fmtNum(t.week)}</span><div class="tile-note">Last 7 days</div></div>
+        <div class="tile"><span class="tile-label">Median time to resolve</span><span class="tile-num">${t.median_hours == null ? '–' : fmtNum(t.median_hours)}<span class="tile-unit">${t.median_hours == null ? '' : 'h'}</span></span><div class="tile-note">Reports from the last 30 days</div></div>
+      </div>
+
+      <section class="card" aria-labelledby="pipeTitle">
+        <div class="card-head"><h2 id="pipeTitle">Report pipeline</h2><span class="small muted">All time</span></div>
+        <div class="pipeline">${Object.keys(REPORT_STATUS).map((k) => `<div class="pipe">${badge(k, REPORT_STATUS)}<strong>${fmtNum(s[k])}</strong></div>`).join('')}</div>
+      </section>
+
+      <div class="cols">
+        <section class="card" aria-labelledby="dailyTitle">
+          <div class="card-head"><h2 id="dailyTitle">New reports, last 14 days</h2><span class="small muted">${fmtNum(total14)} total</span></div>
+          ${columnChart(daily, { label: `New outage reports per day for the last 14 days, ${total14} in total` })}
+        </section>
+        <section class="card" aria-labelledby="areaTitle">
+          <div class="card-head"><h2 id="areaTitle">Open reports by area</h2><a class="small" href="#areas">Service areas</a></div>
+          ${areaRows.length ? barChart(areaRows, { label: 'Open outage reports per service area' }) : '<p class="empty">No open reports in any area.</p>'}
+        </section>
+      </div>
+
+      <div class="cols">
+        <section class="card" aria-labelledby="areaStatusTitle">
+          <div class="card-head"><h2 id="areaStatusTitle">Service status</h2><a class="small" href="#areas">Update</a></div>
+          <div class="tiles" style="grid-template-columns:repeat(3,1fr)">
+            ${Object.keys(AREA_STATUS).map((k) => `<div>${badge(k, AREA_STATUS)}<span class="tile-num" style="font-size:1.6rem">${fmtNum(stats.areaStatus[k])}</span><span class="tile-note">areas</span></div>`).join('')}
+          </div>
+        </section>
+        ${isAdmin() ? `<section class="card" aria-labelledby="actTitle"><div class="card-head"><h2 id="actTitle">Recent activity</h2></div>
+          ${stats.activity.length ? `<ul class="activity">${stats.activity.map((a) => `<li><span><strong>${esc(a.actor_email)}</strong> ${esc(describeAction(a))}</span><span class="muted small" title="${esc(fmtDate(a.created_at))}">${esc(ago(a.created_at))}</span></li>`).join('')}</ul>` : '<p class="empty">No staff activity yet.</p>'}
+        </section>` : `<section class="card"><div class="card-head"><h2>Your queue</h2></div>
+          <p>${t.mine ? `You have <strong>${fmtNum(t.mine)}</strong> open report${t.mine === 1 ? '' : 's'} assigned to you.` : 'Nothing is assigned to you right now.'}</p>
+          <a class="btn btn-secondary" href="#outages">Open outage reports</a></section>`}
+      </div>
+    </div>`
+
+  wireTips(view, (ci, i) => {
+    // Chart order in the DOM: daily first, then area (if present).
+    if (ci === 0) return `${esc(daily[i].long)} · <strong>${daily[i].value}</strong> report${daily[i].value === 1 ? '' : 's'}`
+    return `${esc(areaRows[i].label)} · <strong>${areaRows[i].value}</strong> open`
+  })
+  $('#refreshBtn').addEventListener('click', () => route())
+}
+
+function describeAction(a) {
+  if (a.action === 'outage.update') return `updated outage report #${a.entity_id}`
+  if (a.action === 'area.update') return `updated ${areaName(a.entity_id) || a.entity_id}`
+  if (a.action === 'user.role') return 'changed a user role'
+  return a.action
+}
+
+const areaName = (id) => state.areas.find((a) => a.id === id)?.name ?? ''
+const areaBadge = (id) => { const a = state.areas.find((x) => x.id === id); return a ? badge(a.status, AREA_STATUS) : '' }
+const areaOptions = (selected, blank = 'Choose an area') =>
+  `<option value="">${esc(blank)}</option>${state.areas.map((a) => `<option value="${esc(a.id)}"${a.id === selected ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}`
+
+function reportTable(rows, staff) {
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>Ticket</th><th>Where</th><th>What</th><th>Status</th>${staff ? '<th>Assignee</th>' : ''}<th>Reported</th></tr></thead>
+    <tbody>${rows.map((r) => `<tr class="clickable" tabindex="0" data-report="${r.id}">
+      <td class="mono">${esc(r.ticket_no)}</td>
+      <td><strong>${esc(r.barangay)}</strong><br><span class="small muted">${esc(r.area_name)}</span></td>
+      <td>${esc(r.observation)}</td>
+      <td>${badge(r.status, REPORT_STATUS)}</td>
+      ${staff ? `<td>${r.assigned_to ? esc(r.assignee_name || r.assignee_email) : '<span class="muted">Unassigned</span>'}</td>` : ''}
+      <td class="small" title="${esc(fmtDate(r.created_at))}">${esc(ago(r.created_at))}</td>
+    </tr>`).join('')}</tbody></table></div>`
+}
+
+function bindReportRows(root, onChange) {
+  $$('[data-report]', root).forEach((tr) => {
+    const open = () => openReport(Number(tr.dataset.report), onChange)
+    tr.addEventListener('click', open)
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } })
+  })
+}
+
+async function outages(view) {
+  const staff = isStaff()
+  view.innerHTML = `${head('Outage reports', staff ? 'Triage, assign and resolve reports from every island.' : 'Report an outage and follow its progress.')}
+    <div class="stack">
+      ${staff ? '' : `<section class="card" aria-labelledby="newTitle"><div class="card-head"><h2 id="newTitle">Report an outage</h2></div>${reportForm()}</section>`}
+      <section aria-labelledby="listTitle">
+        <h2 id="listTitle" class="visually-hidden">Reports</h2>
+        <form class="filters" id="filters">
+          <div class="field"><label for="fStatus">Status</label><select class="input" id="fStatus"><option value="">Any status</option>${Object.entries(REPORT_STATUS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+          ${staff ? `<div class="field"><label for="fArea">Area</label><select class="input" id="fArea">${areaOptions('', 'All areas')}</select></div>
+          <label class="check"><input type="checkbox" id="fMine"> Assigned to me</label>` : ''}
+        </form>
+        <div id="list"><p class="loading">Loading…</p></div>
+      </section>
+    </div>`
+
+  const load = async () => {
+    const q = new URLSearchParams()
+    if (!staff) q.set('scope', 'mine')
+    if ($('#fStatus').value) q.set('status', $('#fStatus').value)
+    if (staff && $('#fArea').value) q.set('area', $('#fArea').value)
+    if (staff && $('#fMine').checked) q.set('assigned', 'me')
+    const { reports } = await api(`/api/outages?${q}`)
+    const list = $('#list')
+    list.innerHTML = reports.length ? reportTable(reports, staff) : '<div class="card empty">No reports match these filters.</div>'
+    bindReportRows(list, load)
+  }
+  $$('#filters select, #filters input').forEach((el) => el.addEventListener('change', load))
+  if (!staff) bindReportForm(view, load)
+  await load()
+}
+
+function reportForm() {
+  const mine = state.profile?.area_id ?? ''
+  return `<form id="reportForm" novalidate>
+    <p class="small muted">Keep away from fallen lines. Your report goes to the cooperative's outage desk.</p>
+    <div class="grid-2">
+      <div class="field"><label for="rArea">Island area</label><select class="input" id="rArea" required>${areaOptions(mine)}</select></div>
+      <div class="field"><label for="rBrgy">Barangay</label><span id="rBrgyWrap"></span></div>
+      <div class="field"><label for="rObs">What do you see?</label><select class="input" id="rObs" required><option value="">Choose one</option>${OBSERVATIONS.map((o) => `<option>${esc(o)}</option>`).join('')}</select></div>
+      <div class="field"><label for="rPhone">Phone for follow-up <span class="muted small">(optional)</span></label><input class="input" id="rPhone" inputmode="tel" autocomplete="tel" value="${esc(state.profile?.phone ?? '')}"></div>
+    </div>
+    <div class="field"><label for="rLandmark">Nearby landmark <span class="muted small">(optional)</span></label><input class="input" id="rLandmark" maxlength="200"></div>
+    <button class="btn btn-primary" type="submit">Send report</button>
+    <p class="msg" aria-live="polite"></p>
+  </form>`
+}
+
+function bindReportForm(root, onDone) {
+  const form = $('#reportForm', root)
+  const renderBrgy = () => {
+    const area = state.areas.find((a) => a.id === $('#rArea').value)
+    $('#rBrgyWrap').innerHTML = area?.barangays?.length
+      ? `<select class="input" id="rBrgy" required><option value="">Choose a barangay</option>${area.barangays.map((b) => `<option>${esc(b)}</option>`).join('')}</select>`
+      : '<input class="input" id="rBrgy" maxlength="80" required>'
+  }
+  $('#rArea').addEventListener('change', renderBrgy)
+  renderBrgy()
+  form.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', form)
+    const body = {
+      area_id: $('#rArea').value, barangay: $('#rBrgy').value.trim(), observation: $('#rObs').value,
+      phone: $('#rPhone').value.trim(), landmark: $('#rLandmark').value.trim(),
+    }
+    if (!body.area_id || !body.barangay || !body.observation) return setMsg(msg, 'Choose the area, barangay and what you see.')
+    busy($('button[type=submit]', form), async () => {
+      try {
+        const { report } = await api('/api/outages', { method: 'POST', body })
+        form.reset(); renderBrgy()
+        setMsg(msg, `Report ${report.ticket_no} received. You can follow it below.`, 'ok')
+        await onDone()
+      } catch (err) { setMsg(msg, err.message) }
+    })
+  })
+}
+
+// ---------- Dialog ----------
+const dlg = $('#dlg')
+$('#dlgClose').addEventListener('click', () => dlg.close())
+dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close() })
+function openDialog(title, html) {
+  $('#dlgTitle').textContent = title
+  $('#dlgBody').innerHTML = html
+  if (!dlg.open) dlg.showModal()
+  return $('#dlgBody')
+}
+
+async function openReport(id, onChange) {
+  const staff = isStaff()
+  openDialog('Outage report', '<p class="loading">Loading…</p>')
+  const [{ report, updates }, team] = await Promise.all([
+    api(`/api/outages/${id}`),
+    staff ? (state.team ? Promise.resolve(state.team) : api('/api/team').then((d) => (state.team = d.team))) : Promise.resolve([]),
+  ]).catch((err) => { $('#dlgBody').innerHTML = `<p class="msg err">${esc(err.message)}</p>`; throw err })
+
+  const body = openDialog(`Report ${report.ticket_no}`, `
+    <dl class="facts">
+      <dt>Status</dt><dd>${badge(report.status, REPORT_STATUS)}</dd>
+      <dt>Where</dt><dd>${esc(report.barangay)}, ${esc(report.area_name)}${report.landmark ? `<br><span class="small muted">Near ${esc(report.landmark)}</span>` : ''}</dd>
+      <dt>What</dt><dd>${esc(report.observation)}</dd>
+      ${staff ? `<dt>Reporter</dt><dd>${esc(report.reporter_email || 'Not signed in')}${report.phone ? ` · <a href="tel:${esc(report.phone)}">${esc(report.phone)}</a>` : ''}</dd>` : ''}
+      <dt>Reported</dt><dd>${esc(fmtDate(report.created_at))}</dd>
+    </dl>
+    ${staff ? `<form id="updForm" class="card" style="padding:16px;margin-bottom:18px" novalidate>
+      <h3 style="margin-bottom:12px">Update this report</h3>
+      <div class="grid-2">
+        <div class="field"><label for="uStatus">Status</label><select class="input" id="uStatus">${Object.entries(REPORT_STATUS).map(([k, v]) => `<option value="${k}"${k === report.status ? ' selected' : ''}>${v}</option>`).join('')}</select></div>
+        <div class="field"><label for="uAssign">Assignee</label><select class="input" id="uAssign"><option value="">Unassigned</option>${team.map((m) => `<option value="${esc(m.id)}"${m.id === report.assigned_to ? ' selected' : ''}>${esc(m.full_name || m.email)}${m.id === state.session.id ? ' (you)' : ''}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label for="uNote">Note for the timeline <span class="muted small">(the reporter can see this)</span></label><textarea class="input" id="uNote" maxlength="1000"></textarea></div>
+      <button class="btn btn-primary" type="submit">Save update</button>
+      <p class="msg" aria-live="polite"></p>
+    </form>` : ''}
+    <h3 style="margin-bottom:12px">Timeline</h3>
+    <ol class="timeline">${updates.map((u) => `<li><div>${badge(u.status, REPORT_STATUS)} <span class="small muted">${esc(fmtDate(u.created_at))}${u.author_name && u.author_role !== 'member' ? ` · ${esc(u.author_name)}` : ''}</span></div>${u.note ? `<p style="margin:6px 0 0">${esc(u.note)}</p>` : ''}</li>`).join('')}</ol>`)
+
+  if (!staff) return
+  $('#updForm', body).addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', e.target)
+    const payload = { status: $('#uStatus').value, note: $('#uNote').value.trim() }
+    if (($('#uAssign').value || null) !== (report.assigned_to || null)) payload.assigned_to = $('#uAssign').value
+    busy($('button[type=submit]', e.target), async () => {
+      try {
+        await api(`/api/outages/${id}`, { method: 'PATCH', body: payload })
+        await openReport(id, onChange)
+        onChange?.()
+      } catch (err) { setMsg(msg, err.message) }
+    })
+  })
+}
+
+// ---------- Service areas ----------
+async function areasView(view) {
+  const { areas } = await api('/api/areas')
+  state.areas = areas
+  view.innerHTML = `${head('Service areas', 'Status, hours and notices shown to members for each island.')}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Area</th><th>Status</th><th>Hours</th><th class="num">Rate / kWh</th><th>Notice</th><th>Updated</th><th><span class="visually-hidden">Edit</span></th></tr></thead>
+      <tbody>${areas.map((a) => `<tr>
+        <td><strong>${esc(a.name)}</strong><br><span class="small muted">${esc(a.source)}</span></td>
+        <td>${badge(a.status, AREA_STATUS)}</td>
+        <td>${esc(a.hours)}</td>
+        <td class="num">₱${Number(a.rate).toFixed(2)}</td>
+        <td class="small">${a.notice ? esc(a.notice) : '<span class="muted">None</span>'}</td>
+        <td class="small muted" title="${esc(fmtDate(a.updated_at))}">${esc(ago(a.updated_at))}</td>
+        <td><button class="btn btn-secondary btn-small" type="button" data-edit="${esc(a.id)}">Edit</button></td>
+      </tr>`).join('')}</tbody></table></div>`
+  $$('[data-edit]', view).forEach((b) => b.addEventListener('click', () => editArea(areas.find((a) => a.id === b.dataset.edit))))
+}
+
+function editArea(a) {
+  const body = openDialog(`Edit ${a.name}`, `<form id="areaForm" novalidate>
+    <div class="grid-2">
+      <div class="field"><label for="aStatus">Status</label><select class="input" id="aStatus">${Object.entries(AREA_STATUS).map(([k, v]) => `<option value="${k}"${k === a.status ? ' selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label for="aRate">Rate per kWh (₱)</label><input class="input" id="aRate" type="number" min="0" max="1000" step="0.01" value="${esc(a.rate)}"></div>
+      <div class="field"><label for="aHours">Service hours</label><input class="input" id="aHours" maxlength="120" value="${esc(a.hours)}"></div>
+      <div class="field"><label for="aSource">Power source</label><input class="input" id="aSource" maxlength="200" value="${esc(a.source)}"></div>
+    </div>
+    <div class="field"><label for="aOffice">Office</label><input class="input" id="aOffice" maxlength="200" value="${esc(a.office)}"></div>
+    <div class="field"><label for="aNotice">Notice for members <span class="muted small">(optional)</span></label><textarea class="input" id="aNotice" maxlength="300">${esc(a.notice ?? '')}</textarea></div>
+    <button class="btn btn-primary" type="submit">Save changes</button>
+    <p class="msg" aria-live="polite"></p>
+  </form>`)
+  $('#areaForm', body).addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', e.target)
+    const payload = {
+      status: $('#aStatus').value, rate: Number($('#aRate').value), hours: $('#aHours').value,
+      source: $('#aSource').value, office: $('#aOffice').value, notice: $('#aNotice').value,
+    }
+    busy($('button[type=submit]', e.target), async () => {
+      try { await api(`/api/areas/${encodeURIComponent(a.id)}`, { method: 'PATCH', body: payload }); dlg.close(); route() } catch (err) { setMsg(msg, err.message) }
+    })
+  })
+}
+
+// ---------- People (admin) ----------
+async function people(view) {
+  const { users } = await api('/api/users')
+  const counts = users.reduce((m, u) => ({ ...m, [u.role]: (m[u.role] ?? 0) + 1 }), {})
+  view.innerHTML = `${head('People', 'Everyone who has signed in. Grant staff access to crew and office teams.')}
+    <div class="tiles" style="margin-bottom:20px">
+      ${Object.keys(ROLE_LABEL).map((r) => `<div class="tile"><span class="tile-label">${ROLE_LABEL[r]}s</span><span class="tile-num">${fmtNum(counts[r])}</span></div>`).join('')}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Name</th><th>Area</th><th class="num">Reports</th><th>Last seen</th><th>Role</th></tr></thead>
+      <tbody>${users.map((u) => `<tr>
+        <td><strong>${esc(u.full_name || '—')}</strong><br><span class="small muted">${esc(u.email)}</span></td>
+        <td>${esc(u.area_name || '—')}</td>
+        <td class="num">${fmtNum(u.reports)}</td>
+        <td class="small muted" title="${esc(fmtDate(u.last_seen_at))}">${esc(ago(u.last_seen_at))}</td>
+        <td>${u.id === state.session.id ? badge(u.role, ROLE_LABEL) + ' <span class="small muted">(you)</span>'
+          : `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
+             <select class="input" style="min-height:36px;width:auto" id="role-${esc(u.id)}" data-user="${esc(u.id)}" data-was="${esc(u.role)}">
+               ${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}"${k === u.role ? ' selected' : ''}>${v}</option>`).join('')}</select>`}
+          <span class="small" data-role-msg="${esc(u.id)}" aria-live="polite"></span></td>
+      </tr>`).join('')}</tbody></table></div>
+    <p class="small muted" style="margin-top:12px">Role changes take effect the next time that person's session refreshes, usually within an hour.</p>`
+
+  $$('[data-user]', view).forEach((sel) => sel.addEventListener('change', async () => {
+    const out = $(`[data-role-msg="${CSS.escape(sel.dataset.user)}"]`, view)
+    sel.disabled = true
+    try {
+      await api(`/api/users/${encodeURIComponent(sel.dataset.user)}`, { method: 'PATCH', body: { role: sel.value } })
+      sel.dataset.was = sel.value
+      out.textContent = 'Saved'; out.style.color = 'var(--ok)'
+      state.team = null
+    } catch (err) {
+      sel.value = sel.dataset.was
+      out.textContent = err.message; out.style.color = 'var(--err)'
+    } finally { sel.disabled = false }
+  }))
+}
+
+// ---------- Profile ----------
+async function profileView(view) {
+  const p = state.profile
+  view.innerHTML = `${head('My profile', 'Used to prefill outage reports and show service news for your island.')}
+    <section class="card" style="max-width:640px">
+      <form id="profileForm" novalidate>
+        <div class="field"><label>Email</label><div>${esc(p.email)} ${badge(p.role, ROLE_LABEL)}</div></div>
+        <div class="grid-2">
+          <div class="field"><label for="pName">Full name</label><input class="input" id="pName" maxlength="120" autocomplete="name" value="${esc(p.full_name ?? '')}"></div>
+          <div class="field"><label for="pPhone">Phone</label><input class="input" id="pPhone" maxlength="30" inputmode="tel" autocomplete="tel" value="${esc(p.phone ?? '')}"></div>
+        </div>
+        <div class="field"><label for="pArea">Island area</label><select class="input" id="pArea">${areaOptions(p.area_id, 'Not set')}</select></div>
+        <button class="btn btn-primary" type="submit">Save profile</button>
+        <p class="msg" aria-live="polite"></p>
+      </form>
+      <p class="small muted" style="margin:8px 0 0">Member since ${esc(new Date(p.created_at).toLocaleDateString('en-PH', { dateStyle: 'long' }))}</p>
+    </section>`
+  $('#profileForm').addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', e.target)
+    busy($('button[type=submit]', e.target), async () => {
+      try {
+        const { profile } = await api('/api/me', { method: 'PATCH', body: { full_name: $('#pName').value, phone: $('#pPhone').value, area_id: $('#pArea').value } })
+        state.profile = profile
+        renderWho()
+        setMsg(msg, 'Profile saved.', 'ok')
+      } catch (err) { setMsg(msg, err.message) }
+    })
+  })
+}
+
+// ---------- Boot ----------
+function renderWho() {
+  const p = state.profile
+  $('#whoName').textContent = p.full_name || p.email
+  const r = $('#whoRole')
+  r.className = `badge b-${p.role}`
+  r.textContent = ROLE_LABEL[p.role]
+  $('#who').hidden = false
+}
+
+async function start() {
+  const user = await getUser()
+  if (!user) return showAuth()
+  try {
+    const [{ profile }, { areas }] = await Promise.all([api('/api/me'), api('/api/areas')])
+    state.profile = profile
+    state.areas = areas
+    state.session = { id: profile.id, email: profile.email, role: profile.role }
+  } catch (err) {
+    if (!state.session) return
+    throw err
+  }
+  $$('#sideNav [data-role]').forEach((a) => { a.hidden = a.dataset.role === 'admin' ? !isAdmin() : !isStaff() })
+  renderWho()
+  $('#loading').hidden = true
+  $('#auth').hidden = true
+  $('#app').hidden = false
+  route()
+}
+
+async function boot() {
+  try {
+    const result = await handleAuthCallback()
+    if (result?.type === 'recovery') {
+      showAuth('setpw')
+      $('#setPwIntro').textContent = 'Choose a new password for your account.'
+      return
+    }
+    if (result?.type === 'invite') {
+      inviteToken = result.token
+      showAuth('setpw')
+      $('#setPwIntro').textContent = 'Welcome! Choose a password to finish setting up your account.'
+      return
+    }
+  } catch (err) {
+    showAuth()
+    setMsg($('#loginForm .msg'), authMessage(err))
+    return
+  }
+  await start()
+}
+
+boot().catch((err) => {
+  $('#loading').textContent = err.message || 'Could not load the dashboard.'
+})

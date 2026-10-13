@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard | E-TAWELCO Tawi-Tawi</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#BC1730">
+<link rel="icon" type="image/png" href="/assets/tawelco-seal-transparent.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  // Apply the theme chosen on the public site before first paint.
+  try { var t = localStorage.getItem('kt-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<style>
+:root{
+  --brand:#BC1730; --brand-fill:#BC1730; --brand-hover:#981126; --sun:#F2A516;
+  --foam:#F7F7F6; --card:#FFFFFF; --ink:#292C31; --muted:#60636A; --line:#E0E1E3; --soft:#F2F2F1;
+  --tint:rgba(188,23,48,.06); --err:#A83A22; --ok:#2E6B1F;
+  --series-1:#2a78d6; --grid:#E8E8E6;
+  --font-head:"Manrope",system-ui,sans-serif; --font-body:"Source Sans 3",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    --foam:#141619; --card:#1E2125; --ink:#F2F2F3; --muted:#B8BEC5; --line:#363B42; --soft:#23272C;
+    --brand:#FF8999; --tint:rgba(255,137,153,.09); --err:#F0A08F; --ok:#8FD07A; --series-1:#3987e5; --grid:#2C3036; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --foam:#141619; --card:#1E2125; --ink:#F2F2F3; --muted:#B8BEC5; --line:#363B42; --soft:#23272C;
+  --brand:#FF8999; --tint:rgba(255,137,153,.09); --err:#F0A08F; --ok:#8FD07A; --series-1:#3987e5; --grid:#2C3036; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--foam);color:var(--ink);font-family:var(--font-body);font-size:1.0625rem;line-height:1.5;min-height:100vh}
+h1,h2,h3{font-family:var(--font-head);line-height:1.15;margin:0;letter-spacing:-.03em}
+h1{font-size:clamp(1.7rem,3vw,2.2rem);font-weight:600}
+h2{font-size:1.2rem;font-weight:700}
+h3{font-size:1rem;font-weight:700}
+p{margin:0 0 12px}
+a{color:var(--brand);text-underline-offset:3px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+[hidden]{display:none!important}
+.muted{color:var(--muted)}
+.small{font-size:.88rem}
+.visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Buttons and fields (match the public site) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:5px;font-weight:700;
+  text-decoration:none;cursor:pointer;border:2px solid transparent;line-height:1.2;background:none}
+.btn:disabled{opacity:.6;cursor:progress}
+.btn-primary{background:var(--brand-fill);color:#fff}
+.btn-primary:hover{background:var(--brand-hover)}
+.btn-secondary{border-color:var(--line);color:var(--ink);background:var(--card)}
+.btn-secondary:hover{border-color:var(--brand)}
+.btn-small{min-height:36px;padding:0 12px;font-size:.92rem}
+.link-btn{background:none;border:0;padding:0;color:var(--brand);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.field{display:grid;gap:6px;margin-bottom:14px}
+.field label{font-weight:700;font-size:.95rem}
+.input{min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);padding:0 12px;width:100%}
+textarea.input{padding:10px 12px;min-height:90px;resize:vertical}
+.input:focus-visible{border-color:var(--brand)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.msg{font-weight:700;margin:10px 0 0;min-height:1.5em}
+.msg.err{color:var(--err)}
+.msg.ok{color:var(--ok)}
+
+/* Top bar */
+.topbar{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.topbar-in{display:flex;align-items:center;gap:16px;min-height:64px;padding:0 24px;max-width:1400px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--brand);font-family:var(--font-head);font-weight:800;font-size:1.1rem;letter-spacing:-.04em;margin-right:auto}
+.logo img{width:36px;height:36px}
+.logo small{display:block;font-size:.72rem;font-weight:600;color:var(--muted);letter-spacing:0}
+.who{display:flex;align-items:center;gap:12px;font-size:.92rem}
+.who-name{font-weight:700;max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Shell */
+.shell{display:grid;grid-template-columns:220px 1fr;gap:32px;max-width:1400px;margin:0 auto;padding:28px 24px 64px}
+.side nav{display:grid;gap:4px;position:sticky;top:92px}
+.side a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;text-decoration:none;color:var(--ink);font-weight:600}
+.side a:hover{background:var(--tint)}
+.side a[aria-current="page"]{background:var(--tint);color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.page-head p{margin:6px 0 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:22px}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.stack{display:grid;gap:20px}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+
+/* Stat tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px 20px}
+.tile-label{font-size:.88rem;color:var(--muted);font-weight:600}
+.tile-num{display:block;font-family:var(--font-head);font-weight:800;font-size:2.1rem;line-height:1.1;margin-top:6px;font-variant-numeric:tabular-nums}
+.tile-unit{font-size:1rem;font-weight:600;color:var(--muted);margin-left:4px}
+.tile-note{font-size:.82rem;color:var(--muted);margin-top:2px}
+.tile.accent{border-top:3px solid var(--brand)}
+
+/* Status pipeline */
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;border-radius:6px;overflow:hidden;background:var(--line)}
+.pipe{background:var(--card);padding:14px 16px}
+.pipe strong{display:block;font-family:var(--font-head);font-size:1.6rem;font-variant-numeric:tabular-nums}
+
+/* Badges: status always carries a text label */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-weight:700;font-size:.82rem;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.b-received{background:#FDEBD9;color:#7A3A00}
+.b-assigned{background:#E1ECFA;color:#1C4F8E}
+.b-in_progress{background:#FDF1C9;color:#5B4300}
+.b-resolved{background:#E2F0DC;color:#285A1B}
+.b-steady{background:#E2F0DC;color:#285A1B}
+.b-limited{background:#FDF1C9;color:#5B4300}
+.b-outage{background:#F7D9D2;color:#7A2314}
+.b-member{background:var(--soft);color:var(--muted)}
+.b-staff{background:#E1ECFA;color:#1C4F8E}
+.b-admin{background:#F7D9D2;color:#7A2314}
+.badge.b-member::before,.badge.b-staff::before,.badge.b-admin::before{display:none}
+
+/* Charts */
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .axis text{fill:var(--muted);font-size:11px;font-family:var(--font-body)}
+.chart .gridline{stroke:var(--grid);stroke-width:1}
+.chart .baseline{stroke:var(--line);stroke-width:1}
+.chart .bar{fill:var(--series-1)}
+.chart .hit{fill:transparent;cursor:default}
+.chart .hit:hover + .bar,.chart .bar.on{opacity:.8}
+.chart .val{fill:var(--ink);font-size:12px;font-weight:700;font-family:var(--font-body);font-variant-numeric:tabular-nums}
+.chart .lbl{fill:var(--ink);font-size:12.5px;font-family:var(--font-body)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--card);padding:6px 10px;border-radius:6px;font-size:.85rem;
+  white-space:nowrap;transform:translate(-50%,calc(-100% - 8px));z-index:5}
+.tip strong{font-variant-numeric:tabular-nums}
+details.as-table{margin-top:12px;font-size:.9rem}
+details.as-table summary{cursor:pointer;color:var(--muted);font-weight:600}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+
+/* Tables */
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;background:var(--soft)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:var(--tint)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88rem}
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:16px}
+.filters .field{margin:0;min-width:160px}
+.check{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:600}
+.check input{width:18px;height:18px;accent-color:var(--brand-fill)}
+
+/* Timeline + activity */
+.timeline{list-style:none;margin:0;padding:0}
+.timeline li{position:relative;padding:0 0 16px 22px;border-left:2px solid var(--line);margin-left:6px}
+.timeline li:last-child{border-left-color:transparent}
+.timeline li::before{content:"";position:absolute;left:-7px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--card);border:2px solid var(--brand)}
+.activity{list-style:none;margin:0;padding:0}
+.activity li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.activity li:last-child{border-bottom:0}
+
+/* Dialog */
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);padding:0;width:min(640px,94vw);max-height:90vh}
+dialog::backdrop{background:rgba(10,12,14,.55)}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+.dlg-body{padding:20px 22px}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:0;border-radius:8px;background:none;cursor:pointer}
+.icon-btn:hover{background:var(--tint)}
+dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0 0 18px}
+dl.facts dt{color:var(--muted);font-weight:600}
+dl.facts dd{margin:0}
+
+/* Auth */
+.auth{max-width:440px;margin:56px auto;padding:0 20px}
+.auth .card{padding:28px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.tabs button{background:none;border:0;padding:10px 14px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--brand);border-bottom-color:var(--brand)}
+.loading{padding:80px 20px;text-align:center;color:var(--muted)}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:16px;padding-top:16px}
+  .side nav{position:static;display:flex;overflow-x:auto;gap:4px}
+  .side a{white-space:nowrap}
+  .side a[aria-current="page"]{box-shadow:inset 0 -3px 0 var(--brand)}
+  .cols{grid-template-columns:1fr}
+  .pipeline{grid-template-columns:repeat(2,1fr)}
+  .who-name{display:none}
+}
+@media (max-width:560px){ .grid-2{grid-template-columns:1fr} .topbar-in{padding:0 14px} }
+@media (forced-colors: active){ .chart .bar{fill:CanvasText} .badge{border:1px solid CanvasText} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.6-3.5 3-5 6-5s5.4 1.5 6 5M15 15.5c2.6 0 4.5 1.3 5 4.5"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="/"><img src="/assets/tawelco-seal-transparent.png" alt="" width="36" height="36"><span>E-TAWELCO<small>Service dashboard</small></span></a>
+    <div class="who" id="who" hidden>
+      <span class="who-name" id="whoName"></span>
+      <span class="badge" id="whoRole"></span>
+      <button class="btn btn-secondary btn-small" id="logoutBtn" type="button">Log out</button>
+    </div>
+  </div>
+</header>
+
+<div id="loading" class="loading" aria-live="polite">Loading your dashboard…</div>
+
+<!-- Signed-out view -->
+<main id="auth" class="auth" hidden>
+  <div class="card">
+    <h1 style="font-size:1.6rem;margin-bottom:6px">Member dashboard</h1>
+    <p class="muted small" style="margin-bottom:20px">Follow outage reports and manage your details. Staff and admins use the same log-in.</p>
+    <div class="tabs" role="tablist" id="authTabs">
+      <button role="tab" type="button" data-tab="login" aria-selected="true">Log in</button>
+      <button role="tab" type="button" data-tab="signup" aria-selected="false">Create account</button>
+    </div>
+
+    <form id="loginForm" data-panel="login" novalidate>
+      <div class="field"><label for="lEmail">Email</label><input class="input" id="lEmail" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="lPw">Password</label><input class="input" id="lPw" type="password" autocomplete="current-password" required></div>
+      <button class="btn btn-primary" type="submit" style="width:100%">Log in</button>
+      <p style="margin:14px 0 0" class="small"><button class="link-btn" type="button" data-tab-go="forgot">Forgot your password?</button></p>
+      <p class="msg" aria-live="polite"></p>
+    </form>
+
+    <form id="signupForm" data-panel="signup" novalidate hidden>
+      <div class="field"><label for="sName">Full name</label><input class="input" id="sName" autocomplete="name" required></div>
+      <div class="field"><label for="sEmail">Email</label><input class="input" id="sEmail" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="sPw">Password</label><input class="input" id="sPw" type="password" autocomplete="new-password" minlength="8" required><span class="small muted">At least 8 characters.</span></div>
+      <button class="btn btn-primary" type="submit" style="width:100%">Create account</button>
+      <p class="msg" aria-live="polite"></p>
+    </form>
+
+    <form id="forgotForm" data-panel="forgot" novalidate hidden>
+      <p class="small">Enter your email and we'll send a link to set a new password.</p>
+      <div class="field"><label for="fEmail">Email</label><input class="input" id="fEmail" type="email" autocomplete="email" required></div>
+      <button class="btn btn-primary" type="submit" style="width:100%">Send reset link</button>
+      <p style="margin:14px 0 0" class="small"><button class="link-btn" type="button" data-tab-go="login">Back to log in</button></p>
+      <p class="msg" aria-live="polite"></p>
+    </form>
+
+    <form id="setPwForm" data-panel="setpw" novalidate hidden>
+      <p class="small" id="setPwIntro">Choose a new password for your account.</p>
+      <div class="field"><label for="nPw">New password</label><input class="input" id="nPw" type="password" autocomplete="new-password" minlength="8" required></div>
+      <button class="btn btn-primary" type="submit" style="width:100%">Save password</button>
+      <p class="msg" aria-live="polite"></p>
+    </form>
+  </div>
+</main>
+
+<!-- Signed-in view -->
+<div id="app" class="shell" hidden>
+  <aside class="side">
+    <nav aria-label="Dashboard" id="sideNav">
+      <a href="#overview" data-view="overview"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Overview</a>
+      <a href="#outages" data-view="outages"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>Outage reports</a>
+      <a href="#areas" data-view="areas" data-role="staff"><svg class="icon" aria-hidden="true"><use href="#i-map"/></svg>Service areas</a>
+      <a href="#people" data-view="people" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-people"/></svg>People</a>
+      <a href="#profile" data-view="profile"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg>My profile</a>
+    </nav>
+  </aside>
+  <main id="view" tabindex="-1" aria-live="polite"></main>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg-head">
+    <h2 id="dlgTitle"></h2>
+    <button class="icon-btn" type="button" id="dlgClose" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+  </div>
+  <div class="dlg-body" id="dlgBody"></div>
+</dialog>
+
+<script type="module" src="/dashboard/app.js"></script>
+</body>
+</html>
