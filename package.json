@@ -8,5 +8,11 @@
     "@netlify/database": "^2.0.1",
     "@netlify/functions": "^6.0.2",
     "@netlify/identity": "^2.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
+  },
+  "scripts": {
+    "build": "esbuild src/dashboard/main.js --bundle --format=esm --minify --target=es2020 --outfile=dashboard/app.js"
   }
 }
