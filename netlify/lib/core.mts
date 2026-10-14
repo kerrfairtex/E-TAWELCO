@@ -1,5 +1,6 @@
 import { getDatabase } from '@netlify/database'
-import { getUser, verifyRequestOrigin, type User } from '@netlify/identity'
+import { verifyRequestOrigin } from '@netlify/identity'
+import { createClient } from '@supabase/supabase-js'
 
 export type Role = 'member' | 'staff' | 'admin'
 export const ROLES: Role[] = ['member', 'staff', 'admin']
@@ -18,38 +19,39 @@ const responseHeaders = { 'Cache-Control': 'no-store' }
 export const json = (data: unknown, status = 200) => Response.json(data, { status, headers: responseHeaders })
 export const fail = (error: string, status = 400) => Response.json({ error }, { status, headers: responseHeaders })
 
-// Roles live in app_metadata.roles (read by @netlify/identity) and app_metadata.authorization.roles
-// (this site's JWT roles path, read by the CDN for role-based redirects). Accept either.
-export function rolesOf(user: Pick<User, 'roles' | 'appMetadata'>): string[] {
-  const auth = (user.appMetadata?.authorization ?? {}) as { roles?: string[] }
-  return [...new Set([...(user.roles ?? []), ...(auth.roles ?? [])])]
-}
-
-export function primaryRole(roles: string[]): Role {
-  if (roles.includes('admin')) return 'admin'
-  if (roles.includes('staff')) return 'staff'
-  return 'member'
-}
-
 export function roleMetadata(appMetadata: Record<string, unknown> | undefined, role: Role) {
   const roles = [role]
   const authorization = { ...((appMetadata?.authorization as object) ?? {}), roles }
   return { ...(appMetadata ?? {}), roles, authorization }
 }
 
-// Returns the signed-in user (and keeps their profile row in sync), or null for visitors.
-export async function currentSession(): Promise<Session | null> {
-  const user = await getUser()
+// Supabase owns authentication and the role in public.profiles. Netlify Database
+// continues to store dashboard records, keyed by the same Supabase user id.
+export async function currentSession(req?: Request): Promise<Session | null> {
+  const authorization = req?.headers.get('authorization') ?? ''
+  const bearer = authorization.startsWith('Bearer ') ? authorization.slice(7) : ''
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+    process.env.SUPABASE_ANON_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY ?? '',
+    { global: { headers: bearer ? { Authorization: `Bearer ${bearer}` } : {} } },
+  )
+  const { data: authData } = await supabase.auth.getUser(bearer || undefined)
+  const user = authData.user
   if (!user) return null
-  const role = primaryRole(rolesOf(user))
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, full_name')
+    .eq('id', user.id)
+    .maybeSingle()
+  const role = profile?.role === 'admin' ? 'admin' : profile?.role === 'staff' ? 'staff' : 'member'
   const email = user.email ?? ''
   await db().sql`
     INSERT INTO profiles (identity_id, email, full_name, role)
-    VALUES (${user.id}, ${email}, ${user.name ?? null}, ${role})
+    VALUES (${user.id}, ${email}, ${profile?.full_name ?? user.user_metadata?.full_name ?? null}, ${role})
     ON CONFLICT (identity_id) DO UPDATE
       SET email = EXCLUDED.email, role = EXCLUDED.role,
-          full_name = COALESCE(profiles.full_name, EXCLUDED.full_name), last_seen_at = NOW()`
-  return { id: user.id, email, name: user.name ?? null, role }
+          full_name = COALESCE(EXCLUDED.full_name, profiles.full_name), last_seen_at = NOW()`
+  return { id: user.id, email, name: profile?.full_name ?? user.user_metadata?.full_name ?? null, role }
 }
 
 // Guards an endpoint: checks the request origin on writes, requires a session, and optionally a role.
@@ -61,7 +63,7 @@ export async function authorize(req: Request, roles?: Role[]): Promise<Session |
       return fail('Request origin not allowed', 403)
     }
   }
-  const session = await currentSession()
+  const session = await currentSession(req)
   if (!session) return fail('Please log in', 401)
   if (roles && !roles.includes(session.role)) return fail('You do not have access to this', 403)
   return session
