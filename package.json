@@ -13,6 +13,6 @@
     "esbuild": "^0.25.12"
   },
   "scripts": {
-    "build": "esbuild src/dashboard/main.js --bundle --format=esm --minify --target=es2020 --outfile=dashboard/app.js"
+    "build": "esbuild src/dashboard/main.js --bundle --format=esm --minify --target=es2020 --outfile=dashboard/app.js && rm -rf public && mkdir -p public/dashboard public/assets && cp index.html public/index.html && cp dashboard/index.html public/dashboard/index.html && cp dashboard/app.js public/dashboard/app.js && cp assets/* public/assets/"
   }
 }
