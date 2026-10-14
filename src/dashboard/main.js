@@ -96,10 +96,15 @@ function showAuth(tab = 'login') {
   showTab(tab)
 }
 
-$$('#authTabs [data-tab]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)))
-$$('[data-tab-go]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tabGo)))
-
-$('#loginForm').addEventListener('submit', (e) => {
+  $$('#authTabs [data-tab]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)))
+  $$('[data-tab-go]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tabGo)))
+  const loginIntent = new URLSearchParams(location.search).get('login')
+  if (loginIntent === 'admin' || loginIntent === 'member') {
+  showTab('login')
+  $('#lEmail').focus()
+  }
+  
+  $('#loginForm').addEventListener('submit', (e) => {
   e.preventDefault()
   const msg = $('.msg', e.target)
   const email = $('#lEmail').value.trim(), pw = $('#lPw').value
