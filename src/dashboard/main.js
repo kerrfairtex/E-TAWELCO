@@ -53,11 +53,14 @@ const isAdmin = () => state.session?.role === 'admin'
 
 // ---------- API ----------
 async function api(path, opts = {}) {
-  await refreshSession().catch(() => null)
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  const headers = new Headers(opts.body ? { 'Content-Type': 'application/json' } : undefined)
+  if (token) headers.set('Authorization', `Bearer ${token}`)
   const res = await fetch(path, {
     method: opts.method ?? 'GET',
     credentials: 'same-origin',
-    headers: opts.body ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   })
   const data = await res.json().catch(() => ({}))
