@@ -6,8 +6,8 @@ const supabase = createClient(
 )
 const identityForLogin = (value) => {
   const id = value.trim()
-  if (/^\\d{8}$/.test(id)) return `${id}@admin.tawelco.local`
-  if (/^\\d{11}$/.test(id)) return `${id}@member.tawelco.local`
+  if (/^\d{8}$/.test(id)) return `${id}@admin.tawelco.local`
+  if (/^\d{11}$/.test(id)) return `${id}@member.tawelco.local`
   return id
 }
 const authError = (error) => ({ status: error?.status, message: error?.message })
