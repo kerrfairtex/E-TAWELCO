@@ -101,6 +101,103 @@ async function outages(req: Request, client: ReturnType<typeof supabase>, id?: s
   if (req.method !== 'PATCH' || !staff) return fail('You do not have access to this', 403); const b = await body(req); const status = oneOf(b.status, statuses); if (!status) return fail('Unknown status'); const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() }; if (b.assigned_to !== undefined) { const assignee = text(b.assigned_to, 80); if (assignee) { const { data: member } = await client.from('profiles').select('id').eq('id', assignee).in('role', ['staff', 'admin']).maybeSingle(); if (!member) return fail('Assignee must be a staff member'); } patch.assigned_to = assignee || null } const { data: updated, error } = await client.from('outage_reports').update(patch).eq('id', id).select('id').maybeSingle(); if (error) throw error; if (!updated) return fail('Report not found', 404); await client.from('outage_updates').insert({ report_id: id, author_id: s.id, status, note: text(b.note, 1000) || null }); await audit(client, s, 'outage.update', 'outage_report', id, { status }); return json({ ok: true })
 }
 
+const payChannels = ['office', 'collector', 'mobile_wallet', 'bank'] as const
+const todayManila = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+const maskName = (name: string) => name.trim().split(/\s+/).map((p) => (p.length <= 1 ? p : p[0] + '*'.repeat(Math.min(p.length - 1, 6)))).join(' ')
+
+async function bills(req: Request, client: ReturnType<typeof supabase>, id?: string) {
+  const url = new URL(req.url)
+  const today = todayManila()
+
+  // Public lookup by account number. Only the masked name and bill figures are returned.
+  if (req.method === 'GET' && !id && url.searchParams.has('account_no')) {
+    const acct = text(url.searchParams.get('account_no'), 20).replace(/\s/g, '')
+    if (!/^\d{11}$/.test(acct)) return fail('Enter your 11-digit account number.')
+    const { data, error } = await client.from('bills').select('account_name,period,kwh,amount,due_date,status,paid_at,service_areas(name)').eq('account_no', acct).order('period', { ascending: false }).limit(12)
+    if (error) throw error
+    if (!data?.length) return fail('We could not find that account number. Check the number on the top right of your bill.', 404)
+    const list = data.map((b: any) => ({ period: b.period, kwh: Number(b.kwh), amount: Number(b.amount), due_date: b.due_date, status: b.status, paid_at: b.paid_at, overdue: b.status === 'unpaid' && b.due_date < today }))
+    const unpaid = list.filter((b) => b.status === 'unpaid')
+    return json({
+      account: { masked_no: `*******${acct.slice(-4)}`, name: maskName(String((data[0] as any).account_name)), area: (data[0] as any).service_areas?.name ?? null },
+      total_due: Math.round(unpaid.reduce((sum, b) => sum + b.amount, 0) * 100) / 100,
+      has_overdue: unpaid.some((b) => b.overdue),
+      bills: list,
+    })
+  }
+
+  const s = await authorize(req, ['admin']); if (s instanceof Response) return s
+
+  if (req.method === 'GET' && !id) {
+    const status = text(url.searchParams.get('status'), 10)
+    const q = text(url.searchParams.get('q'), 40).replace(/[^\p{L}\p{N} ]/gu, '')
+    let query = client.from('bills').select('*,service_areas(name)').order('due_date', { ascending: false }).order('id', { ascending: false }).limit(300)
+    if (status === 'paid') query = query.eq('status', 'paid')
+    else if (status === 'unpaid') query = query.eq('status', 'unpaid')
+    else if (status === 'overdue') query = query.eq('status', 'unpaid').lt('due_date', today)
+    if (q) query = query.or(`account_no.ilike.${q}%,account_name.ilike.%${q}%`)
+    const [rows, all] = await Promise.all([query, client.from('bills').select('status,amount,due_date,paid_at').limit(5000)])
+    if (rows.error) throw rows.error
+    if (all.error) throw all.error
+    const month = today.slice(0, 7)
+    const summary = { unpaid_count: 0, unpaid_total: 0, overdue_count: 0, overdue_total: 0, collected_month: 0 }
+    for (const b of all.data ?? []) {
+      const amount = Number(b.amount)
+      if (b.status === 'unpaid') {
+        summary.unpaid_count++; summary.unpaid_total += amount
+        if (b.due_date < today) { summary.overdue_count++; summary.overdue_total += amount }
+      } else if (b.paid_at && new Date(b.paid_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }).slice(0, 7) === month) summary.collected_month += amount
+    }
+    const round = (n: number) => Math.round(n * 100) / 100
+    return json({
+      bills: (rows.data ?? []).map((b: any) => ({ ...b, amount: Number(b.amount), kwh: Number(b.kwh), area_name: b.service_areas?.name ?? null, overdue: b.status === 'unpaid' && b.due_date < today })),
+      summary: { ...summary, unpaid_total: round(summary.unpaid_total), overdue_total: round(summary.overdue_total), collected_month: round(summary.collected_month) },
+    })
+  }
+
+  if (req.method === 'POST' && !id) {
+    const b = await body(req)
+    const accountNo = text(b.account_no, 20).replace(/\s/g, '')
+    const accountName = text(b.account_name, 120)
+    const period = text(b.period, 7)
+    const dueDate = text(b.due_date, 10)
+    const areaId = text(b.area_id, 40) || null
+    const amount = Number(b.amount), kwh = b.kwh === undefined || b.kwh === '' ? 0 : Number(b.kwh)
+    if (!/^\d{11}$/.test(accountNo)) return fail('Account number must be 11 digits')
+    if (!accountName) return fail('Enter the account holder name')
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return fail('Choose the billing month')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return fail('Choose a due date')
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000) return fail('Enter a valid amount')
+    if (!Number.isFinite(kwh) || kwh < 0 || kwh > 100_000) return fail('Enter valid kWh usage')
+    if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area')
+    const { data, error } = await client.from('bills').insert({ account_no: accountNo, account_name: accountName, area_id: areaId, period, kwh, amount: Math.round(amount * 100) / 100, due_date: dueDate, created_by: s.id }).select('id').single()
+    if (error) { if (error.code === '23505') return fail('A bill for this account and month already exists', 409); throw error }
+    await audit(client, s, 'bill.create', 'bill', data.id, { account_no: accountNo, period, amount })
+    return json({ ok: true, id: data.id }, 201)
+  }
+
+  if (req.method === 'PATCH' && id && /^\d+$/.test(id)) {
+    const b = await body(req)
+    const status = oneOf(b.status, ['unpaid', 'paid'] as const)
+    if (!status) return fail('Status must be unpaid or paid')
+    const { data: current } = await client.from('bills').select('id,account_no,period,status,amount').eq('id', id).maybeSingle()
+    if (!current) return fail('Bill not found', 404)
+    const now = new Date().toISOString()
+    let patch: Record<string, unknown>
+    if (status === 'paid') {
+      const channel = oneOf(b.paid_channel, payChannels)
+      if (!channel) return fail('Choose how the bill was paid')
+      patch = { status, paid_at: now, paid_channel: channel, payment_ref: text(b.payment_ref, 60) || null, recorded_by: s.id, updated_at: now }
+    } else patch = { status, paid_at: null, paid_channel: null, payment_ref: null, recorded_by: s.id, updated_at: now }
+    const { error } = await client.from('bills').update(patch).eq('id', id)
+    if (error) throw error
+    await audit(client, s, status === 'paid' ? 'bill.paid' : 'bill.reopen', 'bill', id, { account_no: current.account_no, period: current.period, from: current.status, to: status, channel: patch.paid_channel ?? null })
+    return json({ ok: true })
+  }
+
+  return fail('Method not allowed', 405)
+}
+
 async function login(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   const b = await body(req)
@@ -119,4 +216,4 @@ async function login(req: Request) {
   return json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token })
 }
 
-export default async function handler(req: Request) { try { if (pathParts(req)[1] === 'login') return await login(req); const { client, resource, id } = await handleApi(req); if (resource === 'areas') return await areas(req, client, id); if (resource === 'me') return await me(req, client); if (resource === 'team') return await team(req, client); if (resource === 'users') return await users(req, client, id); if (resource === 'stats') return await stats(req, client); if (resource === 'outages') return await outages(req, client, id); return fail('Not found', 404) } catch (error) { return internalError(error) } }
+export default async function handler(req: Request) { try { if (pathParts(req)[1] === 'login') return await login(req); const { client, resource, id } = await handleApi(req); if (resource === 'areas') return await areas(req, client, id); if (resource === 'me') return await me(req, client); if (resource === 'team') return await team(req, client); if (resource === 'users') return await users(req, client, id); if (resource === 'stats') return await stats(req, client); if (resource === 'outages') return await outages(req, client, id); if (resource === 'bills') return await bills(req, client, id); return fail('Not found', 404) } catch (error) { return internalError(error) } }

@@ -121,7 +121,14 @@ textarea.input{padding:10px 12px;min-height:90px;resize:vertical}
 .b-steady{background:#E2F0DC;color:#285A1B}
 .b-limited{background:#FDF1C9;color:#5B4300}
 .b-outage{background:#F7D9D2;color:#7A2314}
-.b-member{background:var(--soft);color:var(--muted)}
+ .b-unpaid{background:#FDF1C9;color:#5B4300}
+ .b-overdue{background:#F7D9D2;color:#7A2314}
+ .b-paid{background:#E2F0DC;color:#285A1B}
+ .bill-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+ .bill-stats .card{padding:14px 16px}
+ .bill-stats strong{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
+ @media (max-width:560px){.bill-stats{grid-template-columns:1fr}}
+ .b-member{background:var(--soft);color:var(--muted)}
 .b-staff{background:#E1ECFA;color:#1C4F8E}
 .b-admin{background:#F7D9D2;color:#7A2314}
 .badge.b-member::before,.badge.b-staff::before,.badge.b-admin::before{display:none}

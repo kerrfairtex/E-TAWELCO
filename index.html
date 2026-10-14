@@ -118,8 +118,10 @@ main:focus{outline:none}
 .pop-wrap{position:relative}
 .popover{position:absolute;right:0;top:calc(100% + 6px);width:min(340px,92vw);background:var(--card);color:var(--ink);border:1px solid var(--line);
   border-radius:20px;padding:20px;box-shadow:0 18px 40px rgba(6,30,36,.22);z-index:80;font-size:1rem}
-.popover[hidden]{display:none}
-.popover h2{font-size:1.25rem;margin-bottom:12px}
+  .popover[hidden]{display:none}
+  .popover{opacity:0;transform:translateY(-8px) scale(.98);transition:opacity .24s ease,transform .24s ease}
+  .popover.is-visible{opacity:1;transform:none}
+  .popover h2{font-size:1.25rem;margin-bottom:12px}
 .lang-list{display:grid;gap:8px}
 .lang-list button{justify-content:flex-start;width:100%}
 .switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;cursor:pointer;border:0;background:none;color:inherit;font-weight:600;border-radius:10px}
@@ -162,8 +164,9 @@ main:focus{outline:none}
 .feature-card p{margin:0;font-weight:700}
 
 /* Mobile drawer */
-.drawer{position:fixed;inset:0;z-index:90;background:var(--card);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
-.drawer[hidden]{display:none}
+  .drawer{position:fixed;inset:0;z-index:90;background:var(--card);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);opacity:0;transform:translateY(14px);visibility:hidden;transition:opacity .28s ease,transform .28s ease,visibility 0s linear .28s}
+  .drawer[hidden]{display:none}
+  .drawer.is-visible{opacity:1;transform:none;visibility:visible;transition-delay:0s}
 .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--line)}
 .drawer-body{flex:1;overflow-y:auto;padding:8px 20px 24px}
 .drawer-foot{padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
@@ -172,8 +175,9 @@ main:focus{outline:none}
   font-weight:700;font-size:1.05rem;cursor:pointer;color:var(--ink);text-align:left;padding:0}
 .acc-trigger .icon{transition:transform .2s}
 .acc-trigger[aria-expanded="true"] .icon{transform:rotate(180deg)}
-.acc-panel{padding:8px 0 12px}
-.acc-panel h3{font-family:var(--font-body);font-size:.95rem;color:var(--muted);margin:12px 0 4px}
+  .acc-panel{padding:8px 0 12px;opacity:0;transform:translateY(-6px);transition:opacity .24s ease,transform .24s ease}
+  .acc-panel.is-visible{opacity:1;transform:none}
+  .acc-panel h3{font-family:var(--font-body);font-size:.95rem;color:var(--muted);margin:12px 0 4px}
 .acc-panel a{display:flex;align-items:center;min-height:44px;color:var(--ink);text-decoration:none;font-weight:var(--menu-weight)}
 
 /* Search overlay */
@@ -279,7 +283,8 @@ input[type=range]{width:100%;min-height:44px;accent-color:var(--lagoon);margin:8
 .callout-btn .num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--lagoon);color:var(--card);font-size:.85rem;flex:none}
 .callout-btn .icon{margin-left:auto;transition:transform .2s}
 .callout-btn[aria-expanded="true"] .icon{transform:rotate(180deg)}
-.callout-panel{padding:10px 0 14px 40px;margin:0;color:var(--muted)}
+  .callout-panel{padding:10px 0 14px 40px;margin:0;color:var(--muted);opacity:0;transform:translateY(-6px);transition:opacity .24s ease,transform .24s ease}
+  .callout-panel.is-visible{opacity:1;transform:none}
 
 /* ---------- Stats ---------- */
 .stats{--on-sea-muted:#FFFFFF;background:var(--brand-fill);color:#fff;padding:64px 0 36px}
@@ -296,7 +301,22 @@ input[type=range]{width:100%;min-height:44px;accent-color:var(--lagoon);margin:8
 .channels li{display:flex;gap:16px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
 .channels li:first-child{border-top:1px solid var(--line)}
 .channels .ico{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;background:var(--tint);color:var(--lagoon);flex:none}
-.channels strong{display:block}
+ .channels strong{display:block}
+ .bill-result{margin-top:20px;border:1px solid var(--line);background:var(--card);padding:18px;opacity:0;transform:translateY(6px);transition:opacity .28s ease,transform .28s ease}
+ .bill-result.is-visible{opacity:1;transform:none}
+ .bill-result[hidden]{display:none}
+ .bill-who{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:14px}
+ .bill-due{font-size:2rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;margin:2px 0 6px}
+ .bill-flag{display:inline-block;padding:2px 8px;font-size:.8rem;font-weight:700;background:#F7D9D2;color:#7A2314}
+ .bill-flag.ok{background:#E2F0DC;color:#285A1B}
+ .bill-list{list-style:none;margin:16px 0 0;padding:0;font-size:.92rem}
+ .bill-list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+ .pay-choose{margin-top:16px;display:grid;gap:8px}
+ .pay-choose button{text-align:left;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;cursor:pointer;transition:border-color .18s ease,background-color .18s ease}
+ .pay-choose button:hover:not(:disabled),.pay-choose button[aria-pressed="true"]{border-color:var(--gold);background:var(--tint)}
+ .pay-choose button:disabled{opacity:.5;cursor:not-allowed}
+ .pay-how{margin-top:12px}
+ @media (prefers-reduced-motion:reduce){.bill-result{transition:none;transform:none}}
 .warn{margin-top:32px;background:#FDE9BF;color:#5B3D00;border-left:6px solid var(--sun);border-radius:12px;padding:14px 18px;font-weight:700}
 
 /* ---------- Connect ---------- */
@@ -566,7 +586,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 .modal,.popover,dialog.modal{border-radius:2px;background:var(--card);border-color:var(--line)}.cookie{background:var(--card);border-color:var(--line);border-radius:2px}.lang-note{background:var(--yellow);color:var(--black)}
 .stat-num,.est-result,.channels strong,time,.small,dd{font-variant-numeric:tabular-nums}.site-footer a{color:var(--gold)}
 @media (max-width:760px){.container{padding-inline:18px}.section{padding-block:44px}.hero h1{font-size:2.7rem}.island-map{height:360px}.card,.bongao-directory,.island-card{padding:22px}}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover,.service-link:hover{transform:none}}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover,.service-link:hover{transform:none}.mega,.popover,.drawer,.search-overlay,.acc-panel,.callout-panel,.island-card .inner{transition-duration:0s!important}.drawer{transform:none}.popover,.acc-panel,.callout-panel{transform:none}}
 .field-slide-deck{max-width:980px;margin:28px auto 0}.field-gallery-grid{position:relative;min-height:clamp(260px,48vw,560px);overflow:hidden;border-radius:18px;background:var(--art-bg)}.field-shot{display:none;width:100%;height:100%;min-height:clamp(260px,48vw,560px);padding:0;border:0;background:none;cursor:pointer}.field-shot.is-active{display:block}.field-shot img{width:100%;height:100%;object-fit:cover}.field-slide-controls{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:18px}.field-dots{display:flex;gap:8px}.field-dot{width:10px;height:10px;padding:0;border:1px solid var(--brand);border-radius:50%;background:transparent;cursor:pointer}.field-dot[aria-selected="true"]{background:var(--brand);transform:scale(1.25)}
 </style>
 </head>
@@ -971,13 +991,14 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <form id="payForm" novalidate>
             <div class="field">
               <label for="payAcct">Account number</label>
-              <input class="input" id="payAcct" inputmode="numeric" autocomplete="off" aria-describedby="payHint payErr">
+              <input class="input" id="payAcct" inputmode="numeric" autocomplete="off" maxlength="14" aria-describedby="payHint payErr">
               <span class="hint" id="payHint">Account number is on the top right of your bill.</span>
               <span class="error" id="payErr" aria-live="polite"></span>
             </div>
-            <button class="btn btn-secondary" type="submit">Check the amount</button>
+            <button class="btn btn-secondary" type="submit" id="payBtn">Check the amount</button>
             <p class="form-msg" id="payMsg" aria-live="polite"></p>
           </form>
+          <div class="bill-result" id="payResult" hidden aria-live="polite"></div>
         </div>
         <div>
           <h3>Payment channels <span class="sample">(sample)</span></h3>
@@ -989,7 +1010,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           </ul>
         </div>
       </div>
-      <p class="warn" role="note">Demonstration only. No payments are accepted here. Confirm current tariffs, payment channels and overdue-bill instructions with the cooperative.</p>
+      <p class="warn" role="note">No payments are taken on this website. Pay through one of the channels above and the cooperative records it on your account. Confirm current tariffs, payment channels and overdue-bill instructions with the cooperative.</p>
     </div>
   </section>
 
@@ -1369,6 +1390,16 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     p.close();
     if (returnFocus && p.trigger) p.trigger.focus();
   }
+  function setAnimatedVisibility(el, visible, className, done){
+    className = className || 'is-visible';
+    if (visible) {
+      el.hidden = false;
+      requestAnimationFrame(function(){ el.classList.add(className); });
+      return;
+    }
+    el.classList.remove(className);
+    setTimeout(function(){ if (!el.classList.contains(className)) { el.hidden = true; if (done) done(); } }, calm() ? 0 : 280);
+  }
   function registerPop(trigger, panel, opts){
     opts = opts || {};
     var api = {
@@ -1377,12 +1408,12 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
         if (openPop && openPop.panel === panel) return;
         if (openPop && !(opts.nested && openPop.panel.contains(trigger))) closeCurrent(false);
         trigger.setAttribute('aria-expanded', 'true');
-        if (opts.onOpen) opts.onOpen(); else panel.hidden = false;
+        if (opts.onOpen) opts.onOpen(); else setAnimatedVisibility(panel, true);
         openPop = api;
       },
       close: function(){
         trigger.setAttribute('aria-expanded', 'false');
-        if (opts.onClose) opts.onClose(); else panel.hidden = true;
+        if (opts.onClose) opts.onClose(); else setAnimatedVisibility(panel, false);
       }
     };
     trigger.addEventListener('click', function(e){
@@ -1548,11 +1579,11 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   drawerBody.addEventListener('click', function(e){
     var t = e.target.closest('.acc-trigger'); if (!t) return;
     var open = t.getAttribute('aria-expanded') !== 'true';
-    $$('.acc-trigger', drawerBody).forEach(function(b){ b.setAttribute('aria-expanded','false'); $('#' + b.getAttribute('aria-controls')).hidden = true; });
-    t.setAttribute('aria-expanded', String(open)); $('#' + t.getAttribute('aria-controls')).hidden = !open;
+    $$('.acc-trigger', drawerBody).forEach(function(b){ b.setAttribute('aria-expanded','false'); setAnimatedVisibility($('#' + b.getAttribute('aria-controls')), false); });
+    t.setAttribute('aria-expanded', String(open)); setAnimatedVisibility($('#' + t.getAttribute('aria-controls')), open);
   });
-  function openDrawer(){ drawer.hidden = false; hamburger.setAttribute('aria-expanded','true'); document.body.style.overflow = 'hidden'; $('#drawerClose').focus(); }
-  function closeDrawer(focus){ if (drawer.hidden) return; drawer.hidden = true; hamburger.setAttribute('aria-expanded','false'); document.body.style.overflow = ''; if (focus) hamburger.focus(); }
+  function openDrawer(){ setAnimatedVisibility(drawer, true); hamburger.setAttribute('aria-expanded','true'); document.body.style.overflow = 'hidden'; $('#drawerClose').focus(); }
+  function closeDrawer(focus){ if (drawer.hidden) return; setAnimatedVisibility(drawer, false, 'is-visible', function(){ document.body.style.overflow = ''; }); hamburger.setAttribute('aria-expanded','false'); document.body.style.overflow = ''; if (focus) hamburger.focus(); }
   hamburger.addEventListener('click', openDrawer);
   $('#drawerClose').addEventListener('click', function(){ closeDrawer(true); });
   drawer.addEventListener('click', function(e){ if (e.target.closest('[data-close-drawer]')) closeDrawer(false); });
@@ -1583,7 +1614,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   }
   function closeSearch(focus){
     if (overlay.hidden) return;
-    overlay.classList.remove('open'); overlay.hidden = true; searchBtn.setAttribute('aria-expanded','false');
+    overlay.classList.remove('open'); searchBtn.setAttribute('aria-expanded','false');
+    setTimeout(function(){ if (!overlay.classList.contains('open')) overlay.hidden = true; }, calm() ? 0 : 220);
     if (focus) (moreBtn.offsetParent ? moreBtn : searchBtn).focus();
   }
   searchBtn.addEventListener('click', function(e){ e.stopPropagation(); openSearch(); });
@@ -1614,8 +1646,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   moreList = $('#moreList');
   var moreBtnI = $('#moreIslands');
   moreBtnI.addEventListener('click', function(){
-    var open = moreList.hidden; moreList.hidden = !open; moreBtnI.setAttribute('aria-expanded', String(open));
-    if (open) moreList.querySelector('.chip').focus();
+    var open = moreList.hidden; setAnimatedVisibility(moreList, open); moreBtnI.setAttribute('aria-expanded', String(open));
+    if (open) setTimeout(function(){ moreList.querySelector('.chip').focus(); }, calm() ? 0 : 240);
   });
 
   ISLANDS.filter(function(i){ return !i.extra; }).forEach(function(i){
@@ -1656,7 +1688,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       if (pin) pin.classList.toggle('is-selected', markerId === id);
     });
     if (moveMap && islandMarkers[id]) map.panTo(i.coords, {animate:!calm(), duration:.5});
-    if (i.extra && moreList.hidden) { moreList.hidden = false; moreBtnI.setAttribute('aria-expanded','true'); }
+    if (i.extra && moreList.hidden) { setAnimatedVisibility(moreList, true); moreBtnI.setAttribute('aria-expanded','true'); }
     clearTimeout(fadeT);
     if (animate && !calm()) {
       card.classList.add('fading');
@@ -1693,8 +1725,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   $('#callouts').addEventListener('click', function(e){
     var b = e.target.closest('.callout-btn'); if (!b) return;
     var open = b.getAttribute('aria-expanded') !== 'true';
-    $$('.callout-btn').forEach(function(x){ x.setAttribute('aria-expanded','false'); $('#' + x.getAttribute('aria-controls')).hidden = true; });
-    b.setAttribute('aria-expanded', String(open)); $('#' + b.getAttribute('aria-controls')).hidden = !open;
+    $$('.callout-btn').forEach(function(x){ x.setAttribute('aria-expanded','false'); setAnimatedVisibility($('#' + x.getAttribute('aria-controls')), false); });
+    b.setAttribute('aria-expanded', String(open)); setAnimatedVisibility($('#' + b.getAttribute('aria-controls')), open);
   });
 
   /* ---------- Fieldwork gallery lightbox ---------- */
@@ -1777,18 +1809,78 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     if (href === '#report') { e.preventDefault(); openOutage(null, a); return; }
     if (a.hasAttribute('data-open-cookie')) { e.preventDefault(); showCookie(true); return; }
     if (a.hasAttribute('data-island')) { selectIsland(a.getAttribute('data-island'), false); }
-    if (a.hasAttribute('data-more-islands') && moreList.hidden) { moreList.hidden = false; moreBtnI.setAttribute('aria-expanded','true'); }
+    if (a.hasAttribute('data-more-islands') && moreList.hidden) { setAnimatedVisibility(moreList, true); moreBtnI.setAttribute('aria-expanded','true'); }
   });
 
   /* ---------- Forms: pay + print ---------- */
+  var PAY_CHANNELS = [
+    {id:'office', name:'Cooperative office counter', how:'Bring your account number to the cooperative office counter. Current and overdue bills can be settled here.'},
+    {id:'collector', name:'Authorized collector on your island', how:'Give your account number to the authorized collector on your island. Current bills only.'},
+    {id:'mobile_wallet', name:'Mobile wallet', how:'Pay through your mobile wallet and use your account number as the reference. Current bills only. Payment is not processed on this website.'},
+    {id:'bank', name:'Bank over-the-counter', how:'Pay at a bank counter and quote your account number. Current bills only.'}
+  ];
+  function escHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pesoExact(n){ return '₱' + Number(n).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function billMonth(p){ return new Date(p + '-01T00:00:00').toLocaleDateString('en-PH', {month:'long', year:'numeric'}); }
+  function billDay(d){ return new Date(d + 'T00:00:00').toLocaleDateString('en-PH', {month:'short', day:'numeric', year:'numeric'}); }
+  var payResult = $('#payResult'), payRequest = 0;
+  function renderBill(data){
+    var a = data.account;
+    var unpaid = data.bills.filter(function(b){ return b.status === 'unpaid'; });
+    var html = '<div class="bill-who"><div><strong>' + escHtml(a.name) + '</strong><br><span class="small muted">Account ' + escHtml(a.masked_no) + (a.area ? ' · ' + escHtml(a.area) : '') + '</span></div></div>';
+    if (!unpaid.length) {
+      html += '<p class="msg-ok">Your account is fully paid. Nothing is due.</p>';
+    } else {
+      var next = unpaid.map(function(b){ return b.due_date; }).sort()[0];
+      html += '<span class="small muted">Amount due</span><div class="bill-due">' + pesoExact(data.total_due) + '</div>';
+      html += data.has_overdue
+        ? '<span class="bill-flag">Overdue since ' + escHtml(billDay(next)) + '</span><p class="small muted" style="margin-top:8px">Overdue bills can only be paid at the cooperative office counter.</p>'
+        : '<span class="bill-flag ok">Due ' + escHtml(billDay(next)) + '</span>';
+      html += '<h3 style="margin-top:20px">Choose how to pay</h3><div class="pay-choose">' + PAY_CHANNELS.map(function(c){
+        var locked = data.has_overdue && c.id !== 'office';
+        return '<button type="button" data-channel="' + c.id + '" aria-pressed="false"' + (locked ? ' disabled title="Overdue bills can only be paid at the office"' : '') + '><span>' + escHtml(c.name) + '</span></button>';
+      }).join('') + '</div><p class="pay-how small" id="payHow" aria-live="polite">Pick a payment channel to see what to do next.</p>';
+    }
+    html += '<ul class="bill-list">' + data.bills.map(function(b){
+      var label = b.status === 'paid' ? 'Paid' : (b.overdue ? 'Overdue' : 'Unpaid');
+      return '<li><span>' + escHtml(billMonth(b.period)) + ' · ' + escHtml(b.kwh) + ' kWh</span><span><strong>' + pesoExact(b.amount) + '</strong> <span class="small muted">' + label + '</span></span></li>';
+    }).join('') + '</ul>';
+    return html;
+  }
+  payResult.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-channel]'); if (!btn || btn.disabled) return;
+    var channel = PAY_CHANNELS.filter(function(c){ return c.id === btn.getAttribute('data-channel'); })[0];
+    $$('[data-channel]', payResult).forEach(function(b){ b.setAttribute('aria-pressed', String(b === btn)); });
+    $('#payHow').textContent = channel.how;
+  });
   $('#payForm').addEventListener('submit', function(e){
     e.preventDefault();
     var v = $('#payAcct').value.replace(/\s/g,'');
     var ok = /^\d{11}$/.test(v);
     $('#payErr').textContent = ok ? '' : 'Enter your 11-digit account number.';
     $('#payAcct').setAttribute('aria-invalid', String(!ok));
-    $('#payMsg').textContent = ok ? 'Sample amount due: ' + peso(80 * selected.rate) + '. Choose a payment channel on this page. Online payment is not connected yet.' : '';
-    if (!ok) $('#payAcct').focus();
+    $('#payMsg').textContent = '';
+    if (!ok) { setAnimatedVisibility(payResult, false); $('#payAcct').focus(); return; }
+    var request = ++payRequest, btn = $('#payBtn');
+    btn.disabled = true;
+    $('#payMsg').textContent = 'Checking your account…';
+    fetch('/api/bills?account_no=' + encodeURIComponent(v), {headers:{Accept:'application/json'}})
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok:r.ok, data:d}; }); })
+      .then(function(res){
+        if (request !== payRequest) return;
+        if (!res.ok) throw new Error(res.data.error || 'We could not check the amount. Please try again.');
+        $('#payMsg').textContent = '';
+        payResult.innerHTML = renderBill(res.data);
+        setAnimatedVisibility(payResult, true);
+      })
+      .catch(function(err){
+        if (request !== payRequest) return;
+        $('#payMsg').textContent = '';
+        $('#payErr').textContent = err && err.message && err.message !== 'Failed to fetch' ? err.message : 'We could not reach the billing service. Please try again.';
+        $('#payAcct').setAttribute('aria-invalid', 'true');
+        setAnimatedVisibility(payResult, false);
+      })
+      .then(function(){ if (request === payRequest) btn.disabled = false; });
   });
   $('#printBtn').addEventListener('click', function(){ window.print(); });
 

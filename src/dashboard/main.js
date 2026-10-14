@@ -287,13 +287,116 @@ function wireTips(root, tipFor) {
     view.innerHTML = `${head(title, description)}<section class="card"><h2>Module not connected</h2><p class="muted">This area is now reserved in the Admin dashboard, but the current project has no data model or API endpoint for it yet. The existing People, Outage reports, Service areas, and Audit Log modules are live.</p></section>`
   }
 
+  const BILL_STATUS = { unpaid: 'Unpaid', overdue: 'Overdue', paid: 'Paid' }
+  const PAY_CHANNEL = { office: 'Office counter', collector: 'Collector', mobile_wallet: 'Mobile wallet', bank: 'Bank' }
+  const fmtPeso = (n) => `₱${new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0)}`
+  const fmtPeriod = (p) => new Date(`${p}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })
+  const billKind = (b) => (b.status === 'paid' ? 'paid' : b.overdue ? 'overdue' : 'unpaid')
+
+  async function billingView(view) {
+    if (!state.areas.length) state.areas = (await api('/api/areas')).areas
+    view.innerHTML = `${head('Billing Oversight', 'Bills that members see when they check their amount on the public site.', '<button class="btn btn-primary" id="newBill" type="button">Add bill</button>')}
+      <div id="billStats"></div>
+      <form class="filters" id="billFilters" novalidate>
+        <div class="field"><label for="bStatus">Status</label><select class="input" id="bStatus"><option value="">Any status</option>${Object.entries(BILL_STATUS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+        <div class="field"><label for="bQ">Account or name</label><input class="input" id="bQ" autocomplete="off"></div>
+      </form>
+      <div id="billList"><p class="loading">Loading…</p></div>`
+
+    let rows = []
+    const load = async () => {
+      const q = new URLSearchParams()
+      if ($('#bStatus').value) q.set('status', $('#bStatus').value)
+      if ($('#bQ').value.trim()) q.set('q', $('#bQ').value.trim())
+      const { bills, summary } = await api(`/api/bills?${q}`)
+      rows = bills
+      $('#billStats').innerHTML = `<div class="bill-stats">
+        <div class="card"><span class="small muted">Unpaid · ${fmtNum(summary.unpaid_count)} bills</span><strong>${esc(fmtPeso(summary.unpaid_total))}</strong></div>
+        <div class="card"><span class="small muted">Overdue · ${fmtNum(summary.overdue_count)} bills</span><strong>${esc(fmtPeso(summary.overdue_total))}</strong></div>
+        <div class="card"><span class="small muted">Collected this month</span><strong>${esc(fmtPeso(summary.collected_month))}</strong></div></div>`
+      $('#billList').innerHTML = bills.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Account</th><th>Area</th><th>Period</th><th class="num">kWh</th><th class="num">Amount</th><th>Due</th><th>Status</th><th><span class="visually-hidden">Action</span></th></tr></thead>
+        <tbody>${bills.map((b) => `<tr>
+          <td><strong>${esc(b.account_name)}</strong><br><span class="small muted mono">${esc(b.account_no)}</span></td>
+          <td>${b.area_name ? esc(b.area_name) : '<span class="muted">—</span>'}</td>
+          <td>${esc(fmtPeriod(b.period))}</td>
+          <td class="num">${esc(fmtNum(b.kwh))}</td>
+          <td class="num">${esc(fmtPeso(b.amount))}</td>
+          <td class="small">${esc(fmtDay(b.due_date, { month: 'short', day: 'numeric', year: 'numeric' }))}</td>
+          <td>${badge(billKind(b), BILL_STATUS)}${b.status === 'paid' ? `<br><span class="small muted" title="${esc(fmtDate(b.paid_at))}">${esc(PAY_CHANNEL[b.paid_channel] ?? '')}${b.payment_ref ? ` · ${esc(b.payment_ref)}` : ''}</span>` : ''}</td>
+          <td>${b.status === 'paid' ? `<button class="btn btn-secondary" type="button" data-reopen="${b.id}">Reopen</button>` : `<button class="btn btn-secondary" type="button" data-pay="${b.id}">Record payment</button>`}</td>
+        </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills match these filters.</div>'
+    }
+
+    const recordDialog = (bill) => {
+      const body = openDialog('Record payment', `<form id="billPayForm" novalidate>
+        <p class="small muted"><strong>${esc(bill.account_name)}</strong> · ${esc(bill.account_no)} · ${esc(fmtPeriod(bill.period))} · ${esc(fmtPeso(bill.amount))}</p>
+        <div class="field"><label for="pChan">Paid through</label><select class="input" id="pChan" required><option value="">Choose one</option>${Object.entries(PAY_CHANNEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+        <div class="field"><label for="pRef">Receipt or reference no. <span class="muted small">(optional)</span></label><input class="input" id="pRef" maxlength="60"></div>
+        <button class="btn btn-primary" type="submit">Mark as paid</button><p class="msg" aria-live="polite"></p></form>`)
+      const form = $('#billPayForm', body)
+      form.addEventListener('submit', (e) => {
+        e.preventDefault()
+        const msg = $('.msg', form)
+        if (!$('#pChan', form).value) return setMsg(msg, 'Choose how the bill was paid.')
+        busy($('button[type=submit]', form), async () => {
+          try {
+            await api(`/api/bills/${bill.id}`, { method: 'PATCH', body: { status: 'paid', paid_channel: $('#pChan', form).value, payment_ref: $('#pRef', form).value.trim() } })
+            dlg.close(); await load()
+          } catch (err) { setMsg(msg, err.message) }
+        })
+      })
+    }
+
+    const createDialog = () => {
+      const now = new Date()
+      const body = openDialog('Add bill', `<form id="billForm" novalidate>
+        <div class="grid-2">
+          <div class="field"><label for="nAcct">Account number</label><input class="input" id="nAcct" inputmode="numeric" maxlength="11" autocomplete="off" required></div>
+          <div class="field"><label for="nName">Account holder</label><input class="input" id="nName" maxlength="120" required></div>
+          <div class="field"><label for="nArea">Island area</label><select class="input" id="nArea">${areaOptions('', 'No area')}</select></div>
+          <div class="field"><label for="nPeriod">Billing month</label><input class="input" id="nPeriod" type="month" value="${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}" required></div>
+          <div class="field"><label for="nKwh">kWh used</label><input class="input" id="nKwh" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="nAmount">Amount (₱)</label><input class="input" id="nAmount" type="number" min="0" step="0.01" required></div>
+          <div class="field"><label for="nDue">Due date</label><input class="input" id="nDue" type="date" required></div>
+        </div>
+        <button class="btn btn-primary" type="submit">Add bill</button><p class="msg" aria-live="polite"></p></form>`)
+      const form = $('#billForm', body)
+      form.addEventListener('submit', (e) => {
+        e.preventDefault()
+        const msg = $('.msg', form)
+        const payload = { account_no: $('#nAcct', form).value.trim(), account_name: $('#nName', form).value.trim(), area_id: $('#nArea', form).value, period: $('#nPeriod', form).value, kwh: $('#nKwh', form).value, amount: $('#nAmount', form).value, due_date: $('#nDue', form).value }
+        if (!/^\d{11}$/.test(payload.account_no)) return setMsg(msg, 'Account number must be 11 digits.')
+        if (!payload.account_name || !payload.period || !payload.amount || !payload.due_date) return setMsg(msg, 'Fill in the name, month, amount and due date.')
+        busy($('button[type=submit]', form), async () => {
+          try { await api('/api/bills', { method: 'POST', body: payload }); dlg.close(); await load() } catch (err) { setMsg(msg, err.message) }
+        })
+      })
+    }
+
+    $('#newBill').addEventListener('click', createDialog)
+    $('#bStatus').addEventListener('change', load)
+    let timer
+    $('#bQ').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(load, 300) })
+    $('#billFilters').addEventListener('submit', (e) => e.preventDefault())
+    $('#billList').addEventListener('click', async (e) => {
+      const pay = e.target.closest('[data-pay]')
+      if (pay) return recordDialog(rows.find((b) => String(b.id) === pay.dataset.pay))
+      const reopen = e.target.closest('[data-reopen]')
+      if (reopen && confirm('Mark this bill as unpaid again?')) {
+        await busy(reopen, async () => { try { await api(`/api/bills/${reopen.dataset.reopen}`, { method: 'PATCH', body: { status: 'unpaid' } }); await load() } catch (err) { alert(err.message) } })
+      }
+    })
+    await load()
+  }
+
   const adminAlias = (view) => people(view)
   const repairAlias = (view) => outages(view)
   const VIEWS = {
     overview, outages, areas: areasView, people, profile: profileView,
     'manage-admins': adminAlias, 'add-users': adminAlias, 'repair-requests': repairAlias,
     complaints: (view) => unavailableAdminView(view, 'Complaints', 'Review and resolve member complaints.'),
-    billing: (view) => unavailableAdminView(view, 'Billing Oversight', 'Monitor member billing and payment activity.'),
+    billing: billingView,
     gcash: (view) => unavailableAdminView(view, 'GCash Merchant', 'Manage GCash merchant reconciliation and settlement.'),
     audit: auditView,
     settings: (view) => unavailableAdminView(view, 'Master Settings', 'Configure cooperative-wide dashboard settings.'),
@@ -411,6 +514,9 @@ function describeAction(a) {
   if (a.action === 'outage.update') return `updated outage report #${a.entity_id}`
   if (a.action === 'area.update') return `updated ${areaName(a.entity_id) || a.entity_id}`
   if (a.action === 'user.role') return 'changed a user role'
+  if (a.action === 'bill.create') return `added a bill for account ${a.details?.account_no ?? ''}`.trim()
+  if (a.action === 'bill.paid') return `recorded a payment for account ${a.details?.account_no ?? ''}`.trim()
+  if (a.action === 'bill.reopen') return `reopened a bill for account ${a.details?.account_no ?? ''}`.trim()
   return a.action
 }
 
