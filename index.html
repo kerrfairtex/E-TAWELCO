@@ -827,7 +827,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <li><a href="https://psa.gov.ph/classification/psgc/barangays/1907002000">PSA: Bongao municipality and 35 barangays</a> — municipal code 1907002000; barangay list dated July 31, 2025.</li>
           <li><a href="https://psa.gov.ph/system/files/phcd/2024%20POPCEN%20Press%20Release_BARMM_ONS-signed.pdf">PSA: 2024 BARMM population census</a> — Bongao population of 131,887 as of July 1, 2024; release signed August 1, 2025.</li>
           <li><a href="https://rssobarmm.psa.gov.ph/system/files/publication/2023%20RSSO%20BARMM%20RSET.pdf">PSA BARMM: 2023 regional statistical yearbook, Table 1.20</a> — 19,589 households and average household size of 5.9 persons, both from the 2020 census.</li>
-          <li><a href="https://minda.gov.ph/resources/2025/Discover_Bongao_Tawi-Tawi_The_Heart_of_the_South.pdf">MinDA: Discover Bongao, March 2025</a> — municipal geography and multicultural community context.</li>
+          <li><a href="https://minda.gov.ph/resources/2025/Discover_Bongao_Tawi-Tawi_The_Heart_of_the_South.pdf">MinDA: Discover Bongao, March 2025</a> ��� municipal geography and multicultural community context.</li>
           <li><a href="https://tawi-tawi.gov.ph/bongao/">Provincial Government of Tawi-Tawi: Bongao profile</a> — local livelihoods and landmarks; undated profile, not a current operational service directory.</li>
           <li><a href="https://bcpch.bangsamoro.gov.ph/bcpch-digital-gazette/">Bangsamoro cultural commission: Digital Gazette</a> — local-language heritage context, not approved interface translations.</li>
           <li><a href="https://bangsamoro.gov.ph/news/latest-news/farthest-turtle-islands-to-get-p25-m-town-hall-from-barmm-govt/">Bangsamoro Information Office: Turtle Islands municipal context, 2023</a> — Taganak is part of Turtle Islands municipality, not a separate municipality.</li>
@@ -1434,8 +1434,13 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     var pwOk = pw.value.length > 0;
     $('#pwErr').textContent = pwOk ? '' : 'Enter your password.';
     pw.setAttribute('aria-invalid', String(!pwOk)); ok = ok && pwOk;
-    $('#loginMsg').textContent = ok ? 'This is a concept site, so member log-in is not connected yet.' : '';
-    if (!ok) (acctOk ? pw : acct).focus();
+  if (!ok) {
+  $('#loginMsg').textContent = '';
+  (acctOk ? pw : acct).focus();
+  return;
+  }
+  $('#loginMsg').textContent = 'Opening the secure member dashboard…';
+  window.location.href = '/dashboard/?login=member';
   });
 
   // Admin log-in
@@ -1448,8 +1453,13 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     var pwOk = adminPw.value.length > 0;
     $('#adminPwErr').textContent = pwOk ? '' : 'Enter your password.';
     adminPw.setAttribute('aria-invalid', String(!pwOk)); ok = ok && pwOk;
-    $('#adminLoginMsg').textContent = ok ? 'This is a concept site, so admin log-in is not connected yet.' : '';
-    if (!ok) (idOk ? adminPw : adminId).focus();
+  if (!ok) {
+  $('#adminLoginMsg').textContent = '';
+  (idOk ? adminPw : adminId).focus();
+  return;
+  }
+  $('#adminLoginMsg').textContent = 'Opening the secure admin dashboard…';
+  window.location.href = '/dashboard/?login=admin';
   });
 
   // Low data
