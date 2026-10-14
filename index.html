@@ -1436,7 +1436,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     e.preventDefault();
     var acct = $('#acct'), pw = $('#pw'), ok = true;
     var acctOk = /^\d{11}$/.test(acct.value.replace(/\s/g,''));
-    $('#acctErr').textContent = acctOk ? '' : 'Enter your 10-digit account number.';
+    $('#acctErr').textContent = acctOk ? '' : 'Enter your 11-digit account number.';
     acct.setAttribute('aria-invalid', String(!acctOk)); ok = ok && acctOk;
     var pwOk = pw.value.length > 0;
     $('#pwErr').textContent = pwOk ? '' : 'Enter your password.';

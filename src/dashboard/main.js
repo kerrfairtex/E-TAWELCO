@@ -306,6 +306,9 @@ function route() {
   $$('#sideNav a').forEach((a) => a.toggleAttribute('aria-current', a.dataset.view === name) || a.removeAttribute('aria-current'))
   $(`#sideNav [data-view="${name}"]`).setAttribute('aria-current', 'page')
   const view = $('#view')
+  view.classList.remove('view-enter')
+  void view.offsetWidth
+  view.classList.add('view-enter')
   view.innerHTML = '<p class="loading">Loading…</p>'
   VIEWS[name](view).catch((err) => { view.innerHTML = `<div class="card"><p class="msg err">${esc(err.message)}</p></div>` })
 }

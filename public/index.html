@@ -750,7 +750,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
         <div class="hero-copy">
           <p class="hero-kicker" data-i18n="hero.kicker">Our islands. Our energy.</p>
           <h1 id="heroTitle" data-i18n="hero.title">Power, island by island.</h1>
-          <p data-i18n="hero.lead">Tawi-Tawi runs on small local systems, not the main grid. Together, we help our island communities move towards a brighter energy future.</p>
+          <p data-i18n="hero.lead">E-TAWELCO delivers dependable, accessible electricity across Tawi-Tawi, helping homes, businesses, schools, health facilities and island communities stay connected, productive and prepared every day. Through responsive service, responsible energy management and continued investment in reliable local power systems, we are building a stronger electric future for every island—power you can count on, island by island.</p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#islands" data-i18n="hero.discover">Discover your island</a>
             <a class="text-link" href="#connect" data-i18n="hero.apply">Get connected</a>
@@ -828,7 +828,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <li><a href="https://psa.gov.ph/classification/psgc/barangays/1907002000">PSA: Bongao municipality and 35 barangays</a> — municipal code 1907002000; barangay list dated July 31, 2025.</li>
           <li><a href="https://psa.gov.ph/system/files/phcd/2024%20POPCEN%20Press%20Release_BARMM_ONS-signed.pdf">PSA: 2024 BARMM population census</a> — Bongao population of 131,887 as of July 1, 2024; release signed August 1, 2025.</li>
           <li><a href="https://rssobarmm.psa.gov.ph/system/files/publication/2023%20RSSO%20BARMM%20RSET.pdf">PSA BARMM: 2023 regional statistical yearbook, Table 1.20</a> — 19,589 households and average household size of 5.9 persons, both from the 2020 census.</li>
-          <li><a href="https://minda.gov.ph/resources/2025/Discover_Bongao_Tawi-Tawi_The_Heart_of_the_South.pdf">MinDA: Discover Bongao, March 2025</a> ������� municipal geography and multicultural community context.</li>
+          <li><a href="https://minda.gov.ph/resources/2025/Discover_Bongao_Tawi-Tawi_The_Heart_of_the_South.pdf">MinDA: Discover Bongao, March 2025</a> ��������� municipal geography and multicultural community context.</li>
           <li><a href="https://tawi-tawi.gov.ph/bongao/">Provincial Government of Tawi-Tawi: Bongao profile</a> — local livelihoods and landmarks; undated profile, not a current operational service directory.</li>
           <li><a href="https://bcpch.bangsamoro.gov.ph/bcpch-digital-gazette/">Bangsamoro cultural commission: Digital Gazette</a> — local-language heritage context, not approved interface translations.</li>
           <li><a href="https://bangsamoro.gov.ph/news/latest-news/farthest-turtle-islands-to-get-p25-m-town-hall-from-barmm-govt/">Bangsamoro Information Office: Turtle Islands municipal context, 2023</a> — Taganak is part of Turtle Islands municipality, not a separate municipality.</li>
@@ -866,18 +866,11 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       </div>
     </section>
     <section class="block" id="battery" aria-labelledby="b2">
-      <div class="art deco" aria-hidden="true"><img data-photo="home" alt="A bright island home connected to the E-TAWELCO electricity network" width="900" height="675" loading="lazy" decoding="async"></div>
+      <div class="art deco" aria-hidden="true"><img data-photo="home" alt="TAWELCO electricity service supporting a home and family" width="900" height="675" loading="lazy" decoding="async"></div>
       <div class="text">
-        <h2 id="b2">Reliable electricity for every island home</h2>
-        <p>E-TAWELCO is focused on one essential service: delivering dependable electricity to households, businesses and public facilities across Tawi-Tawi. Our work connects communities to the power they need for lighting, refrigeration, communication, learning and livelihoods.</p>
-        <p>Our electricity strategy is built around fewer interruptions, faster response and clearer communication. We maintain and improve local distribution lines, strengthen service connections, coordinate crews when faults occur and help customers understand outage updates, billing and safe electricity use.</p>
-        <ul>
-          <li><strong>Keep power moving:</strong> maintain distribution equipment and prioritize practical improvements that reduce avoidable interruptions.</li>
-          <li><strong>Respond with urgency:</strong> make it easier to report outages and share useful restoration information with affected communities.</li>
-          <li><strong>Serve customers clearly:</strong> provide straightforward guidance for new connections, bills, payments, meters and service concerns.</li>
-          <li><strong>Power local progress:</strong> support homes, schools, health services, small businesses and island economies with electricity people can rely on.</li>
-        </ul>
-        <a class="text-link" href="#report">See outage support and service information</a>
+        <h2 id="b2">Reliable electricity for your home</h2>
+        <p>E-TAWELCO is focused on delivering dependable electricity for the moments that matter: keeping your lights on, your refrigerator running, your devices connected and your family comfortable. Through stronger distribution systems, planned maintenance, responsive crews and clear customer support, we work to reduce avoidable interruptions and restore service safely when outages occur. Use electricity wisely, keep your account and contact details current, and report problems promptly so our team can respond faster.</p>
+        <a class="text-link" href="#connect" data-i18n="explore">Explore reliable service</a>
       </div>
     </section>
     <section class="block" id="prepaid" aria-labelledby="b3">
@@ -1443,7 +1436,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     e.preventDefault();
     var acct = $('#acct'), pw = $('#pw'), ok = true;
     var acctOk = /^\d{11}$/.test(acct.value.replace(/\s/g,''));
-    $('#acctErr').textContent = acctOk ? '' : 'Enter your 10-digit account number.';
+    $('#acctErr').textContent = acctOk ? '' : 'Enter your 11-digit account number.';
     acct.setAttribute('aria-invalid', String(!acctOk)); ok = ok && acctOk;
     var pwOk = pw.value.length > 0;
     $('#pwErr').textContent = pwOk ? '' : 'Enter your password.';
