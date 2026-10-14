@@ -11,6 +11,7 @@ const identityForLogin = (value) => {
   return id
 }
 const authError = (error) => ({ status: error?.status, message: error?.message })
+const requestedRole = new URLSearchParams(location.search).get('login')
 const login = async (identifier, password) => {
   const { data, error } = await supabase.auth.signInWithPassword({ email: identityForLogin(identifier), password })
   if (error) throw authError(error)
@@ -110,7 +111,13 @@ function showAuth(tab = 'login') {
   const email = $('#lEmail').value.trim(), pw = $('#lPw').value
   if (!email || !pw) return setMsg(msg, 'Enter your email and password.')
   busy($('button[type=submit]', e.target), async () => {
-    try { await login(email, pw); setMsg(msg, ''); await start() } catch (err) { setMsg(msg, authMessage(err)) }
+    try {
+      await login(email, pw)
+      setMsg(msg, '')
+      await start()
+    } catch (err) {
+      setMsg(msg, authMessage(err))
+    }
   })
 })
 
@@ -680,6 +687,10 @@ async function start() {
   if (!user) return showAuth()
   const { data: profile, error } = await supabase.from('profiles').select('id, role, account_number, admin_id, full_name, area_id').eq('id', user.id).single()
   if (error || !profile) throw new Error('Your account profile is not available yet.')
+  if (requestedRole && requestedRole !== profile.role) {
+    await logout().catch(() => null)
+    throw new Error(`This is a ${profile.role === 'admin' ? 'admin' : 'member'} account. Use the ${profile.role === 'admin' ? 'Admin' : 'Members'} login.`)
+  }
   state.profile = { ...profile, email: user.email }
   state.areas = []
   state.session = { id: user.id, email: user.email, role: profile.role }
@@ -688,6 +699,10 @@ async function start() {
   $('#loading').hidden = true
   $('#auth').hidden = true
   $('#app').hidden = false
+  // Both roles share the shell, but each login always opens its own overview.
+  if (!location.hash || location.hash === '#login' || location.hash === '#admin' || location.hash === '#member') {
+    location.hash = '#overview'
+  }
   route()
 }
 
