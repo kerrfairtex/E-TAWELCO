@@ -301,7 +301,22 @@ input[type=range]{width:100%;min-height:44px;accent-color:var(--lagoon);margin:8
 .channels li{display:flex;gap:16px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
 .channels li:first-child{border-top:1px solid var(--line)}
 .channels .ico{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;background:var(--tint);color:var(--lagoon);flex:none}
-.channels strong{display:block}
+ .channels strong{display:block}
+ .bill-result{margin-top:20px;border:1px solid var(--line);background:var(--card);padding:18px;opacity:0;transform:translateY(6px);transition:opacity .28s ease,transform .28s ease}
+ .bill-result.is-visible{opacity:1;transform:none}
+ .bill-result[hidden]{display:none}
+ .bill-who{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:14px}
+ .bill-due{font-size:2rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;margin:2px 0 6px}
+ .bill-flag{display:inline-block;padding:2px 8px;font-size:.8rem;font-weight:700;background:#F7D9D2;color:#7A2314}
+ .bill-flag.ok{background:#E2F0DC;color:#285A1B}
+ .bill-list{list-style:none;margin:16px 0 0;padding:0;font-size:.92rem}
+ .bill-list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+ .pay-choose{margin-top:16px;display:grid;gap:8px}
+ .pay-choose button{text-align:left;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;cursor:pointer;transition:border-color .18s ease,background-color .18s ease}
+ .pay-choose button:hover:not(:disabled),.pay-choose button[aria-pressed="true"]{border-color:var(--gold);background:var(--tint)}
+ .pay-choose button:disabled{opacity:.5;cursor:not-allowed}
+ .pay-how{margin-top:12px}
+ @media (prefers-reduced-motion:reduce){.bill-result{transition:none;transform:none}}
 .warn{margin-top:32px;background:#FDE9BF;color:#5B3D00;border-left:6px solid var(--sun);border-radius:12px;padding:14px 18px;font-weight:700}
 
 /* ---------- Connect ---------- */
@@ -976,13 +991,14 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <form id="payForm" novalidate>
             <div class="field">
               <label for="payAcct">Account number</label>
-              <input class="input" id="payAcct" inputmode="numeric" autocomplete="off" aria-describedby="payHint payErr">
+              <input class="input" id="payAcct" inputmode="numeric" autocomplete="off" maxlength="14" aria-describedby="payHint payErr">
               <span class="hint" id="payHint">Account number is on the top right of your bill.</span>
               <span class="error" id="payErr" aria-live="polite"></span>
             </div>
-            <button class="btn btn-secondary" type="submit">Check the amount</button>
+            <button class="btn btn-secondary" type="submit" id="payBtn">Check the amount</button>
             <p class="form-msg" id="payMsg" aria-live="polite"></p>
           </form>
+          <div class="bill-result" id="payResult" hidden aria-live="polite"></div>
         </div>
         <div>
           <h3>Payment channels <span class="sample">(sample)</span></h3>
@@ -994,7 +1010,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           </ul>
         </div>
       </div>
-      <p class="warn" role="note">Demonstration only. No payments are accepted here. Confirm current tariffs, payment channels and overdue-bill instructions with the cooperative.</p>
+      <p class="warn" role="note">No payments are taken on this website. Pay through one of the channels above and the cooperative records it on your account. Confirm current tariffs, payment channels and overdue-bill instructions with the cooperative.</p>
     </div>
   </section>
 
@@ -1797,14 +1813,74 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   });
 
   /* ---------- Forms: pay + print ---------- */
+  var PAY_CHANNELS = [
+    {id:'office', name:'Cooperative office counter', how:'Bring your account number to the cooperative office counter. Current and overdue bills can be settled here.'},
+    {id:'collector', name:'Authorized collector on your island', how:'Give your account number to the authorized collector on your island. Current bills only.'},
+    {id:'mobile_wallet', name:'Mobile wallet', how:'Pay through your mobile wallet and use your account number as the reference. Current bills only. Payment is not processed on this website.'},
+    {id:'bank', name:'Bank over-the-counter', how:'Pay at a bank counter and quote your account number. Current bills only.'}
+  ];
+  function escHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pesoExact(n){ return '₱' + Number(n).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function billMonth(p){ return new Date(p + '-01T00:00:00').toLocaleDateString('en-PH', {month:'long', year:'numeric'}); }
+  function billDay(d){ return new Date(d + 'T00:00:00').toLocaleDateString('en-PH', {month:'short', day:'numeric', year:'numeric'}); }
+  var payResult = $('#payResult'), payRequest = 0;
+  function renderBill(data){
+    var a = data.account;
+    var unpaid = data.bills.filter(function(b){ return b.status === 'unpaid'; });
+    var html = '<div class="bill-who"><div><strong>' + escHtml(a.name) + '</strong><br><span class="small muted">Account ' + escHtml(a.masked_no) + (a.area ? ' · ' + escHtml(a.area) : '') + '</span></div></div>';
+    if (!unpaid.length) {
+      html += '<p class="msg-ok">Your account is fully paid. Nothing is due.</p>';
+    } else {
+      var next = unpaid.map(function(b){ return b.due_date; }).sort()[0];
+      html += '<span class="small muted">Amount due</span><div class="bill-due">' + pesoExact(data.total_due) + '</div>';
+      html += data.has_overdue
+        ? '<span class="bill-flag">Overdue since ' + escHtml(billDay(next)) + '</span><p class="small muted" style="margin-top:8px">Overdue bills can only be paid at the cooperative office counter.</p>'
+        : '<span class="bill-flag ok">Due ' + escHtml(billDay(next)) + '</span>';
+      html += '<h3 style="margin-top:20px">Choose how to pay</h3><div class="pay-choose">' + PAY_CHANNELS.map(function(c){
+        var locked = data.has_overdue && c.id !== 'office';
+        return '<button type="button" data-channel="' + c.id + '" aria-pressed="false"' + (locked ? ' disabled title="Overdue bills can only be paid at the office"' : '') + '><span>' + escHtml(c.name) + '</span></button>';
+      }).join('') + '</div><p class="pay-how small" id="payHow" aria-live="polite">Pick a payment channel to see what to do next.</p>';
+    }
+    html += '<ul class="bill-list">' + data.bills.map(function(b){
+      var label = b.status === 'paid' ? 'Paid' : (b.overdue ? 'Overdue' : 'Unpaid');
+      return '<li><span>' + escHtml(billMonth(b.period)) + ' · ' + escHtml(b.kwh) + ' kWh</span><span><strong>' + pesoExact(b.amount) + '</strong> <span class="small muted">' + label + '</span></span></li>';
+    }).join('') + '</ul>';
+    return html;
+  }
+  payResult.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-channel]'); if (!btn || btn.disabled) return;
+    var channel = PAY_CHANNELS.filter(function(c){ return c.id === btn.getAttribute('data-channel'); })[0];
+    $$('[data-channel]', payResult).forEach(function(b){ b.setAttribute('aria-pressed', String(b === btn)); });
+    $('#payHow').textContent = channel.how;
+  });
   $('#payForm').addEventListener('submit', function(e){
     e.preventDefault();
     var v = $('#payAcct').value.replace(/\s/g,'');
     var ok = /^\d{11}$/.test(v);
     $('#payErr').textContent = ok ? '' : 'Enter your 11-digit account number.';
     $('#payAcct').setAttribute('aria-invalid', String(!ok));
-    $('#payMsg').textContent = ok ? 'Sample amount due: ' + peso(80 * selected.rate) + '. Choose a payment channel on this page. Online payment is not connected yet.' : '';
-    if (!ok) $('#payAcct').focus();
+    $('#payMsg').textContent = '';
+    if (!ok) { setAnimatedVisibility(payResult, false); $('#payAcct').focus(); return; }
+    var request = ++payRequest, btn = $('#payBtn');
+    btn.disabled = true;
+    $('#payMsg').textContent = 'Checking your account…';
+    fetch('/api/bills?account_no=' + encodeURIComponent(v), {headers:{Accept:'application/json'}})
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok:r.ok, data:d}; }); })
+      .then(function(res){
+        if (request !== payRequest) return;
+        if (!res.ok) throw new Error(res.data.error || 'We could not check the amount. Please try again.');
+        $('#payMsg').textContent = '';
+        payResult.innerHTML = renderBill(res.data);
+        setAnimatedVisibility(payResult, true);
+      })
+      .catch(function(err){
+        if (request !== payRequest) return;
+        $('#payMsg').textContent = '';
+        $('#payErr').textContent = err && err.message && err.message !== 'Failed to fetch' ? err.message : 'We could not reach the billing service. Please try again.';
+        $('#payAcct').setAttribute('aria-invalid', 'true');
+        setAnimatedVisibility(payResult, false);
+      })
+      .then(function(){ if (request === payRequest) btn.disabled = false; });
   });
   $('#printBtn').addEventListener('click', function(){ window.print(); });
 
