@@ -34,7 +34,61 @@ async function team(req: Request, client: ReturnType<typeof supabase>) { const s
 
 async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at,service_areas(name)').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) } if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405); if (id === s.id) return fail('You cannot change your own role'); const role = oneOf((await body(req)).role, ['member', 'staff', 'admin'] as const); if (!role) return fail('Role must be member, staff or admin'); const { data: profile } = await client.from('profiles').select('role').eq('id', id).maybeSingle(); if (!profile) return fail('User not found', 404); const { error } = await client.from('profiles').update({ role }).eq('id', id); if (error) throw error; await audit(client, s, 'user.role', 'profile', id, { from: profile.role, to: role }); return json({ ok: true, role }) }
 
-async function stats(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req); if (s instanceof Response) return s; let query = client.from('outage_reports').select('status'); if (!isStaff(s)) query = query.eq('reporter_id', s.id); const { data, error } = await query; if (error) throw error; const byStatus = Object.fromEntries((data ?? []).reduce((m: Map<string, number>, r: any) => m.set(r.status, (m.get(r.status) ?? 0) + 1), new Map())); return json({ scope: isStaff(s) ? 'all' : 'mine', byStatus }) }
+async function stats(req: Request, client: ReturnType<typeof supabase>) {
+  const s = await authorize(req)
+  if (s instanceof Response) return s
+  const byStatus: Record<string, number> = { received: 0, assigned: 0, in_progress: 0, resolved: 0 }
+  if (!isStaff(s)) {
+    const { data, error } = await client.from('outage_reports').select('status').eq('reporter_id', s.id)
+    if (error) throw error
+    for (const r of data ?? []) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1
+    return json({ scope: 'mine', byStatus })
+  }
+  const [reports, areas, activity] = await Promise.all([
+    client.from('outage_reports').select('status, area_id, assigned_to, created_at, updated_at'),
+    client.from('service_areas').select('id, name, status'),
+    s.role === 'admin' ? client.from('audit_log').select('actor_email, action, entity, entity_id, details, created_at').order('created_at', { ascending: false }).limit(10) : Promise.resolve({ data: [], error: null }),
+  ])
+  if (reports.error) throw reports.error
+  if (areas.error) throw areas.error
+  if (activity.error) throw activity.error
+  const rows = reports.data ?? []
+  const now = Date.now(), day = 86_400_000
+  const isOpen = (r: { status: string }) => r.status !== 'resolved'
+  const openByArea = new Map<string, number>()
+  const perDay = new Map<string, number>()
+  const resolveHours: number[] = []
+  const totals = { open: 0, unassigned: 0, mine: 0, week: 0, median_hours: null as number | null }
+  for (const r of rows) {
+    byStatus[r.status] = (byStatus[r.status] ?? 0) + 1
+    const created = new Date(r.created_at).getTime()
+    if (isOpen(r)) {
+      totals.open++
+      if (!r.assigned_to) totals.unassigned++
+      if (r.assigned_to === s.id) totals.mine++
+      openByArea.set(r.area_id, (openByArea.get(r.area_id) ?? 0) + 1)
+    } else if (now - created <= 30 * day) {
+      resolveHours.push((new Date(r.updated_at).getTime() - created) / 3_600_000)
+    }
+    if (now - created <= 7 * day) totals.week++
+    const key = new Date(created).toISOString().slice(0, 10)
+    perDay.set(key, (perDay.get(key) ?? 0) + 1)
+  }
+  if (resolveHours.length) {
+    resolveHours.sort((a, b) => a - b)
+    const mid = Math.floor(resolveHours.length / 2)
+    const median = resolveHours.length % 2 ? resolveHours[mid] : (resolveHours[mid - 1] + resolveHours[mid]) / 2
+    totals.median_hours = Math.round(median * 10) / 10
+  }
+  const daily = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now - (13 - i) * day).toISOString().slice(0, 10)
+    return { day: d, n: perDay.get(d) ?? 0 }
+  })
+  const areaStatus: Record<string, number> = { steady: 0, limited: 0, outage: 0 }
+  for (const a of areas.data ?? []) areaStatus[a.status] = (areaStatus[a.status] ?? 0) + 1
+  const byArea = (areas.data ?? []).map((a) => ({ id: a.id, name: a.name, open: openByArea.get(a.id) ?? 0 })).sort((a, b) => b.open - a.open)
+  return json({ scope: 'all', byStatus, totals, daily, byArea, areaStatus, activity: activity.data ?? [] })
+}
 
 async function outages(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method === 'POST' && !id) { const s = await (async () => { const r = await authorize(req); return r instanceof Response ? null : r })(); const b = await body(req); const areaId = text(b.area_id, 40); const barangay = text(b.barangay, 80); const observation = oneOf(b.observation, observations); if (!areaId || !barangay || !observation) return fail('Choose an area, barangay and observation'); const phone = text(b.phone, 30) || null; if (phone && !/^[0-9+()\-\s]{7,20}$/.test(phone)) return fail('Enter a valid phone number'); const { data, error } = await client.from('outage_reports').insert({ reporter_id: s?.id ?? null, area_id: areaId, barangay, observation, phone, landmark: text(b.landmark, 200) || null }).select('id,status,created_at').single(); if (error) throw error; await client.from('outage_updates').insert({ report_id: data.id, author_id: s?.id ?? null, status: 'received', note: 'Report received' }); return json({ report: withTicket(data), tracked: !!s }, 201) }
