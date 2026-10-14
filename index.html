@@ -531,6 +531,42 @@ fieldset{border:0;padding:0;margin:0 0 14px}
   .callout-panel{color:#000}
   a{color:#000}
 }
+/* ---------- E-TAWELCO engineering system override ---------- */
+:root{
+  --black:#000000;--white:#FFFFFF;--red:#E02020;--red-dark:#B3261E;--green:#2E9E3F;--green-forest:#1F8A4C;--green-deep:#2E6B3A;--green-emerald:#2FA84F;--gold:#F2C230;--yellow:#F5D142;--blue:#2F6FD0;--cream:#F6E3B8;
+  --foam:#0B0B0B;--card:#141414;--ink:#FFFFFF;--muted:rgba(255,255,255,.68);--line:rgba(255,255,255,.14);--soft:#101010;--sea:#080808;--lagoon:var(--gold);--brand:var(--gold);--brand-fill:var(--red-dark);--brand-hover:var(--red);--tint:rgba(242,194,48,.08);--art-bg:#181818;--on-sea:#FFF;--on-sea-muted:rgba(255,255,255,.68);--font-head:Inter,"IBM Plex Sans",system-ui,sans-serif;--font-body:Inter,"IBM Plex Sans",system-ui,sans-serif;--font-mono:"IBM Plex Mono","JetBrains Mono",ui-monospace,monospace;color-scheme:dark;
+}
+html{background:var(--foam)}
+body{background:var(--foam);color:var(--ink);font-family:var(--font-body);font-size:1rem;line-height:1.55}
+h1,h2,h3{color:var(--white);font-family:var(--font-head);font-weight:700;letter-spacing:-.02em}
+h1{font-size:clamp(2.1rem,5vw,4rem)}
+a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:hover{color:var(--yellow)}
+.section-label,.hero-kicker{color:var(--gold)!important;text-transform:uppercase;letter-spacing:.1em;font:700 .72rem/1.2 var(--font-mono)!important}
+.container{max-width:1240px;padding-inline:24px}.section{padding-block:64px}
+[id]{scroll-margin-top:84px}
+.skip{background:var(--gold);color:var(--black);border-radius:2px}
+.site-header{background:rgba(11,11,11,.96);border-bottom:1px solid var(--line);backdrop-filter:none}
+.site-header .container{height:78px}.logo{color:var(--white);font-family:var(--font-mono);font-size:1rem;letter-spacing:0}.logo-seal{width:42px;height:42px;color:var(--gold)}.logo-sub{color:var(--cream);font:500 .68rem/1.1 var(--font-body);letter-spacing:.08em;text-transform:uppercase}
+.btn{border-radius:2px;transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .18s ease}.btn-primary{background:var(--red-dark);color:var(--white)}.btn-primary:hover{background:var(--red);color:var(--white)}.btn-secondary{border:1px solid var(--gold);color:var(--gold);background:transparent}.btn-secondary:hover{background:var(--gold);color:var(--black)}.icon-btn,.chip,.pill,.toggle,.switch,.util-btn,.util-link{border-radius:2px}.chip,.pill{background:var(--card);border-color:var(--line);color:var(--white)}.chip[aria-pressed="true"]{border-color:var(--gold);background:var(--tint);color:var(--gold)}
+.card,.bongao-directory,.island-card,.panel,.news-list li{background:var(--card);border:1px solid var(--line);border-radius:2px;box-shadow:none;position:relative}.card::before,.bongao-directory::before,.island-card::before,.panel::before,.news-list li::before{content:"";position:absolute;top:-1px;left:14px;width:28px;height:1px;background:var(--gold)}
+.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover{border-top-color:var(--gold);transform:translateY(-2px);transition:transform .18s ease,border-color .18s ease}
+.input,select.input{background:#0D0D0D;border-color:var(--line);border-radius:2px;color:var(--white)}
+.concept-notice,.warn{background:var(--cream);color:var(--black);border-left:4px solid var(--yellow);border-radius:0}.concept-notice a,.warn a{color:var(--red-dark)}
+.hero{background-color:#101010;background-image:linear-gradient(rgba(0,0,0,.52),rgba(0,0,0,.52)),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:auto,8px 8px,8px 8px}.hero-copy::before{background:rgba(8,8,8,.91);box-shadow:none}.hero h1{color:var(--white)}.hero p,.mission p,.block .text p{color:var(--muted)}.hero-caption{border:1px solid var(--line);border-radius:2px;background:rgba(0,0,0,.8)}
+.quick-services{background:var(--card);border-color:var(--line)}.quick-services .container{padding-block:18px}.service-link{border-color:var(--line);color:var(--white);transition:background-color .18s ease,transform .18s ease}.service-link .icon{color:var(--gold)}.service-link:hover{background:var(--tint);transform:translateY(-2px)}
+.mission{background:var(--foam)}
+.bongao-context,#islands{background:#0D0D0D;border-block-color:var(--line)}.bongao-directory{border-top:1px solid var(--line)}
+.island-map{border:1px solid var(--line);border-radius:2px;filter:saturate(.8) contrast(1.05)}.map-legend{color:var(--muted);font:600 .76rem var(--font-mono)}
+.map-pin::before{background:var(--red-dark);border-color:var(--white);box-shadow:0 0 0 1px var(--red-dark),0 2px 5px rgba(0,0,0,.5)}.map-pin::after{background:var(--white)}.map-pin.is-selected::before{background:var(--gold);border-color:var(--black);box-shadow:0 0 0 3px var(--gold),0 3px 7px rgba(0,0,0,.55)}.map-pin-label{background:var(--black);color:var(--white);border:1px solid var(--gold);border-radius:2px;font-family:var(--font-mono)}
+.stats{background:var(--red-dark);padding-block:48px 32px}.stat-num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--white)}.stats .note{color:rgba(255,255,255,.72)}
+.pay{background:var(--card);border-color:var(--line)}.steps li::before{border-color:var(--gold);color:var(--gold);border-radius:50%;font-family:var(--font-mono)}.channels li{border-color:var(--line)}.channels .ico{background:var(--tint);color:var(--gold);border-radius:2px}
+.news-filter[aria-pressed="true"]{background:var(--red-dark);border-color:var(--red-dark)}.tag{color:var(--gold);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em}.closing-band{background:var(--red-dark)}
+.site-footer{background:#050505;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:8px 8px;border-top:1px solid var(--line)}.site-footer .container{padding-block:48px 32px}.toggle[aria-pressed="true"]{background:var(--gold);color:var(--black)}
+.badge.steady{background:rgba(46,158,63,.2);color:#8BE596}.badge.limited{background:rgba(245,209,66,.18);color:var(--yellow)}.badge.outage{background:rgba(224,32,32,.2);color:#FF8D8D}.badge{border-radius:2px;font-family:var(--font-mono);font-size:.72rem}
+.modal,.popover,dialog.modal{border-radius:2px;background:var(--card);border-color:var(--line)}.cookie{background:var(--card);border-color:var(--line);border-radius:2px}.lang-note{background:var(--yellow);color:var(--black)}
+.stat-num,.est-result,.channels strong,time,.small,dd{font-variant-numeric:tabular-nums}.site-footer a{color:var(--gold)}
+@media (max-width:760px){.container{padding-inline:18px}.section{padding-block:44px}.hero h1{font-size:2.7rem}.island-map{height:360px}.card,.bongao-directory,.island-card{padding:22px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover,.service-link:hover{transform:none}}
 </style>
 </head>
 <body>
@@ -633,7 +669,7 @@ fieldset{border:0;padding:0;margin:0 0 14px}
 <header class="site-header" id="siteHeader">
   <div class="container">
     <a class="logo" href="#main" aria-label="E-TAWELCO Tawi-Tawi, home">
-<img class="logo-seal" src="assets/tawelco-seal-transparent.png" alt="TAWELCO seal" width="56" height="56">
+<svg class="logo-seal logo-mark" viewBox="0 0 56 56" role="img" aria-label="E-TAWELCO mark"><path d="M28 3 47 14v28L28 53 9 42V14Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m31 10-12 19h9l-3 17 13-22h-9Z" fill="currentColor"/></svg>
       <span>E-TAWELCO<span class="logo-sub">Tawi-Tawi</span></span>
     </a>
     <nav class="main-nav" aria-label="Main">
@@ -650,7 +686,7 @@ fieldset{border:0;padding:0;margin:0 0 14px}
 <!-- Mobile drawer -->
 <div class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-label="Menu">
   <div class="drawer-head">
-<span class="logo" style="font-size:1.1rem"><img class="logo-seal" src="assets/tawelco-seal-transparent.png" alt="TAWELCO seal" width="56" height="56"><span>E-TAWELCO<span class="logo-sub">Tawi-Tawi</span></span></span>
+<span class="logo" style="font-size:1.1rem"><svg class="logo-seal logo-mark" viewBox="0 0 56 56" role="img" aria-label="E-TAWELCO mark"><path d="M28 3 47 14v28L28 53 9 42V14Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m31 10-12 19h9l-3 17 13-22h-9Z" fill="currentColor"/></svg><span>E-TAWELCO<span class="logo-sub">Tawi-Tawi</span></span></span>
     <button class="icon-btn" id="drawerClose" aria-label="Close menu"><svg class="icon"><use href="#i-close"/></svg></button>
   </div>
   <div class="drawer-body" id="drawerBody"></div>
