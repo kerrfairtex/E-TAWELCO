@@ -143,6 +143,9 @@ textarea.input{padding:10px 12px;min-height:90px;resize:vertical}
 details.as-table{margin-top:12px;font-size:.9rem}
 details.as-table summary{cursor:pointer;color:var(--muted);font-weight:600}
 .empty{padding:28px;text-align:center;color:var(--muted)}
+#view{min-width:0}
+#view.view-enter{animation:view-enter .22s ease both}
+@keyframes view-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .member-hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,.8fr);gap:20px;align-items:stretch}.member-hero .card{display:flex;flex-direction:column;justify-content:center}.member-hero h2{font-size:1.45rem;margin-bottom:8px}.member-hero p{max-width:56ch}.status-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.status-item{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}.status-item strong{display:block;margin-top:4px}.member-checklist{display:grid;gap:12px;margin:0;padding:0;list-style:none}.member-checklist li{display:flex;gap:10px;align-items:flex-start}.member-checklist li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand);margin-top:8px;flex:none}.member-checklist a{font-weight:700}.table-wrap{scrollbar-width:thin}@media (max-width:760px){.member-hero{grid-template-columns:1fr}.status-strip{grid-template-columns:1fr}.shell{padding-inline:14px}.card{padding:18px}th,td{padding:10px 11px}.page-head{align-items:stretch}.page-head .btn{width:100%}}
 
 /* Tables */
