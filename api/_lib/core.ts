@@ -3,12 +3,14 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 export type Role = 'member' | 'staff' | 'admin'
 export type Session = { id: string; email: string; name: string | null; role: Role }
 
-export function supabase(req?: Request) {
-  const token = req?.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+// Server-only client. It always runs as service role because the tables have RLS enabled with no
+// policies; access is enforced in code via authorize() and per-user filters. The caller's token is
+// verified separately in currentSession(), never forwarded as the Authorization header.
+export function supabase(_req?: Request) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY!,
-    token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : undefined,
+    { auth: { persistSession: false, autoRefreshToken: false } },
   )
 }
 
