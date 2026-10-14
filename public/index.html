@@ -1791,8 +1791,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   $('#payForm').addEventListener('submit', function(e){
     e.preventDefault();
     var v = $('#payAcct').value.replace(/\s/g,'');
-    var ok = /^\d{10}$/.test(v);
-    $('#payErr').textContent = ok ? '' : 'Enter your 10-digit account number.';
+    var ok = /^\d{11}$/.test(v);
+    $('#payErr').textContent = ok ? '' : 'Enter your 11-digit account number.';
     $('#payAcct').setAttribute('aria-invalid', String(!ok));
     $('#payMsg').textContent = ok ? 'Sample amount due: ' + peso(80 * selected.rate) + '. Choose a payment channel on this page. Online payment is not connected yet.' : '';
     if (!ok) $('#payAcct').focus();
