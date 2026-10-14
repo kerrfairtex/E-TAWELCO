@@ -275,8 +275,29 @@ function wireTips(root, tipFor) {
   })
 }
 
-// ---------- Views ----------
-const VIEWS = { overview, outages, areas: areasView, people, profile: profileView }
+  // ---------- Views ----------
+  async function auditView(view) {
+    const stats = await api('/api/stats')
+    view.innerHTML = `${head('Audit Log', 'Recent administrative actions recorded by the cooperative.')}
+      <section class="card"><div class="card-head"><h2>Recent activity</h2><span class="small muted">Last 10 entries</span></div>
+      ${stats.activity?.length ? `<ul class="activity">${stats.activity.map((a) => `<li><span><strong>${esc(a.actor_email)}</strong> ${esc(describeAction(a))}</span><span class="muted small">${esc(ago(a.created_at))}</span></li>`).join('')}</ul>` : '<p class="empty">No audit entries yet.</p>'}</section>`
+  }
+
+  async function unavailableAdminView(view, title, description) {
+    view.innerHTML = `${head(title, description)}<section class="card"><h2>Module not connected</h2><p class="muted">This area is now reserved in the Admin dashboard, but the current project has no data model or API endpoint for it yet. The existing People, Outage reports, Service areas, and Audit Log modules are live.</p></section>`
+  }
+
+  const adminAlias = (view) => people(view)
+  const repairAlias = (view) => outages(view)
+  const VIEWS = {
+    overview, outages, areas: areasView, people, profile: profileView,
+    'manage-admins': adminAlias, 'add-users': adminAlias, 'repair-requests': repairAlias,
+    complaints: (view) => unavailableAdminView(view, 'Complaints', 'Review and resolve member complaints.'),
+    billing: (view) => unavailableAdminView(view, 'Billing Oversight', 'Monitor member billing and payment activity.'),
+    gcash: (view) => unavailableAdminView(view, 'GCash Merchant', 'Manage GCash merchant reconciliation and settlement.'),
+    audit: auditView,
+    settings: (view) => unavailableAdminView(view, 'Master Settings', 'Configure cooperative-wide dashboard settings.'),
+  }
 
 function route() {
   let name = location.hash.replace('#', '') || 'overview'
