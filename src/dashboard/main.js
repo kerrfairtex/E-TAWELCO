@@ -262,9 +262,20 @@ async function overview(view) {
     const { reports } = await api('/api/outages?scope=mine')
     const s = stats.byStatus
     const open = (s.received ?? 0) + (s.assigned ?? 0) + (s.in_progress ?? 0)
-    view.innerHTML = `${head(`Hello, ${first}`, 'Your outage reports and account at a glance.', '<a class="btn btn-primary" href="#outages">Report an outage</a>')}
-      <div class="stack">
-        <div class="tiles">
+const area = state.areas.find((item) => item.id === state.profile?.area_id)
+  const areaStatus = area ? badge(area.status, AREA_STATUS) : '<span class="muted">Add your island area</span>'
+  const profileReady = Boolean(state.profile?.full_name && state.profile?.phone && state.profile?.area_id)
+  view.innerHTML = `${head(`Hello, ${first}`, 'Stay informed, report issues, and follow every update in one place.', '<a class="btn btn-primary" href="#outages">Report an outage</a>')}
+  <div class="stack">
+  <section class="member-hero" aria-label="Member quick start">
+    <div class="card">
+      <h2>Power updates for your home</h2>
+      <p class="muted">Tell us what is happening and the outage desk will keep your report moving. Add your area and phone number once to make future reports faster.</p>
+      <div class="status-strip" aria-label="Your service area status"><div class="status-item"><span class="small muted">Your area</span><strong>${esc(area?.name || 'Not set')}</strong></div><div class="status-item"><span class="small muted">Current status</span><strong>${areaStatus}</strong></div><div class="status-item"><span class="small muted">Profile</span><strong>${profileReady ? 'Complete' : '<a href="#profile">Finish setup</a>'}</strong></div></div>
+    </div>
+    <div class="card"><h2>Next steps</h2><ul class="member-checklist"><li><span><a href="#outages">Report an outage</a><br><span class="small muted">Send location and issue details.</span></span></li><li><span><a href="#profile">Update your profile</a><br><span class="small muted">Keep your contact details ready.</span></span></li><li><span><a href="#outages">Check your reports</a><br><span class="small muted">Open a ticket for its timeline.</span></span></li></ul></div>
+  </section>
+  <div class="tiles">
           <div class="tile accent"><span class="tile-label">Open reports</span><span class="tile-num">${fmtNum(open)}</span><div class="tile-note">Being handled by the cooperative</div></div>
           <div class="tile"><span class="tile-label">Resolved</span><span class="tile-num">${fmtNum(s.resolved)}</span></div>
           <div class="tile"><span class="tile-label">Your island</span><span class="tile-num" style="font-size:1.35rem;margin-top:12px">${esc(areaName(state.profile?.area_id) || 'Not set')}</span>
@@ -371,7 +382,7 @@ async function outages(view) {
   const staff = isStaff()
   view.innerHTML = `${head('Outage reports', staff ? 'Triage, assign and resolve reports from every island.' : 'Report an outage and follow its progress.')}
     <div class="stack">
-      ${staff ? '' : `<section class="card" aria-labelledby="newTitle"><div class="card-head"><h2 id="newTitle">Report an outage</h2></div>${reportForm()}</section>`}
+      ${staff ? '' : `<section class="card" aria-labelledby="newTitle"><div class="card-head"><div><h2 id="newTitle">Report an outage</h2><p class="small muted">Usually takes less than a minute. You can follow the ticket after sending it.</p></div></div>${reportForm()}</section>`}
       <section aria-labelledby="listTitle">
         <h2 id="listTitle" class="visually-hidden">Reports</h2>
         <form class="filters" id="filters">
