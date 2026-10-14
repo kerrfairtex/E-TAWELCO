@@ -227,15 +227,15 @@ dl.facts dd{margin:0}
 <!-- Signed-out view -->
 <main id="auth" class="auth" hidden>
   <div class="card">
-    <h1 style="font-size:1.6rem;margin-bottom:6px">Member dashboard</h1>
-    <p class="muted small" style="margin-bottom:20px">Follow outage reports and manage your details. Staff and admins use the same log-in.</p>
+<h1 style="font-size:1.6rem;margin-bottom:6px">E-TAWELCO dashboard</h1>
+  <p class="muted small" style="margin-bottom:20px">Members and admins sign in with their cooperative ID and password.</p>
     <div class="tabs" role="tablist" id="authTabs">
       <button role="tab" type="button" data-tab="login" aria-selected="true">Log in</button>
       <button role="tab" type="button" data-tab="signup" aria-selected="false">Create account</button>
     </div>
 
     <form id="loginForm" data-panel="login" novalidate>
-      <div class="field"><label for="lEmail">Email</label><input class="input" id="lEmail" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="lEmail">Admin ID or member account number</label><input class="input" id="lEmail" inputmode="numeric" autocomplete="username" placeholder="79410915 or 09979410915" required><span class="small muted">Use your cooperative ID or account number.</span></div>
       <div class="field"><label for="lPw">Password</label><input class="input" id="lPw" type="password" autocomplete="current-password" required></div>
       <button class="btn btn-primary" type="submit" style="width:100%">Log in</button>
       <p style="margin:14px 0 0" class="small"><button class="link-btn" type="button" data-tab-go="forgot">Forgot your password?</button></p>

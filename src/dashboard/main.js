@@ -1,7 +1,27 @@
-import {
-  AuthError, MissingIdentityError, getUser, handleAuthCallback, login, logout, onAuthChange,
-  refreshSession, requestPasswordRecovery, signup, updateUser, acceptInvite,
-} from '@netlify/identity'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
+)
+const identityForLogin = (value) => {
+  const id = value.trim()
+  if (/^\\d{8}$/.test(id)) return `${id}@admin.tawelco.local`
+  if (/^\\d{11}$/.test(id)) return `${id}@member.tawelco.local`
+  return id
+}
+const authError = (error) => ({ status: error?.status, message: error?.message })
+const login = async (identifier, password) => {
+  const { data, error } = await supabase.auth.signInWithPassword({ email: identityForLogin(identifier), password })
+  if (error) throw authError(error)
+  return data.session
+}
+const logout = () => supabase.auth.signOut()
+const refreshSession = async () => { const { data } = await supabase.auth.getSession(); return data.session }
+const getUser = async () => { const { data } = await supabase.auth.getUser(); return data.user }
+const onAuthChange = (callback) => supabase.auth.onAuthStateChange((event) => callback(event.toLowerCase()))
+const requestPasswordRecovery = (email) => supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/dashboard/` })
+const updateUser = (attributes) => supabase.auth.updateUser(attributes)
 
 const $ = (s, el = document) => el.querySelector(s)
 const $$ = (s, el = document) => [...el.querySelectorAll(s)]
@@ -53,13 +73,9 @@ async function busy(btn, fn) {
 }
 
 function authMessage(error) {
-  if (error instanceof MissingIdentityError) return 'Log-in is not available on this site yet.'
-  if (error instanceof AuthError) {
-    if (error.status === 401 || error.status === 400) return 'That email and password do not match.'
-    if (error.status === 403) return 'New sign-ups are closed. Ask the cooperative for an invite.'
-    if (error.status === 422) return 'Check your email and choose a password of at least 8 characters.'
-    return error.message
-  }
+  if (error?.status === 401 || error?.status === 400) return 'That ID and password do not match.'
+  if (error?.status === 403) return 'This account is not permitted to sign in.'
+  if (error?.status === 422) return 'Check the account details and password requirements.'
   return error?.message || 'Something went wrong. Please try again.'
 }
 
@@ -101,8 +117,9 @@ $('#signupForm').addEventListener('submit', (e) => {
   if (pw.length < 8) return setMsg(msg, 'Choose a password of at least 8 characters.')
   busy($('button[type=submit]', e.target), async () => {
     try {
-      const user = await signup(email, pw, { full_name: name })
-      if (user.emailVerified || user.confirmedAt) await start()
+      const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { data: { full_name: name, role: 'member' }, emailRedirectTo: `${location.origin}/dashboard/` } })
+      if (error) throw authError(error)
+      if (data.session) await start()
       else { e.target.reset(); setMsg(msg, 'Check your email for a link to confirm your account.', 'ok') }
     } catch (err) { setMsg(msg, authMessage(err)) }
   })
@@ -656,15 +673,11 @@ function renderWho() {
 async function start() {
   const user = await getUser()
   if (!user) return showAuth()
-  try {
-    const [{ profile }, { areas }] = await Promise.all([api('/api/me'), api('/api/areas')])
-    state.profile = profile
-    state.areas = areas
-    state.session = { id: profile.id, email: profile.email, role: profile.role }
-  } catch (err) {
-    if (!state.session) return
-    throw err
-  }
+  const { data: profile, error } = await supabase.from('profiles').select('id, role, account_number, admin_id, full_name, area_id').eq('id', user.id).single()
+  if (error || !profile) throw new Error('Your account profile is not available yet.')
+  state.profile = { ...profile, email: user.email }
+  state.areas = []
+  state.session = { id: user.id, email: user.email, role: profile.role }
   $$('#sideNav [data-role]').forEach((a) => { a.hidden = a.dataset.role === 'admin' ? !isAdmin() : !isStaff() })
   renderWho()
   $('#loading').hidden = true
@@ -674,24 +687,6 @@ async function start() {
 }
 
 async function boot() {
-  try {
-    const result = await handleAuthCallback()
-    if (result?.type === 'recovery') {
-      showAuth('setpw')
-      $('#setPwIntro').textContent = 'Choose a new password for your account.'
-      return
-    }
-    if (result?.type === 'invite') {
-      inviteToken = result.token
-      showAuth('setpw')
-      $('#setPwIntro').textContent = 'Welcome! Choose a password to finish setting up your account.'
-      return
-    }
-  } catch (err) {
-    showAuth()
-    setMsg($('#loginForm .msg'), authMessage(err))
-    return
-  }
   await start()
 }
 
