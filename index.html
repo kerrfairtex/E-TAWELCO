@@ -482,6 +482,26 @@ fieldset{border:0;padding:0;margin:0 0 14px}
 .low-data .marquee{mask-image:none;-webkit-mask-image:none}
 .low-data *{transition:none!important;animation:none!important}
 
+/* ---------- Frontend polish ---------- */
+.site-header{backdrop-filter:saturate(140%) blur(14px);background:color-mix(in srgb,var(--card) 92%,transparent)}
+.hero{background:linear-gradient(120deg,var(--art-bg) 0%,var(--soft) 48%,var(--art-bg) 100%)}
+.hero-copy::before{box-shadow:18px 0 42px rgba(37,43,48,.08)}
+.hero h1{max-width:560px;text-wrap:balance}
+.hero-actions .btn-primary{box-shadow:0 10px 22px rgba(188,23,48,.18)}
+.service-link{transition:transform .18s ease,background-color .18s ease}
+.service-link:hover{transform:translateY(-2px);background:var(--tint)}
+.card,.bongao-directory,.island-card{box-shadow:0 8px 24px rgba(37,43,48,.05)}
+.section-label{text-transform:uppercase;letter-spacing:.12em;font-size:.75rem}
+@media (max-width:860px){
+  .hero{min-height:650px}
+  .hero-photo{inset:38% 0 0}
+  .hero-copy{width:100%;padding:48px 24px 220px}
+  .hero-copy::before{inset:0 0 28% 0;border-radius:0 0 110px 0}
+  .hero-caption{right:20px;bottom:22px}
+  .quick-services .container{grid-template-columns:repeat(2,1fr);gap:12px}
+  .service-link,.service-link:first-child{padding:14px 12px;border:1px solid var(--line);border-radius:12px}
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
