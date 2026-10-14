@@ -9,8 +9,10 @@
 <link rel="icon" type="image/png" href="assets/tawelco-seal-transparent.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
 /* ---------- Tokens ---------- */
 :root{
   --sea:#252B30; --lagoon:#BC1730; --weed:#4F7A3A; --sun:#F2A516; --sun-hover:#DE9612;
@@ -216,9 +218,14 @@ main:focus{outline:none}
 .mission h2{margin:0;color:var(--brand);font-size:clamp(2rem,3.2vw,2.8rem)}
 .mission p{font-size:1.1rem;color:var(--muted);margin-bottom:14px}
 .section-label{color:var(--muted);font-weight:600;font-size:.9rem;margin-bottom:14px}
-.scene{width:100%;height:110px;display:block;background:var(--sea);border-radius:4px;margin:28px 0 0}
-.wave-divider{display:none}
-.marker{cursor:pointer}
+  .scene{width:100%;height:110px;display:block;background:var(--sea);border-radius:4px;margin:28px 0 0}
+  .island-map{height:430px;margin:28px 0 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:#dbe8ec;z-index:0}
+  .island-map .leaflet-control-zoom a{color:#252B30;text-decoration:none}
+  .island-map .leaflet-control-attribution{font-size:11px}
+  .map-legend{margin:10px 0 0;color:var(--muted);font-size:.85rem}
+  .leaflet-marker-icon:focus{outline:3px solid var(--sun);outline-offset:3px;border-radius:50%}
+  .wave-divider{display:none}
+  .marker{cursor:pointer}
 .marker circle.dot{fill:#E8EFE9;stroke:var(--sea);stroke-width:3;transition:r .15s, fill .15s}
 .marker text{fill:#E8EFE9;font:700 13px var(--font-body)}
 .marker[aria-pressed="true"] circle.dot{fill:var(--sun);stroke:#fff;r:9}
@@ -774,11 +781,8 @@ fieldset{border:0;padding:0;margin:0 0 14px}
     <div class="container">
       <h2 id="islandsTitle" data-i18n="islands.title">Your island</h2>
       <p data-i18n="islands.intro">Explore island and municipal areas. Geography does not establish electricity coverage. All service statuses, rates and hours below are samples, not live utility information.</p>
-      <svg class="scene deco" id="scene" viewBox="0 340 560 110" role="group" aria-label="Schematic of five example areas, not service boundaries or a live outage map. Select an area to see sample information.">
-        <text x="28" y="364" fill="#CCD0D4" font-size="12" font-family="system-ui, sans-serif">Example areas · schematic, not service boundaries</text>
-        <path d="M66 418 L150 408 L300 398 L360 418 M300 398 L470 372" fill="none" stroke="#CCD0D4" stroke-width="1.5" stroke-dasharray="3 5" opacity=".7"/>
-        <g id="markers"></g>
-      </svg>
+      <div id="islandMap" class="island-map" role="region" aria-label="Geographic map of Tawi-Tawi municipality and island reference points"></div>
+      <p class="map-legend" role="note">Geographic reference only · service availability not shown.</p>
       <div class="island-layout">
         <div class="chips" id="chips" role="group" aria-label="Choose your island"></div>
         <div class="card island-card" aria-live="polite">
@@ -1152,11 +1156,11 @@ fieldset{border:0;padding:0;margin:0 0 14px}
 
   /* ---------- Data ---------- */
   var ISLANDS = [
-    {id:'bongao', name:'Bongao', status:'steady', source:'Diesel power plant serving the main town', rate:13.50, hours:'24 hours', office:'Main office, Bongao town', x:360, y:418},
-    {id:'simunul', name:'Simunul', status:'limited', source:'Island diesel set', rate:15.20, hours:'Evening hours, 6 pm to 6 am', office:'Simunul satellite office', x:300, y:398},
-    {id:'sibutu', name:'Sibutu', status:'steady', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sibutu collection office', x:150, y:408},
-    {id:'sitangkai', name:'Sitangkai', status:'outage', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sitangkai collection office', x:66, y:418},
-    {id:'taganak', name:'Turtle Islands (Taganak)', markerName:'Taganak', status:'limited', source:'Small island system', rate:16.00, hours:'Evening hours', office:'To be confirmed', x:470, y:372}
+{id:'bongao', name:'Bongao', status:'steady', source:'Diesel power plant serving the main town', rate:13.50, hours:'24 hours', office:'Main office, Bongao town', coords:[5.0292,119.7731]},
+  {id:'simunul', name:'Simunul', status:'limited', source:'Island diesel set', rate:15.20, hours:'Evening hours, 6 pm to 6 am', office:'Simunul satellite office', coords:[4.8961,120.0065]},
+  {id:'sibutu', name:'Sibutu', status:'steady', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sibutu collection office', coords:[4.8584,119.4686]},
+  {id:'sitangkai', name:'Sitangkai', status:'outage', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sitangkai collection office', coords:[4.6748,119.3553]},
+  {id:'taganak', name:'Turtle Islands (Taganak)', markerName:'Taganak', status:'limited', source:'Small island system', rate:16.00, hours:'Evening hours', office:'To be confirmed', coords:[6.0733,118.3128]}
   ];
   ['Mapun','Languyan','Sapa-Sapa','South Ubian','Tandubas','Panglima Sugala'].forEach(function(n){
     ISLANDS.push({id:n.toLowerCase().replace(/[^a-z]+/g,'-'), name:n, extra:true, status:'limited', source:'To be confirmed', rate:15.00, hours:'To be confirmed', office:'To be confirmed'});
@@ -1498,8 +1502,11 @@ fieldset{border:0;padding:0;margin:0 0 14px}
   });
 
   /* ---------- Islands ---------- */
-  var chipsBox = $('#chips'), card = $('#islandCard'), markers = $('#markers');
+  var chipsBox = $('#chips'), card = $('#islandCard');
+  var map = L.map('islandMap', {scrollWheelZoom:false, zoomControl:true}).setView([5.15,119.55], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
   var selected = ISLANDS[0];
+  var islandMarkers = {};
   var moreList;
   function chipHTML(i){ return '<button class="chip" data-chip="' + i.id + '" aria-pressed="false">' + i.name + '</button>'; }
   chipsBox.innerHTML = ISLANDS.filter(function(i){ return !i.extra; }).map(chipHTML).join('') +
@@ -1512,16 +1519,12 @@ fieldset{border:0;padding:0;margin:0 0 14px}
     if (open) moreList.querySelector('.chip').focus();
   });
 
-  var NS = 'http://www.w3.org/2000/svg';
   ISLANDS.filter(function(i){ return !i.extra; }).forEach(function(i){
-    var g = document.createElementNS(NS, 'g');
-    g.setAttribute('class','marker'); g.setAttribute('tabindex','0'); g.setAttribute('role','button');
-    g.setAttribute('aria-pressed','false'); g.setAttribute('aria-label', i.name); g.setAttribute('data-marker', i.id);
-    var labelX = i.x + (i.x > 420 ? -64 : 12), labelY = i.y + (i.y > 410 ? -8 : 4);
-    g.innerHTML = '<circle class="ring" cx="' + i.x + '" cy="' + i.y + '" r="18"/><circle class="dot" cx="' + i.x + '" cy="' + i.y + '" r="7"/><text x="' + labelX + '" y="' + labelY + '">' + (i.markerName || i.name) + '</text>';
-    markers.appendChild(g);
-    g.addEventListener('click', function(){ selectIsland(i.id, true); });
-    g.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectIsland(i.id, true); } });
+    var marker = L.marker(i.coords, {title:i.markerName || i.name, alt:i.markerName || i.name, keyboard:true}).addTo(map);
+    marker.bindTooltip(i.markerName || i.name, {permanent:true, direction:'top', offset:[0,-8]});
+    marker.on('click', function(){ selectIsland(i.id, true); });
+    marker.on('keydown', function(){ selectIsland(i.id, true); });
+    islandMarkers[i.id] = marker;
   });
 
   function renderCard(i){
