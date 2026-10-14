@@ -639,6 +639,29 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
         </div>
       </div>
       <div class="pop-wrap">
+        <button class="util-btn" id="adminBtn" aria-expanded="false" aria-controls="adminPanel">
+          <svg class="icon"><use href="#i-user"/></svg><span>Admin</span><svg class="icon"><use href="#i-chev"/></svg>
+        </button>
+        <div class="popover" id="adminPanel" hidden>
+          <h2>Admin log-in</h2>
+          <form id="adminLoginForm" novalidate>
+            <div class="field">
+              <label for="adminId">Admin ID</label>
+              <input class="input" id="adminId" name="adminId" autocomplete="username" aria-describedby="adminIdErr">
+              <span class="error" id="adminIdErr" aria-live="polite"></span>
+            </div>
+            <div class="field">
+              <label for="adminPw">Password</label>
+              <input class="input" id="adminPw" name="adminPw" type="password" autocomplete="current-password" aria-describedby="adminPwErr">
+              <span class="error" id="adminPwErr" aria-live="polite"></span>
+            </div>
+            <div class="form-links"><a href="#footer">Need access?</a><a href="#footer">Contact IT support</a></div>
+            <button class="btn btn-primary" type="submit">Log in</button>
+            <p class="form-msg" id="adminLoginMsg" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+      <div class="pop-wrap">
         <button class="util-btn" id="langBtn" aria-expanded="false" aria-controls="langPanel">
           <svg class="icon"><use href="#i-globe"/></svg><span id="langCode">EN</span><span class="visually-hidden" data-i18n="lang.title">Choose language</span>
         </button>
@@ -647,8 +670,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <div class="lang-list">
             <button class="chip" data-lang="en" aria-pressed="true">English</button>
             <button class="chip" data-lang="fil" aria-pressed="false">Filipino</button>
-            <button class="chip" data-lang="tsg" aria-pressed="false">Bahasa Sūg (Tausug) · English preview</button>
-            <button class="chip" data-lang="sama" aria-pressed="false">Sinama · English preview</button>
+<button class="chip" data-lang="tsg" aria-pressed="false">Bahasa Sūg (Tausug) · preview</button>
+  <button class="chip" data-lang="sama" aria-pressed="false">Sinama · preview</button>
           </div>
         </div>
       </div>
@@ -1312,15 +1335,22 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   var EN = {};
   $$('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (!(k in EN)) EN[k] = el.textContent; });
   MENU.forEach(function(m){ EN[m.key] = m.label; });
+  var DIALECTS = {
+    tsg: { code:'TSG', lang:'tsg', note:'Bahasa Sūg (Tausug) is available as a community-review preview. Core service and safety information remains in English until locally reviewed.' },
+    sama: { code:'SAMA', lang:'sma', note:'Sinama is available as a community-review preview. Core service and safety information remains in English until locally reviewed.' }
+  };
   var currentLang = 'en';
   function setLang(lang, persist){
-    currentLang = lang === 'fil' ? 'fil' : 'en';
+    var dialect = DIALECTS[lang];
+    currentLang = lang === 'fil' ? 'fil' : dialect ? dialect.lang : 'en';
     var dict = lang === 'fil' ? FIL : EN;
     root.setAttribute('lang', currentLang);
     $$('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); el.textContent = dict[k] || EN[k] || el.textContent; });
-    $('#langCode').textContent = currentLang === 'fil' ? 'FIL' : 'EN';
+    $('#langCode').textContent = lang === 'fil' ? 'FIL' : dialect ? dialect.code : 'EN';
     $$('[data-lang]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang)); });
-    $('#langNote').hidden = !(lang === 'tsg' || lang === 'sama');
+    var note = $('#langNote');
+    note.textContent = dialect ? dialect.note : '';
+    note.hidden = !dialect;
     if (persist) store.set('lang', lang);
   }
 
@@ -1386,6 +1416,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   $$('#utilItems > a').forEach(function(a){ a.addEventListener('click', function(){ closeSheet(false); }); });
 
   registerPop($('#membersBtn'), $('#membersPanel'));
+  registerPop($('#adminBtn'), $('#adminPanel'));
   registerPop($('#langBtn'), $('#langPanel'));
   $$('[data-lang]').forEach(function(b){
     b.addEventListener('click', function(){ setLang(b.getAttribute('data-lang'), true); closeCurrent(true); });
@@ -1405,6 +1436,20 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     pw.setAttribute('aria-invalid', String(!pwOk)); ok = ok && pwOk;
     $('#loginMsg').textContent = ok ? 'This is a concept site, so member log-in is not connected yet.' : '';
     if (!ok) (acctOk ? pw : acct).focus();
+  });
+
+  // Admin log-in
+  $('#adminLoginForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var adminId = $('#adminId'), adminPw = $('#adminPw'), ok = true;
+    var idOk = adminId.value.trim().length > 0;
+    $('#adminIdErr').textContent = idOk ? '' : 'Enter your admin ID.';
+    adminId.setAttribute('aria-invalid', String(!idOk)); ok = ok && idOk;
+    var pwOk = adminPw.value.length > 0;
+    $('#adminPwErr').textContent = pwOk ? '' : 'Enter your password.';
+    adminPw.setAttribute('aria-invalid', String(!pwOk)); ok = ok && pwOk;
+    $('#adminLoginMsg').textContent = ok ? 'This is a concept site, so admin log-in is not connected yet.' : '';
+    if (!ok) (idOk ? adminPw : adminId).focus();
   });
 
   // Low data
