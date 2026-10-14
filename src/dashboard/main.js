@@ -688,8 +688,8 @@ function renderWho() {
 async function start() {
   const user = await getUser()
   if (!user) return showAuth()
-  const { data: profile, error } = await supabase.from('profiles').select('id, role, account_number, admin_id, full_name, area_id').eq('id', user.id).single()
-  if (error || !profile) throw new Error('Your account profile is not available yet.')
+  const { profile } = await api('/api/me')
+  if (!profile) throw new Error('Your account profile is not available yet.')
   if (requestedRole && requestedRole !== profile.role) {
     await logout().catch(() => null)
     throw new Error(`This is a ${profile.role === 'admin' ? 'admin' : 'member'} account. Use the ${profile.role === 'admin' ? 'Admin' : 'Members'} login.`)

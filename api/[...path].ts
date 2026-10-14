@@ -21,6 +21,11 @@ async function areas(req: Request, client: ReturnType<typeof supabase>, id?: str
 
 async function me(req: Request, client: ReturnType<typeof supabase>) {
   const s = await authorize(req); if (s instanceof Response) return s
+  const existing = await readProfile(client, s.id)
+  if (!existing) {
+    const { error } = await client.from('profiles').upsert({ id: s.id, email: s.email, full_name: s.name, role: 'member', updated_at: new Date().toISOString() }, { onConflict: 'id' })
+    if (error) throw error
+  }
   if (req.method === 'PATCH') { const b = await body(req); const areaId = text(b.area_id, 40) || null; if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area'); const { error } = await client.from('profiles').update({ full_name: text(b.full_name, 120) || null, phone: text(b.phone, 30) || null, area_id: areaId, updated_at: new Date().toISOString() }).eq('id', s.id); if (error) throw error }
   return json({ profile: await readProfile(client, s.id) })
 }
