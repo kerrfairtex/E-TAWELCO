@@ -647,8 +647,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <div class="lang-list">
             <button class="chip" data-lang="en" aria-pressed="true">English</button>
             <button class="chip" data-lang="fil" aria-pressed="false">Filipino</button>
-            <button class="chip" data-lang="tsg" aria-pressed="false">Bahasa Sūg (Tausug) · English preview</button>
-            <button class="chip" data-lang="sama" aria-pressed="false">Sinama · English preview</button>
+<button class="chip" data-lang="tsg" aria-pressed="false">Bahasa Sūg (Tausug) · preview</button>
+  <button class="chip" data-lang="sama" aria-pressed="false">Sinama · preview</button>
           </div>
         </div>
       </div>
@@ -1312,15 +1312,22 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   var EN = {};
   $$('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (!(k in EN)) EN[k] = el.textContent; });
   MENU.forEach(function(m){ EN[m.key] = m.label; });
+  var DIALECTS = {
+    tsg: { code:'TSG', lang:'tsg', note:'Bahasa Sūg (Tausug) is available as a community-review preview. Core service and safety information remains in English until locally reviewed.' },
+    sama: { code:'SAMA', lang:'sma', note:'Sinama is available as a community-review preview. Core service and safety information remains in English until locally reviewed.' }
+  };
   var currentLang = 'en';
   function setLang(lang, persist){
-    currentLang = lang === 'fil' ? 'fil' : 'en';
+    var dialect = DIALECTS[lang];
+    currentLang = lang === 'fil' ? 'fil' : dialect ? dialect.lang : 'en';
     var dict = lang === 'fil' ? FIL : EN;
     root.setAttribute('lang', currentLang);
     $$('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); el.textContent = dict[k] || EN[k] || el.textContent; });
-    $('#langCode').textContent = currentLang === 'fil' ? 'FIL' : 'EN';
+    $('#langCode').textContent = lang === 'fil' ? 'FIL' : dialect ? dialect.code : 'EN';
     $$('[data-lang]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang)); });
-    $('#langNote').hidden = !(lang === 'tsg' || lang === 'sama');
+    var note = $('#langNote');
+    note.textContent = dialect ? dialect.note : '';
+    note.hidden = !dialect;
     if (persist) store.set('lang', lang);
   }
 
