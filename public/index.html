@@ -225,13 +225,14 @@ main:focus{outline:none}
   .map-legend{margin:10px 0 0;color:var(--muted);font-size:.85rem}
   .leaflet-marker-icon:focus{outline:3px solid var(--sun);outline-offset:3px;border-radius:50%}
   .wave-divider{display:none}
-  .marker{cursor:pointer}
-.marker circle.dot{fill:#E8EFE9;stroke:var(--sea);stroke-width:3;transition:r .15s, fill .15s}
-.marker text{fill:#E8EFE9;font:700 13px var(--font-body)}
-.marker[aria-pressed="true"] circle.dot{fill:var(--sun);stroke:#fff;r:9}
-.marker:focus{outline:none}
-.marker:focus-visible circle.ring{stroke:var(--sun);stroke-width:3}
-.marker circle.ring{fill:transparent;stroke:transparent}
+  .map-pin{width:32px;height:32px;display:grid;place-items:center;position:relative;transform:translateY(-10px)}
+  .map-pin::before{content:"";width:22px;height:22px;border-radius:50% 50% 50% 0;background:var(--card);border:3px solid var(--sea);box-shadow:0 2px 5px rgba(37,43,48,.28);transform:rotate(-45deg);transition:background-color .15s,border-color .15s,box-shadow .15s}
+  .map-pin::after{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--sea);transition:background-color .15s}
+  .map-pin.is-selected::before{background:var(--sun);border-color:#fff;box-shadow:0 0 0 3px var(--brand),0 3px 7px rgba(37,43,48,.35)}
+  .map-pin.is-selected::after{background:var(--sea)}
+  .map-pin-label{position:absolute;left:22px;top:-8px;padding:3px 7px;border-radius:4px;background:var(--sea);color:#fff;font:700 12px/1 var(--font-body);white-space:nowrap;box-shadow:0 1px 3px rgba(37,43,48,.25)}
+  .leaflet-marker-icon:focus .map-pin-label{background:var(--brand)}
+
 
 /* ---------- Islands ---------- */
 #islands{background:var(--soft)}
@@ -1520,10 +1521,16 @@ fieldset{border:0;padding:0;margin:0 0 14px}
   });
 
   ISLANDS.filter(function(i){ return !i.extra; }).forEach(function(i){
-    var marker = L.marker(i.coords, {title:i.markerName || i.name, alt:i.markerName || i.name, keyboard:true}).addTo(map);
-    marker.bindTooltip(i.markerName || i.name, {permanent:true, direction:'top', offset:[0,-8]});
-    marker.on('click', function(){ selectIsland(i.id, true); });
-    marker.on('keydown', function(){ selectIsland(i.id, true); });
+    var label = i.markerName || i.name;
+    var marker = L.marker(i.coords, {
+      title:label,
+      alt:label,
+      keyboard:true,
+      icon:L.divIcon({className:'', html:'<span class="map-pin" data-marker="' + i.id + '"><span class="map-pin-label">' + label + '</span></span>', iconSize:[32,32], iconAnchor:[16,32]})
+    }).addTo(map);
+    marker.bindTooltip(label, {direction:'top', offset:[0,-24], sticky:true});
+    marker.on('click', function(){ selectIsland(i.id, true, true); });
+    marker.on('keydown', function(e){ if (e.originalEvent.key === 'Enter' || e.originalEvent.key === ' ') { e.originalEvent.preventDefault(); selectIsland(i.id, true, true); } });
     islandMarkers[i.id] = marker;
   });
 
@@ -1542,11 +1549,15 @@ fieldset{border:0;padding:0;margin:0 0 14px}
       '<div class="card-actions"><a class="btn btn-secondary" href="#bills" id="cardEstimate">Estimate my bill</a><button class="btn btn-secondary" type="button" data-report="' + i.id + '">Report an outage</button></div>';
   }
   var fadeT;
-  function selectIsland(id, animate){
+  function selectIsland(id, animate, moveMap){
     var i = ISLANDS.filter(function(x){ return x.id === id; })[0]; if (!i) return;
     selected = i;
     $$('[data-chip]').forEach(function(c){ c.setAttribute('aria-pressed', String(c.getAttribute('data-chip') === id)); });
-    $$('[data-marker]').forEach(function(m){ m.setAttribute('aria-pressed', String(m.getAttribute('data-marker') === id)); });
+    Object.keys(islandMarkers).forEach(function(markerId){
+      var pin = islandMarkers[markerId].getElement()?.querySelector('.map-pin');
+      if (pin) pin.classList.toggle('is-selected', markerId === id);
+    });
+    if (moveMap && islandMarkers[id]) map.panTo(i.coords, {animate:!calm(), duration:.5});
     if (i.extra && moreList.hidden) { moreList.hidden = false; moreBtnI.setAttribute('aria-expanded','true'); }
     clearTimeout(fadeT);
     if (animate && !calm()) {
@@ -1555,7 +1566,7 @@ fieldset{border:0;padding:0;margin:0 0 14px}
     } else renderCard(i);
     updateEstimate();
   }
-  chipsBox.addEventListener('click', function(e){ var c = e.target.closest('[data-chip]'); if (c) selectIsland(c.getAttribute('data-chip'), true); });
+  chipsBox.addEventListener('click', function(e){ var c = e.target.closest('[data-chip]'); if (c) selectIsland(c.getAttribute('data-chip'), true, true); });
   chipsBox.addEventListener('keydown', function(e){
     if (['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].indexOf(e.key) < 0) return;
     var all = $$('.chip', chipsBox).filter(function(c){ return c.offsetParent !== null; });
