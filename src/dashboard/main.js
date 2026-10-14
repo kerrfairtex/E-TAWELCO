@@ -560,38 +560,56 @@ function editArea(a) {
 async function people(view) {
   const { users } = await api('/api/users')
   const counts = users.reduce((m, u) => ({ ...m, [u.role]: (m[u.role] ?? 0) + 1 }), {})
-  view.innerHTML = `${head('People', 'Everyone who has signed in. Grant staff access to crew and office teams.')}
-    <div class="tiles" style="margin-bottom:20px">
-      ${Object.keys(ROLE_LABEL).map((r) => `<div class="tile"><span class="tile-label">${ROLE_LABEL[r]}s</span><span class="tile-num">${fmtNum(counts[r])}</span></div>`).join('')}
+  const render = (items) => {
+    const query = ($('#peopleSearch', view)?.value || '').trim().toLowerCase()
+    const role = $('#peopleRole', view)?.value || 'all'
+    const filtered = items.filter((u) => {
+      const text = `${u.full_name || ''} ${u.email} ${u.area_name || ''}`.toLowerCase()
+      return (!query || text.includes(query)) && (role === 'all' || u.role === role)
+    })
+    $('#peopleCount', view).textContent = `${fmtNum(filtered.length)} ${filtered.length === 1 ? 'person' : 'people'}`
+    $('#peopleRows', view).innerHTML = filtered.length ? filtered.map((u) => `<tr>
+      <td><strong>${esc(u.full_name || '—')}</strong><br><span class="small muted">${esc(u.email)}</span></td>
+      <td>${esc(u.area_name || '—')}</td>
+      <td class="num">${fmtNum(u.reports)}</td>
+      <td class="small muted" title="${esc(u.last_seen_at ? fmtDate(u.last_seen_at) : 'Not seen yet')}">${esc(u.last_seen_at ? ago(u.last_seen_at) : 'Never')}</td>
+      <td>${u.id === state.session.id ? badge(u.role, ROLE_LABEL) + ' <span class="small muted">(you)</span>'
+        : `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
+           <select class="input role-select" id="role-${esc(u.id)}" data-user="${esc(u.id)}" data-was="${esc(u.role)}">
+             ${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}"${k === u.role ? ' selected' : ''}>${v}</option>`).join('')}
+           </select>`}
+        <span class="small" data-role-msg="${esc(u.id)}" aria-live="polite"></span></td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">No people match these filters.</td></tr>'
+    $$('[data-user]', view).forEach((sel) => sel.addEventListener('change', async () => {
+      const out = $(`[data-role-msg="${CSS.escape(sel.dataset.user)}"]`, view)
+      sel.disabled = true
+      try {
+        await api(`/api/users/${encodeURIComponent(sel.dataset.user)}`, { method: 'PATCH', body: { role: sel.value } })
+        const user = items.find((u) => u.id === sel.dataset.user)
+        if (user) user.role = sel.value
+        sel.dataset.was = sel.value
+        out.textContent = 'Saved'; out.style.color = 'var(--ok)'
+        state.team = null
+      } catch (err) {
+        sel.value = sel.dataset.was
+        out.textContent = err.message; out.style.color = 'var(--err)'
+      } finally { sel.disabled = false }
+    }))
+  }
+  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button>')}
+    <div class="tiles admin-tiles" style="margin-bottom:20px">
+      ${Object.keys(ROLE_LABEL).map((r) => `<button class="tile admin-tile" type="button" data-role-filter="${r}"><span class="tile-label">${ROLE_LABEL[r]}s</span><span class="tile-num">${fmtNum(counts[r])}</span><span class="tile-note">Filter people</span></button>`).join('')}
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Name</th><th>Area</th><th class="num">Reports</th><th>Last seen</th><th>Role</th></tr></thead>
-      <tbody>${users.map((u) => `<tr>
-        <td><strong>${esc(u.full_name || '—')}</strong><br><span class="small muted">${esc(u.email)}</span></td>
-        <td>${esc(u.area_name || '—')}</td>
-        <td class="num">${fmtNum(u.reports)}</td>
-        <td class="small muted" title="${esc(fmtDate(u.last_seen_at))}">${esc(ago(u.last_seen_at))}</td>
-        <td>${u.id === state.session.id ? badge(u.role, ROLE_LABEL) + ' <span class="small muted">(you)</span>'
-          : `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
-             <select class="input" style="min-height:36px;width:auto" id="role-${esc(u.id)}" data-user="${esc(u.id)}" data-was="${esc(u.role)}">
-               ${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}"${k === u.role ? ' selected' : ''}>${v}</option>`).join('')}</select>`}
-          <span class="small" data-role-msg="${esc(u.id)}" aria-live="polite"></span></td>
-      </tr>`).join('')}</tbody></table></div>
-    <p class="small muted" style="margin-top:12px">Role changes take effect the next time that person's session refreshes, usually within an hour.</p>`
-
-  $$('[data-user]', view).forEach((sel) => sel.addEventListener('change', async () => {
-    const out = $(`[data-role-msg="${CSS.escape(sel.dataset.user)}"]`, view)
-    sel.disabled = true
-    try {
-      await api(`/api/users/${encodeURIComponent(sel.dataset.user)}`, { method: 'PATCH', body: { role: sel.value } })
-      sel.dataset.was = sel.value
-      out.textContent = 'Saved'; out.style.color = 'var(--ok)'
-      state.team = null
-    } catch (err) {
-      sel.value = sel.dataset.was
-      out.textContent = err.message; out.style.color = 'var(--err)'
-    } finally { sel.disabled = false }
-  }))
+    <section class="card admin-people-card">
+      <div class="card-head"><div><h2>Directory</h2><p class="small muted" style="margin:4px 0 0">Role changes apply when the person's session refreshes.</p></div><span class="small muted" id="peopleCount"></span></div>
+      <div class="filters" id="peopleFilters"><div class="field"><label for="peopleSearch">Search people</label><input class="input" id="peopleSearch" type="search" placeholder="Name, email or area"></div><div class="field"><label for="peopleRole">Role</label><select class="input" id="peopleRole"><option value="all">All roles</option>${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Area</th><th class="num">Reports</th><th>Last seen</th><th>Access</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+    </section>`
+  $('#peopleSearch', view).addEventListener('input', () => render(users))
+  $('#peopleRole', view).addEventListener('change', () => render(users))
+  $$('[data-role-filter]', view).forEach((tile) => tile.addEventListener('click', () => { $('#peopleRole', view).value = tile.dataset.roleFilter; render(users) }))
+  $('#peopleRefresh', view).addEventListener('click', () => people(view))
+  render(users)
 }
 
 // ---------- Profile ----------
