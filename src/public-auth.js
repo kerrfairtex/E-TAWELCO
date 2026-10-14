@@ -1,10 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-const identityForLogin = (value, role) => {
-  const id = value.trim()
-  return role === 'admin' ? `${id}@admin.tawelco.local` : `${id}@member.tawelco.local`
-}
 
 function bind(formId, identifierId, passwordId, messageId, role) {
   const form = document.getElementById(formId)
@@ -24,12 +20,22 @@ function bind(formId, identifierId, passwordId, messageId, role) {
     const button = form.querySelector('button[type="submit"]')
     button.disabled = true
     message.textContent = 'Signing you in…'
-    const { error } = await supabase.auth.signInWithPassword({
-      email: identityForLogin(value, role),
-      password: password.value,
-    })
-    if (error) {
-      message.textContent = 'That ID and password do not match.'
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, identifier: value, password: password.value }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        message.textContent = response.status === 401 ? 'That ID and password do not match.' : 'We could not sign you in right now. Please try again.'
+        button.disabled = false
+        return
+      }
+      const { error } = await supabase.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token })
+      if (error) throw error
+    } catch {
+      message.textContent = 'We could not sign you in right now. Please try again.'
       button.disabled = false
       return
     }

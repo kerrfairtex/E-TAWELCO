@@ -1,4 +1,5 @@
-import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, readAreas, readProfile, statuses, areaStatuses, observations, supabase, text, withTicket, audit, type Session } from './_lib/core'
+import { createClient } from '@supabase/supabase-js'
+import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, text, withTicket, audit, type Session } from './_lib/core'
 
 export const runtime = 'nodejs'
 
@@ -99,4 +100,22 @@ async function outages(req: Request, client: ReturnType<typeof supabase>, id?: s
   if (req.method !== 'PATCH' || !staff) return fail('You do not have access to this', 403); const b = await body(req); const status = oneOf(b.status, statuses); if (!status) return fail('Unknown status'); const { error } = await client.from('outage_reports').update({ status, assigned_to: text(b.assigned_to, 80) || null, updated_at: new Date().toISOString() }).eq('id', id); if (error) throw error; await client.from('outage_updates').insert({ report_id: id, author_id: s.id, status, note: text(b.note, 1000) || null }); await audit(client, s, 'outage.update', 'outage_report', id, { status }); return json({ ok: true })
 }
 
-export default async function handler(req: Request) { try { const { client, resource, id } = await handleApi(req); if (resource === 'areas') return await areas(req, client, id); if (resource === 'me') return await me(req, client); if (resource === 'team') return await team(req, client); if (resource === 'users') return await users(req, client, id); if (resource === 'stats') return await stats(req, client); if (resource === 'outages') return await outages(req, client, id); return fail('Not found', 404) } catch (error) { return internalError(error) } }
+async function login(req: Request) {
+  if (req.method !== 'POST') return fail('Method not allowed', 405)
+  const b = await body(req)
+  const role = b.role === 'admin' ? 'admin' : b.role === 'member' ? 'member' : null
+  const identifier = text(b.identifier, 20).replace(/\s/g, '')
+  const password = typeof b.password === 'string' ? b.password.slice(0, 200) : ''
+  const valid = role === 'admin' ? /^\d{8}$/.test(identifier) : /^\d{11}$/.test(identifier)
+  if (!role || !valid || !password) return fail('Enter your ID and password.')
+  const authClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    (process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY)!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  )
+  const { data, error } = await authClient.auth.signInWithPassword({ email: `${identifier}@${role}.tawelco.local`, password })
+  if (error || !data.session) return fail('That ID and password do not match.', 401)
+  return json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token })
+}
+
+export default async function handler(req: Request) { try { if (pathParts(req)[1] === 'login') return await login(req); const { client, resource, id } = await handleApi(req); if (resource === 'areas') return await areas(req, client, id); if (resource === 'me') return await me(req, client); if (resource === 'team') return await team(req, client); if (resource === 'users') return await users(req, client, id); if (resource === 'stats') return await stats(req, client); if (resource === 'outages') return await outages(req, client, id); return fail('Not found', 404) } catch (error) { return internalError(error) } }
