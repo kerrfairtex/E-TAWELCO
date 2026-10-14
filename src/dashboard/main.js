@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY,
-)
+const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY)
+const supabase = hasSupabaseConfig
+  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  : null
+
+const configurationError = () => new Error('Dashboard authentication is not configured. Please contact the administrator.')
+const authClient = () => {
+  if (!supabase) throw configurationError()
+  return supabase
+}
 const identityForLogin = (value) => {
   const id = value.trim()
   if (/^\d{8}$/.test(id)) return `${id}@admin.tawelco.local`
@@ -13,16 +19,16 @@ const identityForLogin = (value) => {
 const authError = (error) => ({ status: error?.status, message: error?.message })
 const requestedRole = new URLSearchParams(location.search).get('login')
 const login = async (identifier, password) => {
-  const { data, error } = await supabase.auth.signInWithPassword({ email: identityForLogin(identifier), password })
+  const { data, error } = await authClient().auth.signInWithPassword({ email: identityForLogin(identifier), password })
   if (error) throw authError(error)
   return data.session
 }
-const logout = () => supabase.auth.signOut()
-const refreshSession = async () => { const { data } = await supabase.auth.getSession(); return data.session }
-const getUser = async () => { const { data } = await supabase.auth.getUser(); return data.user }
-const onAuthChange = (callback) => supabase.auth.onAuthStateChange((event) => callback(event.toLowerCase()))
-const requestPasswordRecovery = (email) => supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/dashboard/` })
-const updateUser = (attributes) => supabase.auth.updateUser(attributes)
+const logout = () => authClient().auth.signOut()
+const refreshSession = async () => { const { data } = await authClient().auth.getSession(); return data.session }
+const getUser = async () => { const { data } = await authClient().auth.getUser(); return data.user }
+const onAuthChange = (callback) => authClient().auth.onAuthStateChange((event) => callback(event.toLowerCase()))
+const requestPasswordRecovery = (email) => authClient().auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/dashboard/` })
+const updateUser = (attributes) => authClient().auth.updateUser(attributes)
 
 const $ = (s, el = document) => el.querySelector(s)
 const $$ = (s, el = document) => [...el.querySelectorAll(s)]
@@ -710,6 +716,7 @@ async function start() {
 }
 
 async function boot() {
+  if (!hasSupabaseConfig) throw configurationError()
   await start()
 }
 
