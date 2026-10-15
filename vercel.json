@@ -2,10 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "cleanUrls": true,
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 30
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/[...path]"
     }
-  }
+  ]
 }
