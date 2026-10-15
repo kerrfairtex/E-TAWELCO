@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, text, withTicket, audit, type Session } from './_lib/core.js'
 
-export const runtime = 'nodejs'
+
 
 async function areas(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method === 'GET') return json({ areas: await readAreas(client) })
