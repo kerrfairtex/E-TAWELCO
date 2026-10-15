@@ -4,7 +4,7 @@
   "cleanUrls": true,
   "functions": {
     "api/**/*.ts": {
-      "runtime": "nodejs20"
+      "runtime": "node@20"
     }
   }
 }
