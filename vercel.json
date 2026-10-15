@@ -1,11 +1,4 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "public",
-  "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://tawelco.netlify.app/.netlify/functions/$1"
-    }
-  ]
+  "outputDirectory": "public"
 }
