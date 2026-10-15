@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "public",
+  "framework": "other",
   "functions": {
     "api/[...path].ts": {
       "maxDuration": 30
