@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "public",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs22",
+      "maxDuration": 30
+    }
+  }
 }
