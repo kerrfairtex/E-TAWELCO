@@ -2,5 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "cleanUrls": true,
-  "framework": "other"
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs@20"
+    }
+  }
 }
