@@ -11,7 +11,9 @@
     "@supabase/supabase-js": "^2.57.0"
   },
   "devDependencies": {
-    "esbuild": "^0.25.12"
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.25.12",
+    "typescript": "^7.0.2"
   },
   "scripts": {
     "build": "esbuild src/dashboard/main.js --bundle --platform=browser --alias:ws=./src/dashboard/ws-shim.js --format=esm --minify --target=es2020 --define:SUPABASE_URL=\\\"$NEXT_PUBLIC_SUPABASE_URL\\\" --define:SUPABASE_PUBLISHABLE_KEY=\\\"$SUPABASE_PUBLISHABLE_KEY\\\" --outfile=dashboard/app.js && esbuild src/public-auth.js --bundle --platform=browser --format=iife --minify --target=es2020 --define:SUPABASE_URL=\\\"$NEXT_PUBLIC_SUPABASE_URL\\\" --define:SUPABASE_PUBLISHABLE_KEY=\\\"$SUPABASE_PUBLISHABLE_KEY\\\" --outfile=public-auth.js && rm -rf public && mkdir -p public/dashboard public/assets && cp index.html public/index.html && cp public-auth.js public/public-auth.js && cp dashboard/index.html public/dashboard/index.html && cp dashboard/app.js public/dashboard/app.js && cp assets/* public/assets/"
