@@ -1,4 +1,13 @@
 [build]
-  # Bundles the dashboard's browser script (src/dashboard) into dashboard/app.js
   command = "npm run build"
-  publish = "."
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["netlify/functions/**/*"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200

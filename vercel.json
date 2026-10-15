@@ -2,13 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "cleanUrls": true,
-  "framework": "other",
-  "functions": {
-    "api/[...path].ts": {
-      "maxDuration": 30
-    },
-    "api/health.ts": {
-      "maxDuration": 30
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://tawelco.netlify.app/.netlify/functions/$1"
     }
-  }
+  ]
 }
