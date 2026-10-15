@@ -3,7 +3,10 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "functions": {
-    "api/**/*.ts": {
+    "api/[...path].ts": {
+      "maxDuration": 30
+    },
+    "api/health.ts": {
       "maxDuration": 30
     }
   }
