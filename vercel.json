@@ -2,10 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "functions": {
-    "api/[...path].ts": {
+    "api/[...path].js": {
       "maxDuration": 30
     },
-    "api/health.ts": {
+    "api/health.js": {
       "maxDuration": 30
     }
   }
