@@ -4,7 +4,7 @@
   "cleanUrls": true,
   "functions": {
     "api/**/*.ts": {
-      "runtime": "node@20",
+      "runtime": "nodejs20.x",
       "maxDuration": 30
     }
   }
