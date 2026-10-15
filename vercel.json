@@ -1,10 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "public",
-  "cleanUrls": true,
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "node@20"
-    }
-  }
+  "cleanUrls": true
 }
