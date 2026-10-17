@@ -4,16 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>E-TAWELCO Tawi-Tawi | Power, island by island</title>
-<meta name="description" content="Explore Bongao, Tawi-Tawi: dated census facts, official barangay choices and household energy guidance. E-TAWELCO is an independent concept with sample service too[...]">
+<meta name="description" content="Explore Bongao, Tawi-Tawi: dated census facts, official barangay choices and household energy guidance. E-TAWELCO is an independent concept with sample service too, not a live utility system.">
 <meta name="theme-color" content="#BC1730">
 <link rel="icon" type="image/png" href="assets/tawelco-seal-transparent.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-/* ---------- Tokens ---------- */
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
 :root{
   --sea:#252B30; --lagoon:#BC1730; --weed:#4F7A3A; --sun:#F2A516; --sun-hover:#DE9612;
   --coral:#C2472E; --foam:#FFFFFF; --card:#FFFFFF; --ink:#292C31; --muted:#60636A; --line:#E0E1E3;
@@ -24,48 +23,14 @@
   --base:17px; --menu-weight:600;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]) {
-    --foam:#191C20; --card:#23272C; --ink:#F2F2F3; --muted:#B8BEC5; --line:#3D434A; --lagoon:#FF8999;
-    --sea:#14171A; --brand:#FF8999; --soft:#202429; --tint:rgba(255,137,153,.09); --art-bg:#30363D; --err:#F0A08F; color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --foam:#191C20; --card:#23272C; --ink:#F2F2F3; --muted:#B8BEC5; --line:#3D434A; --lagoon:#FF8999;
-  --sea:#14171A; --brand:#FF8999; --soft:#202429; --tint:rgba(255,137,153,.09); --art-bg:#30363D; --err:#F0A08F; color-scheme:dark;
-}
-:root.larger-text{--base:20px}
-:root.bold-menu{--menu-weight:700}
-
-/* ---------- Base ---------- */
-*,*::before,*::after{box-sizing:border-box}
-html{font-size:var(--base);scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--foam);color:var(--ink);font-family:var(--font-body);font-size:1.0625rem;line-height:1.55;
-  padding-bottom:env(safe-area-inset-bottom);overflow-x:hidden}
-h1,h2,h3{font-family:var(--font-head);line-height:1.12;margin:0 0 20px;font-weight:500;letter-spacing:-.035em}
-... (rest of original file unchanged) ...
 </style>
 </head>
 <body>
-<a class="skip" href="#main" data-i18n="skip">Skip to main content</a>
-
-<!-- Icon sprite -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
-  ... (rest of original file content continues unchanged) ...
-</svg>
-
-<div class="lang-note" id="langNote" role="status" hidden>Locally reviewed Bahasa Sūg and Sinama translations are not available yet. Showing English, not a translated interface.</div>
-
-<!-- 3.1 Utility bar -->
-<div class="utility">
-  <div class="container">
-    <button class="util-btn util-more" id="moreBtn" aria-expanded="false" aria-controls="utilItems">
-      <svg class="icon"><use href="#i-dots"/></svg><span data-i18n="more">More</span>
-    </button>
-    <div class="util-items" id="utilItems">
-      <a class="util-link" href="#members" data-i18n="careers">Careers</a>
-      ... (rest of original file content)
-
+  <aside class="concept-notice" aria-label="Service availability">
+    <p><strong>Independent concept, not an official TAWELCO service.</strong> Billing and outage tools are demonstrations. No payment or report is submitted. <a href="#bongao">Explore sourced Bongao reference context</a>.</p>
+    <p>Technical content prepared for review by a licensed Professional Electrical
+Engineer: [PEE Name, PRC Lic. No., validity]. Not an official utility
+document.</p>
+  </aside>
 </body>
 </html>
