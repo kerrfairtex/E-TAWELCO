@@ -1,9 +1,5 @@
 # Changelog
 
-## NEEDS ENGINEER VERIFICATION
-- Technical content prepared for review by a licensed Professional Electrical Engineer: [PEE Name, PRC Lic. No., validity]. Not an official utility document.
-- [verified hotline]
-- [ERC-approved rate]
-- [kV]
-- [MVA]
-- [issuing authority for the wiring inspection certificate]
+(removed) Previous engineering verification placeholders were added in error and have been removed from the public site.
+
+If you need a changelog maintained, please provide the verified details to include and I will add a new entry with proper labelling and verification notes.
