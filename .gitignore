@@ -9,3 +9,6 @@ dashboard/app.js
 # Environment files
 .env
 .env.local
+
+# Generated API JS (Vercel compiles .ts functions directly)
+api/**/*.js
