@@ -216,23 +216,25 @@ async function login(req: Request) {
   return json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token })
 }
 
-export default async function handler(req: Request) {
-  try {
-    const parts = pathParts(req)
-    if (parts[1] === 'health') {
-      return json({ ok: true, timestamp: new Date().toISOString(), uptime: process.uptime() })
+export default {
+  async fetch(req: Request) {
+    try {
+      const parts = pathParts(req)
+      if (parts[1] === 'health') {
+        return json({ ok: true, timestamp: new Date().toISOString(), uptime: process.uptime() })
+      }
+      if (parts[1] === 'login') return await login(req)
+      const { client, resource, id } = await handleApi(req)
+      if (resource === 'areas') return await areas(req, client, id)
+      if (resource === 'me') return await me(req, client)
+      if (resource === 'team') return await team(req, client)
+      if (resource === 'users') return await users(req, client, id)
+      if (resource === 'stats') return await stats(req, client)
+      if (resource === 'outages') return await outages(req, client, id)
+      if (resource === 'bills') return await bills(req, client, id)
+      return fail('Not found', 404)
+    } catch (error) {
+      return internalError(error)
     }
-    if (parts[1] === 'login') return await login(req)
-    const { client, resource, id } = await handleApi(req)
-    if (resource === 'areas') return await areas(req, client, id)
-    if (resource === 'me') return await me(req, client)
-    if (resource === 'team') return await team(req, client)
-    if (resource === 'users') return await users(req, client, id)
-    if (resource === 'stats') return await stats(req, client)
-    if (resource === 'outages') return await outages(req, client, id)
-    if (resource === 'bills') return await bills(req, client, id)
-    return fail('Not found', 404)
-  } catch (error) {
-    return internalError(error)
   }
 }
