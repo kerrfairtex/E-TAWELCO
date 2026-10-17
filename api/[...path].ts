@@ -224,7 +224,11 @@ export default {
         return json({ ok: true, timestamp: new Date().toISOString(), uptime: process.uptime() })
       }
       if (parts[1] === 'login') return await login(req)
-      const { client, resource, id } = await handleApi(req)
+      const resource = parts[1]
+      const id = parts[2]
+      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills']
+      if (!resource || !known.includes(resource)) return fail('Not found', 404)
+      const client = supabase(req)
       if (resource === 'areas') return await areas(req, client, id)
       if (resource === 'me') return await me(req, client)
       if (resource === 'team') return await team(req, client)
