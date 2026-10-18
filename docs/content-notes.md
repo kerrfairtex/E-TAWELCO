@@ -33,3 +33,24 @@ All island-specific rates, hours, statuses, payment channels, and connection ste
 ## Translation Review (Phase 3 fixes)
 - hero.lead (FIL): Changed "ang 35 niyang barangay" to "ang 35 barangay nito"
 - mission.copy (FIL): Changed "nagpapaliwanag sa pagbabayad" to "nagpapaliwanag ng bill"; "humanap ang inyong barangay" to "hanapin ang inyong barangay"
+
+## Needs Confirmation
+- Office address and hours
+- Verified hotline
+- Current tariffs and rates
+- GCash and other payment channels
+- Authorized collectors
+- Source and rights of the substation and crew photos
+- Real Facebook and YouTube pages (the footer links point to the generic homepages)
+
+## Not Translated
+- Bahasa Sūg and Sinama previews in language switcher
+- English-only elements (Bongao section, barangay directory, outage note, low-data text) because they have no FIL keys
+
+## Out of Scope for This Pass
+- Pay your bill
+- Get connected
+- Members and Careers
+- News
+- Closing band
+- Footer legal text
