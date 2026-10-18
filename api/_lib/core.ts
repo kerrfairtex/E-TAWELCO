@@ -9,7 +9,7 @@ export type Session = { id: string; email: string; name: string | null; role: Ro
 export function supabase(_req?: Request) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY!,
+    process.env.SUPABASE_SECRET_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 }
@@ -44,7 +44,7 @@ export const statuses = ['received', 'assigned', 'in_progress', 'resolved'] as c
 export const areaStatuses = ['steady', 'limited', 'outage'] as const
 export const observations = ['No power at my house', 'Whole street is out', 'Fallen line', 'Flickering'] as const
 export const withTicket = <T extends { id: number; created_at: string }>(row: T) => ({ ...row, ticket_no: ticketNo(row.id, row.created_at) })
-export function pathParts(req: Request) { return new URL(req.url).pathname.split('/').filter(Boolean) }
+export function pathParts(req: Request) { return new URL(req.url, 'http://localhost').pathname.split('/').filter(Boolean) }
 export function methodAllowed(req: Request, methods: string[]) { return methods.includes(req.method) }
 export function corsHeaders() { return { 'Cache-Control': 'no-store' } }
 

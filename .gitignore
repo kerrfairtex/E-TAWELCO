@@ -5,7 +5,7 @@ dashboard/app.js
 # Environment files
 .env
 .env.local
-
-# Environment files
-.env
-.env.local
+.vercel
+.env*
+api/*.js
+api/_lib/*.js
