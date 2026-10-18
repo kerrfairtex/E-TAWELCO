@@ -29,3 +29,7 @@ All island-specific rates, hours, statuses, payment channels, and connection ste
 
 ## Translation Review
 - hero.lead (FIL): Removed "[NEEDS NATIVE REVIEW]" marker from value
+
+## Translation Review (Phase 3 fixes)
+- hero.lead (FIL): Changed "ang 35 niyang barangay" to "ang 35 barangay nito"
+- mission.copy (FIL): Changed "nagpapaliwanag sa pagbabayad" to "nagpapaliwanag ng bill"; "humanap ang inyong barangay" to "hanapin ang inyong barangay"
