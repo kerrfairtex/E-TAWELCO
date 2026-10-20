@@ -109,6 +109,42 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
   const url = new URL(req.url)
   const today = todayManila()
 
+  if (req.method === 'GET' && !id && url.searchParams.get('scope') === 'mine') {
+    const s = await authorize(req); if (s instanceof Response) return s
+    const { data: profile, error: profileError } = await client.from('profiles').select('account_no').eq('id', s.id).maybeSingle()
+    if (profileError) throw profileError
+    const linkedNo = typeof profile?.account_no === 'string' ? profile.account_no.trim() : ''
+    const emptySummary = { unpaid_count: 0, unpaid_total: 0, overdue_count: 0, overdue_total: 0 }
+    if (!linkedNo) return json({ linked: false, bills: [], summary: emptySummary })
+    const { data, error } = await client.from('bills').select('id,period,kwh,amount,due_date,status,paid_at,paid_channel,account_name').eq('account_no', linkedNo).order('period', { ascending: false }).limit(24)
+    if (error) throw error
+    const list = (data ?? []).map((b: any) => ({
+      id: b.id,
+      period: b.period,
+      kwh: Number(b.kwh),
+      amount: Number(b.amount),
+      due_date: b.due_date,
+      status: b.status,
+      paid_at: b.paid_at,
+      paid_channel: b.paid_channel,
+      overdue: b.status === 'unpaid' && b.due_date < today,
+    }))
+    const unpaid = list.filter((b) => b.status === 'unpaid')
+    const summary = {
+      unpaid_count: unpaid.length,
+      unpaid_total: Math.round(unpaid.reduce((sum, b) => sum + b.amount, 0) * 100) / 100,
+      overdue_count: unpaid.filter((b) => b.overdue).length,
+      overdue_total: Math.round(unpaid.filter((b) => b.overdue).reduce((sum, b) => sum + b.amount, 0) * 100) / 100,
+    }
+    const latestName = (data ?? [])[0]?.account_name
+    return json({
+      linked: true,
+      account: { masked_no: `*******${linkedNo.slice(-4)}`, name: latestName ? maskName(String(latestName)) : null },
+      bills: list,
+      summary,
+    })
+  }
+
   // Public lookup by account number. Only the masked name and bill figures are returned.
   if (req.method === 'GET' && !id && url.searchParams.has('account_no')) {
     const acct = text(url.searchParams.get('account_no'), 20).replace(/\s/g, '')
