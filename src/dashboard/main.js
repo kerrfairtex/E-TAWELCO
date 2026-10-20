@@ -397,6 +397,7 @@ function wireTips(root, tipFor) {
     'manage-admins': adminAlias, 'add-users': adminAlias, 'repair-requests': repairAlias,
     complaints: (view) => unavailableAdminView(view, 'Complaints', 'Review and resolve member complaints.'),
     billing: billingView,
+    'my-bills': myBillsView,
     gcash: (view) => unavailableAdminView(view, 'GCash Merchant', 'Manage GCash merchant reconciliation and settlement.'),
     audit: auditView,
     settings: (view) => unavailableAdminView(view, 'Master Settings', 'Configure cooperative-wide dashboard settings.'),
@@ -809,6 +810,57 @@ async function profileView(view) {
       } catch (err) { setMsg(msg, err.message) }
     })
   })
+}
+
+async function myBillsView(view) {
+  const data = await api('/api/bills?scope=mine')
+  if (!data.linked) {
+    view.innerHTML = `${head('My bills', 'Your current bill, due dates and payment history.')}
+      <div class="stack">
+        <section class="card"><h2>No account linked</h2><p class="muted">No account is linked to your profile yet. Ask the cooperative to link your account number.</p></section>
+        ${paymentSamples()}
+      </div>`
+    return
+  }
+  const summary = data.summary ?? {}
+  const bills = Array.isArray(data.bills) ? data.bills : []
+  const account = data.account ?? {}
+  view.innerHTML = `${head('My bills', 'Your current bill, due dates and payment history.')}
+    <div class="stack">
+      <section class="card">
+        <div class="card-head"><h2>Account</h2><span class="small muted mono">${esc(account.masked_no ?? '')}</span></div>
+        <p class="muted">${account.name ? esc(account.name) : 'No name on the latest bill.'}</p>
+      </section>
+      <div class="bill-stats">
+        <div class="card"><span class="small muted">Amount unpaid</span><strong>${esc(fmtPeso(summary.unpaid_total))}</strong></div>
+        <div class="card"><span class="small muted">Unpaid bills</span><strong>${esc(fmtNum(summary.unpaid_count))}</strong></div>
+        <div class="card"><span class="small muted">Overdue amount</span><strong>${esc(fmtPeso(summary.overdue_total))}</strong></div>
+      </div>
+      <section class="card">
+        <div class="card-head"><h2>Your bills</h2><span class="small muted">${esc(fmtNum(bills.length))} shown</span></div>
+        ${bills.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Period</th><th>Due date</th><th class="num">Amount</th><th>Status</th><th>Paid on</th></tr></thead>
+        <tbody>${bills.map((b) => `<tr>
+          <td>${esc(fmtPeriod(b.period))}</td>
+          <td class="small">${esc(fmtDay(b.due_date, { month: 'short', day: 'numeric', year: 'numeric' }))}</td>
+          <td class="num">${esc(fmtPeso(b.amount))}</td>
+          <td>${badge(billKind(b), BILL_STATUS)}</td>
+          <td class="small">${b.paid_at ? esc(fmtDate(b.paid_at)) : '<span class="muted">—</span>'}</td>
+        </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills yet.</div>'}
+      </section>
+      ${paymentSamples()}
+    </div>`
+}
+
+function paymentSamples() {
+  return `<section class="card">
+    <div class="card-head"><h2>How to pay (sample)</h2></div>
+    <details class="as-table"><summary>GCash</summary><p class="small muted" style="margin:8px 0 0">Sample steps: open the cooperative's GCash payment page, enter your account number and confirm the amount.</p></details>
+    <details class="as-table"><summary>Maya</summary><p class="small muted" style="margin:8px 0 0">Sample steps: open Maya, choose bill payments, enter your account number and confirm the amount.</p></details>
+    <details class="as-table"><summary>Bank transfer</summary><p class="small muted" style="margin:8px 0 0">Sample steps: use the account details provided by the cooperative, and include your account number as the reference.</p></details>
+    <details class="as-table"><summary>PayPal</summary><p class="small muted" style="margin:8px 0 0">Sample steps: pay through the cooperative's PayPal page if it offers one. Availability and fees depend on the cooperative.</p></details>
+    <p class="small muted" style="margin:12px 0 0">This website does not accept payments. These options are examples. Ask the cooperative which methods are available before you pay.</p>
+  </section>`
 }
 
 // ---------- Boot ----------
