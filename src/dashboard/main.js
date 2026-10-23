@@ -770,11 +770,14 @@ async function openAddUserDialog(view) {
             <button class="btn btn-secondary" type="button" id="copyPw">Copy</button>
           </div>
           <p class="small muted">This password is shown once. Give it to the person privately. They should change it after signing in (My profile > Change password).</p>
+          <button class="btn btn-secondary" type="button" id="refreshDir">Done - refresh directory</button>
         </div>`
         const pwEl = $('#newUserPw')
         if (pwEl) pwEl.addEventListener('click', () => pwEl.select())
         const copyEl = $('#copyPw')
         if (copyEl) copyEl.addEventListener('click', () => { navigator.clipboard.writeText(pwEl.value); setMsg($('.msg', body), 'Copied.', 'ok') })
+        const refreshEl = body.querySelector('#refreshDir')
+        if (refreshEl) refreshEl.addEventListener('click', () => { dlg.close(); people(view) })
       } catch (err) {
         setMsg(msg, err.message)
       }
@@ -821,7 +824,7 @@ async function people(view) {
       } finally { sel.disabled = false }
     }))
   }
-  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button> <button class="btn btn-primary" type="button" id="addUserBtn">Add user</button>')}
+  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button>' + (isAdmin() ? ' <button class="btn btn-primary" type="button" id="addUserBtn">Add user</button>' : ''))}
     <div class="tiles admin-tiles" style="margin-bottom:20px">
       ${Object.keys(ROLE_LABEL).map((r) => `<button class="tile admin-tile" type="button" data-role-filter="${r}"><span class="tile-label">${ROLE_LABEL[r]}s</span><span class="tile-num">${fmtNum(counts[r])}</span><span class="tile-note">Filter people</span></button>`).join('')}
     </div>
