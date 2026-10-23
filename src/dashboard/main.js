@@ -394,7 +394,7 @@ function wireTips(root, tipFor) {
   const repairAlias = (view) => outages(view)
   const VIEWS = {
     overview, outages, areas: areasView, people, profile: profileView,
-    'manage-admins': adminAlias, 'add-users': (view) => { people(view).then(() => openAddUserDialog(view)) }, 'repair-requests': repairAlias,
+    'manage-admins': adminAlias, 'add-users': async (view) => { await people(view); openAddUserDialog(view) }, 'repair-requests': repairAlias,
     complaints: (view) => unavailableAdminView(view, 'Complaints', 'Review and resolve member complaints.'),
     billing: billingView,
     'my-bills': myBillsView,
