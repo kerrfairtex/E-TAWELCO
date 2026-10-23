@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'; import { randomBytes } from 'node:crypto'
 import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, text, withTicket, audit, type Session } from './_lib/core.js'
 
 
@@ -34,7 +34,46 @@ async function me(req: Request, client: ReturnType<typeof supabase>) {
 
 async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
 
-async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at,service_areas(name)').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) } if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405); if (id === s.id) return fail('You cannot change your own role'); const role = oneOf((await body(req)).role, ['member', 'staff', 'admin'] as const); if (!role) return fail('Role must be member, staff or admin'); const { data: profile } = await client.from('profiles').select('role').eq('id', id).maybeSingle(); if (!profile) return fail('User not found', 404); const { error } = await client.from('profiles').update({ role }).eq('id', id); if (error) throw error; await audit(client, s, 'user.role', 'profile', id, { from: profile.role, to: role }); return json({ ok: true, role }) }
+async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at,service_areas(name)').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) }
+  if (req.method === 'POST') {
+    const b = await body(req)
+    const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
+    const full_name = text(b.full_name, 120)
+    const login_id = text(b.login_id, 20).replace(/\s/g, '')
+    const area_id = b.area_id ? text(b.area_id, 100) : null
+    const confirm_id = text(b.confirm_id, 20).replace(/\s/g, '')
+    if (!type || !full_name || full_name.length < 2 || !login_id) return fail('Type, name and login ID are required.')
+    if (type === 'member' && !/^\d{11}$/.test(login_id)) return fail('Member login ID must be 11 digits.')
+    if (type !== 'member' && !/^\d{8}$/.test(login_id)) return fail('Staff and admin login IDs must be 8 digits.')
+    if (type === 'admin' && confirm_id !== login_id) return fail('Type the ID again to confirm.')
+    if (area_id) { const { data: area } = await client.from('service_areas').select('id').eq('id', area_id).maybeSingle(); if (!area) return fail('Unknown area.') }
+    const dup = type === 'member' ? (await client.from('profiles').select('id').eq('account_no', login_id).maybeSingle()).data : (await client.from('profiles').select('id').eq('admin_id', login_id).maybeSingle()).data
+    if (dup) return fail('That ID is already in use', 409)
+    const email = `${login_id}@${type === 'member' ? 'member' : 'admin'}.tawelco.local`
+    const pool = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+    let password = ''
+    const limit = 256 - (256 % pool.length)
+    for (let i = 0; i < 14; i++) { let r; do { r = randomBytes(1)[0] } while (r >= limit); password += pool[r % pool.length] }
+    const { data: newUser, error: createError } = await (client as any).auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { role: type }, user_metadata: { full_name } })
+    if (createError || !newUser) {
+      const msg = String(createError?.message || '')
+      const dupErr = msg.includes('already') || msg.includes('exists') || msg.includes('duplicate')
+      if (dupErr) return fail('That ID is already in use', 409)
+      return fail('Could not create the account', 502)
+    }
+    const update: Record<string, unknown> = { full_name, role: type, updated_at: new Date().toISOString() }
+    if (type === 'member') update.account_no = login_id
+    else update.admin_id = login_id
+    if (area_id) update.area_id = area_id
+    else update.area_id = null
+    const { error: updateError } = await client.from('profiles').update(update).eq('id', newUser.id)
+    if (updateError) { await (client as any).auth.admin.deleteUser(newUser.id); return fail('Could not create the account', 500) }
+    const { data: profile, error: readError } = await client.from('profiles').select('id, role').eq('id', newUser.id).maybeSingle()
+    if (readError || !profile || profile.role !== type) { await (client as any).auth.admin.deleteUser(newUser.id); return fail('Could not create the account', 500) }
+    await audit(client, s, 'user.create', 'profile', newUser.id, { role: type, id_masked: '****' + login_id.slice(-4) })
+    return json({ ok: true, id: newUser.id, role: type, login_id, password }, 201)
+  }
+  if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405); if (id === s.id) return fail('You cannot change your own role'); const role = oneOf((await body(req)).role, ['member', 'staff', 'admin'] as const); if (!role) return fail('Role must be member, staff or admin'); const { data: profile } = await client.from('profiles').select('role').eq('id', id).maybeSingle(); if (!profile) return fail('User not found', 404); const { error } = await client.from('profiles').update({ role }).eq('id', id); if (error) throw error; await audit(client, s, 'user.role', 'profile', id, { from: profile.role, to: role }); return json({ ok: true, role }) }
 
 async function stats(req: Request, client: ReturnType<typeof supabase>) {
   const s = await authorize(req)

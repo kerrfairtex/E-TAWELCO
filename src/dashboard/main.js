@@ -394,7 +394,7 @@ function wireTips(root, tipFor) {
   const repairAlias = (view) => outages(view)
   const VIEWS = {
     overview, outages, areas: areasView, people, profile: profileView,
-    'manage-admins': adminAlias, 'add-users': adminAlias, 'repair-requests': repairAlias,
+    'manage-admins': adminAlias, 'add-users': (view) => { people(view).then(() => openAddUserDialog(view)) }, 'repair-requests': repairAlias,
     complaints: (view) => unavailableAdminView(view, 'Complaints', 'Review and resolve member complaints.'),
     billing: billingView,
     'my-bills': myBillsView,
@@ -726,6 +726,62 @@ function editArea(a) {
 }
 
 // ---------- People (admin) ----------
+
+async function openAddUserDialog(view) {
+  const body = openDialog('Add user', `<form id="addUserForm" novalidate>
+    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+    <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
+    <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
+    <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
+    <div class="field"><label for="uArea">Island area (optional)</label><select class="input" id="uArea">${areaOptions('', 'No area')}</select></div>
+    <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the ID again to confirm</label><input class="input" id="uConfirm" inputmode="numeric" autocomplete="off" required></div>
+    <button class="btn btn-primary" type="submit">Create account</button>
+    <p class="msg" aria-live="polite"></p>
+  </form>`)
+  const typeSelect = $('#uType', body)
+  const idInput = $('#uId', body)
+  const hint = $('#uIdHint', body)
+  const confirmWrap = $('#uConfirmWrap', body)
+  const updateHint = () => { hint.textContent = typeSelect.value === 'member' ? 'Member account number must be 11 digits.' : 'Staff and admin IDs must be 8 digits.'; confirmWrap.hidden = typeSelect.value !== 'admin' }
+  typeSelect.addEventListener('change', updateHint)
+  idInput.addEventListener('input', () => { const v = idInput.value.replace(/\s/g, ''); idInput.setCustomValidity(typeSelect.value === 'member' ? (/^\d{11}$/.test(v) ? '' : 'Must be 11 digits') : (/^\d{8}$/.test(v) ? '' : 'Must be 8 digits')); })
+  typeSelect.addEventListener('change', () => idInput.dispatchEvent(new Event('input')))
+  updateHint()
+  body.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', body)
+    const type = typeSelect.value
+    const full_name = $('#uName', body).value.trim()
+    const login_id = idInput.value.replace(/\s/g, '')
+    const area_id = $('#uArea', body).value || null
+    const confirm_id = $('#uConfirm', body)?.value.replace(/\s/g, '') ?? ''
+    if (!type || !full_name || full_name.length < 2 || !login_id) return setMsg(msg, 'Type, name and login ID are required.')
+    if (type === 'member' && !/^\d{11}$/.test(login_id)) return setMsg(msg, 'Member login ID must be 11 digits.')
+    if (type !== 'member' && !/^\d{8}$/.test(login_id)) return setMsg(msg, 'Staff and admin login IDs must be 8 digits.')
+    if (type === 'admin' && confirm_id !== login_id) return setMsg(msg, 'Type the ID again to confirm.')
+    busy($('button[type=submit]', body), async () => {
+      try {
+        const result = await api('/api/users', { method: 'POST', body: { type, full_name, login_id, area_id, confirm_id } })
+        body.innerHTML = `<div class="card"><h2>Account created</h2>
+          <p><strong>Login ID:</strong> <code>${esc(result.login_id)}</code></p>
+          <p><strong>One-time password:</strong></p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="newUserPw" value="${esc(result.password)}" readonly style="font-family:monospace" readonly onclick="this.select()">
+            <button class="btn btn-secondary" type="button" id="copyPw">Copy</button>
+          </div>
+          <p class="small muted">This password is shown once. Give it to the person privately. They should change it after signing in (My profile > Change password).</p>
+        </div>`
+        const pwEl = $('#newUserPw')
+        if (pwEl) pwEl.addEventListener('click', () => pwEl.select())
+        const copyEl = $('#copyPw')
+        if (copyEl) copyEl.addEventListener('click', () => { navigator.clipboard.writeText(pwEl.value); setMsg($('.msg', body), 'Copied.', 'ok') })
+      } catch (err) {
+        setMsg(msg, err.message)
+      }
+    })
+  })
+}
+
 async function people(view) {
   const { users } = await api('/api/users')
   const counts = users.reduce((m, u) => ({ ...m, [u.role]: (m[u.role] ?? 0) + 1 }), {})
@@ -765,7 +821,7 @@ async function people(view) {
       } finally { sel.disabled = false }
     }))
   }
-  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button>')}
+  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button> <button class="btn btn-primary" type="button" id="addUserBtn">Add user</button>')}
     <div class="tiles admin-tiles" style="margin-bottom:20px">
       ${Object.keys(ROLE_LABEL).map((r) => `<button class="tile admin-tile" type="button" data-role-filter="${r}"><span class="tile-label">${ROLE_LABEL[r]}s</span><span class="tile-num">${fmtNum(counts[r])}</span><span class="tile-note">Filter people</span></button>`).join('')}
     </div>
@@ -778,6 +834,7 @@ async function people(view) {
   $('#peopleRole', view).addEventListener('change', () => render(users))
   $$('[data-role-filter]', view).forEach((tile) => tile.addEventListener('click', () => { $('#peopleRole', view).value = tile.dataset.roleFilter; render(users) }))
   $('#peopleRefresh', view).addEventListener('click', () => people(view))
+  $('#addUserBtn', view).addEventListener('click', () => openAddUserDialog(view))
   render(users)
 }
 
@@ -797,6 +854,17 @@ async function profileView(view) {
         <p class="msg" aria-live="polite"></p>
       </form>
       <p class="small muted" style="margin:8px 0 0">Member since ${esc(new Date(p.created_at).toLocaleDateString('en-PH', { dateStyle: 'long' }))}</p>
+    </section>
+    <section class="card" style="max-width:640px">
+      <h2>Change password</h2>
+      <form id="pwForm" novalidate>
+        <div class="grid-2">
+          <div class="field"><label for="pwNew">New password</label><input class="input" id="pwNew" type="password" autocomplete="new-password" minlength="10" required></div>
+          <div class="field"><label for="pwConfirm">Confirm</label><input class="input" id="pwConfirm" type="password" autocomplete="new-password" minlength="10" required></div>
+        </div>
+        <button class="btn btn-primary" type="submit">Update password</button>
+        <p class="msg" aria-live="polite"></p>
+      </form>
     </section>`
   $('#profileForm').addEventListener('submit', (e) => {
     e.preventDefault()
@@ -808,6 +876,16 @@ async function profileView(view) {
         renderWho()
         setMsg(msg, 'Profile saved.', 'ok')
       } catch (err) { setMsg(msg, err.message) }
+    })
+  })
+  $('#pwForm').addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', e.target)
+    const pw = $('#pwNew').value, cpw = $('#pwConfirm').value
+    if (pw.length < 10) return setMsg(msg, 'Password must be at least 10 characters.')
+    if (pw !== cpw) return setMsg(msg, 'Passwords do not match.')
+    busy($('button[type=submit]', e.target), async () => {
+      try { await updateUser({ password: pw }); setMsg(msg, 'Password updated', 'ok'); $('#pwNew').value = ''; $('#pwConfirm').value = '' } catch (err) { setMsg(msg, err.message) }
     })
   })
 }
