@@ -727,7 +727,18 @@ function editArea(a) {
 
 // ---------- People (admin) ----------
 
+const ensureAreas = async () => {
+  if (state.areas && state.areas.length) return
+  try {
+    const { areas } = await api('/api/areas')
+    state.areas = areas
+  } catch {
+    // Areas could not be loaded — dialog still usable with "No area" option
+  }
+}
+
 async function openAddUserDialog(view) {
+  await ensureAreas()
   const body = openDialog('Add user', `<form id="addUserForm" novalidate>
     <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
     <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
@@ -786,6 +797,7 @@ async function openAddUserDialog(view) {
 }
 
 async function people(view) {
+  await ensureAreas()
   const { users } = await api('/api/users')
   const counts = users.reduce((m, u) => ({ ...m, [u.role]: (m[u.role] ?? 0) + 1 }), {})
   const render = (items) => {
