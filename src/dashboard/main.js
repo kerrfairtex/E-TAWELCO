@@ -728,12 +728,13 @@ function editArea(a) {
 // ---------- People (admin) ----------
 
 const ensureAreas = async () => {
-  if (state.areas && state.areas.length) return
+  if (state.areas && state.areas.length) { state.areasError = false; return }
   try {
     const { areas } = await api('/api/areas')
     state.areas = areas
+    state.areasError = false
   } catch {
-    // Areas could not be loaded — dialog still usable with "No area" option
+    state.areasError = true
   }
 }
 
@@ -745,10 +746,12 @@ async function openAddUserDialog(view) {
     <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
     <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
     <div class="field"><label for="uArea">Island area (optional)</label><select class="input" id="uArea">${areaOptions('', 'No area')}</select></div>
+    <p class="small muted" id="uAreaError" hidden>Areas could not be loaded. You can still create the account and assign an area later.</p>
     <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the ID again to confirm</label><input class="input" id="uConfirm" inputmode="numeric" autocomplete="off" required></div>
     <button class="btn btn-primary" type="submit">Create account</button>
     <p class="msg" aria-live="polite"></p>
   </form>`)
+  if (state.areasError) { const err = $("#uAreaError", body); if (err) err.hidden = false }
   const typeSelect = $('#uType', body)
   const idInput = $('#uId', body)
   const hint = $('#uIdHint', body)
