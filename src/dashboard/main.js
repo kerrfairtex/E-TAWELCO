@@ -323,7 +323,7 @@ function wireTips(root, tipFor) {
           <td class="num">${esc(fmtNum(b.kwh))}</td>
           <td class="num">${esc(fmtPeso(b.amount))}</td>
           <td class="small">${esc(fmtDay(b.due_date, { month: 'short', day: 'numeric', year: 'numeric' }))}</td>
-          <td>${badge(billKind(b), BILL_STATUS)}${b.status === 'paid' ? `<br><span class="small muted" title="${esc(fmtDate(b.paid_at))}">${esc(PAY_CHANNEL[b.paid_channel] ?? '')}${b.payment_ref ? ` · ${esc(b.payment_ref)}` : ''}</span>` : ''}</td>
+          <td>${badge(billKind(b), BILL_STATUS)}${b.status === 'paid' ? `<br><span class="small muted" title="${esc(fmtDate(b.paid_at))}">${b.payment_ref && b.payment_ref.startsWith('SIM-') ? '<span class="demo-tag" title="Simulated payment">DEMO</span> ' : ''}${esc(PAY_CHANNEL[b.paid_channel] ?? '')}${b.payment_ref ? ` · ${esc(b.payment_ref)}` : ''}</span>` : ''}</td>
           <td>${b.status === 'paid' ? `<button class="btn btn-secondary" type="button" data-reopen="${b.id}">Reopen</button>` : `<button class="btn btn-secondary" type="button" data-pay="${b.id}">Record payment</button>`}</td>
         </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills match these filters.</div>'
     }
@@ -935,28 +935,109 @@ async function myBillsView(view) {
       <section class="card">
         <div class="card-head"><h2>Your bills</h2><span class="small muted">${esc(fmtNum(bills.length))} shown</span></div>
         ${bills.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>Period</th><th>Due date</th><th class="num">Amount</th><th>Status</th><th>Paid on</th></tr></thead>
+        <thead><tr><th>Period</th><th>Due date</th><th class="num">Amount</th><th>Status</th><th>Paid on</th><th></th></tr></thead>
         <tbody>${bills.map((b) => `<tr>
           <td>${esc(fmtPeriod(b.period))}</td>
           <td class="small">${esc(fmtDay(b.due_date, { month: 'short', day: 'numeric', year: 'numeric' }))}</td>
           <td class="num">${esc(fmtPeso(b.amount))}</td>
           <td>${badge(billKind(b), BILL_STATUS)}</td>
           <td class="small">${b.paid_at ? esc(fmtDate(b.paid_at)) : '<span class="muted">—</span>'}</td>
+          <td class="num">${b.status === 'unpaid' && data.pay?.enabled ? `<button class="btn btn-primary" type="button" data-pay-bill="${esc(b.id)}">Pay</button>` : ''}</td>
         </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills yet.</div>'}
       </section>
       ${paymentSamples()}
     </div>`
 }
+    // Attach Pay button event listeners
+    $$('[data-pay-bill]', view).forEach((button) => {
+      button.addEventListener('click', () => {
+        const bill = (data.bills || []).find((b) => String(b.id) === button.dataset.payBill)
+        if (bill) startSimulate(bill)
+      })
+    })
 
 function paymentSamples() {
   return `<section class="card">
-    <div class="card-head"><h2>How to pay (sample)</h2></div>
-    <details class="as-table"><summary>GCash</summary><p class="small muted" style="margin:8px 0 0">Sample steps: open the cooperative's GCash payment page, enter your account number and confirm the amount.</p></details>
-    <details class="as-table"><summary>Maya</summary><p class="small muted" style="margin:8px 0 0">Sample steps: open Maya, choose bill payments, enter your account number and confirm the amount.</p></details>
-    <details class="as-table"><summary>Bank transfer</summary><p class="small muted" style="margin:8px 0 0">Sample steps: use the account details provided by the cooperative, and include your account number as the reference.</p></details>
-    <details class="as-table"><summary>PayPal</summary><p class="small muted" style="margin:8px 0 0">Sample steps: pay through the cooperative's PayPal page if it offers one. Availability and fees depend on the cooperative.</p></details>
-    <p class="small muted" style="margin:12px 0 0">This website does not accept payments. These options are examples. Ask the cooperative which methods are available before you pay.</p>
+    <div class="card-head"><h2>Online payment</h2></div>
+    <p class="muted">Pay your bill online during this demo. Select an unpaid bill below and follow the simulated checkout. No real money is transferred.</p>
   </section>`
+}
+
+function checkoutUI(bill, onConfirm) {
+  return `<div class="demo-checkout" id="demoCheckout">
+    <div class="demo-overlay"></div>
+    <div class="demo-modal">
+      <div class="demo-banner">DEMO — No real money</div>
+      <div class="card-head"><h2>Pay bill — ${esc(fmtPeriod(bill.period))}</h2></div>
+      <div class="demo-amount"><strong>${esc(fmtPeso(bill.amount))}</strong></div>
+      <label class="small muted">Payment method</label>
+      <div class="pay-choose">
+        <button type="button" class="demo-method" data-method="gcash" aria-pressed="true">GCash</button>
+        <button type="button" class="demo-method" data-method="maya">Maya</button>
+        <button type="button" class="demo-method" data-method="card">Card</button>
+      </div>
+      <div class="demo-fields">
+        <div class="field"><label>Mobile number (demo)</label><input class="input" type="text" value="" readonly style="background:#f5f5f5"></div>
+        <div class="field"><label>Account number (demo)</label><input class="input" type="text" value="" readonly style="background:#f5f5f5"></div>
+      </div>
+      <button type="button" class="btn btn-primary demo-pay-btn" style="width:100%">Pay ${esc(fmtPeso(bill.amount))}</button>
+    </div>
+  </div>`
+}
+
+async function startSimulate(bill) {
+  const modal = checkoutUI(bill)
+  const div = document.createElement('div')
+  div.innerHTML = modal.trim()
+  document.body.appendChild(div)
+  
+  // Set fake fields
+  const methodBtn = div.querySelector('[data-method]')
+  let selectedMethod = 'gcash'
+  div.querySelectorAll('.demo-method').forEach(btn => {
+    btn.addEventListener('click', () => {
+      div.querySelectorAll('.demo-method').forEach(b => b.setAttribute('aria-pressed', 'false'))
+      btn.setAttribute('aria-pressed', 'true')
+      selectedMethod = btn.dataset.method
+    })
+  })
+  
+  div.querySelector('.demo-pay-btn').addEventListener('click', async () => {
+    div.querySelector('.demo-pay-btn').disabled = true
+    div.querySelector('.demo-pay-btn').textContent = 'Processing…'
+    
+    await new Promise(r => setTimeout(r, 1500))
+    
+    const result = await api('/api/pay/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
+    if (result?.ok) {
+      div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+        <div class="demo-banner">DEMO — No real money</div>
+        <div class="card-head"><h2>Payment successful</h2></div>
+        <div class="demo-receipt">
+          <div class="row"><span>Reference</span><strong>${esc(result.payment_ref)}</strong></div>
+          <div class="row"><span>Amount</span><strong>${esc(fmtPeso(result.amount))}</strong></div>
+          <div class="row"><span>Period</span><strong>${esc(fmtPeriod(bill.period))}</strong></div>
+          <div class="row"><span>Method</span><strong>${esc(result.method)}</strong></div>
+          <div class="row"><span>Paid on</span><strong>${esc(new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</strong></div>
+        </div>
+        <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
+      </div></div></div>`
+      div.querySelector('.demo-back').addEventListener('click', () => {
+        document.body.removeChild(div)
+        myBillsView(document.querySelector('[data-view="my-bills"]'))
+      })
+    } else {
+      div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+        <div class="demo-banner">DEMO — No real money</div>
+        <div class="card-head"><h2>Payment failed</h2></div>
+        <p class="muted">${esc(result?.error || 'Something went wrong')}</p>
+        <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
+      </div></div></div>`
+      div.querySelector('.demo-back').addEventListener('click', () => {
+        document.body.removeChild(div)
+      })
+    }
+  })
 }
 
 // ---------- Boot ----------
