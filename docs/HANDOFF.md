@@ -153,3 +153,37 @@ No untracked files exist on demo-payments.
 - Phases are gated. Do not advance until user replies "go".
 - If blocked, report the block and STOP.
 - Never touch main.
+
+## 9. Origin/main merge status (verified after git fetch)
+
+After `git fetch`, origin/main is at `a28e8c2` (Merge PR #51). Local main is at
+`f5ab572` (Merge PR #48) — **local main is 3 commits behind origin/main**.
+
+**PR #51 contained:** Only `da399ad` from admin-user-creation ("Fix add-users route;
+verify users handler unchanged"). The merge commit `a28e8c2` brought 121 insertions
+and 4 deletions in `api/[...path].ts` and `src/dashboard/main.js`.
+
+**Commits NOT yet in origin/main (5 commits, pending PR):**
+- `1d13398` Fix: id extraction from createUser return (userId = created?.user?.id)
+- `c386009` Add inline error note when area dropdown fails to load
+- `7bc04b0` Fix area dropdown: ensure areas loaded in dialog and people view
+- `3e35568` Admin-only Add user button; refresh directory after create
+- `0cef69e` Remove duplicate sidebar item; rename Manage Admins to People
+
+**Verification:** `git merge-base --is-ancestor 1d13398 origin/main` → **NO**
+(confirmed: 1d13398 is NOT an ancestor of origin/main).
+`git merge-base --is-ancestor da399ad origin/main` → **YES** (da399ad IS in
+origin/main via PR #51).
+
+**Merge of admin-user-creation into main is pending.** A PR is needed to merge
+the 5 unmerged commits (1d13398 and 4 predecessors) into origin/main.
+
+## 10. demo-payments fixes applied (commit 0e1130c)
+
+1. **paySimulate() count check replaced:** Changed from `.select()` + `count`
+   to `.select('id')` + `updated.length === 0` check for 409.
+2. **Route mismatch fixed:** Client (`src/dashboard/main.js:1011`) and server
+   (`api/[...path].ts:349,359`) now both use `/api/pay/simulate` instead of
+   `/api/simulate`.
+3. **docs/PAYMENTS.md removed** from demo-payments branch (git rm). It documented
+   the online-payments PayMongo flow, not the demo flow.
