@@ -198,6 +198,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
       account: { masked_no: `*******${linkedNo.slice(-4)}`, name: latestName ? maskName(String(latestName)) : null },
       bills: list,
       summary,
+      pay: { enabled: process.env.DEMO_PAYMENTS === 'true', demo: true },
     })
   }
 
@@ -290,6 +291,33 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
   return fail('Method not allowed', 405)
 }
 
+async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id?: string) {
+  if (req.method !== 'POST') return fail('Method not allowed', 405)
+  if (process.env.DEMO_PAYMENTS !== 'true') return fail('Demo payments are not enabled', 404)
+  const s = await authorize(req); if (s instanceof Response) return s
+  const b = await body(req)
+  const billId = Number(b.bill_id)
+  if (!Number.isInteger(billId) || billId <= 0) return fail('Invalid bill', 400)
+  const method = oneOf(b.method, ['gcash', 'maya', 'card'])
+  if (!method) return fail('Invalid payment method', 400)
+  const { data: profile, error: profileError } = await client.from('profiles').select('account_no').eq('id', s.id).maybeSingle()
+  if (profileError) throw profileError
+  const linkedNo = typeof profile?.account_no === 'string' ? profile.account_no.trim() : ''
+  const { data: bill, error: billError } = await client.from('bills').select('id,period,amount,status,account_no').eq('id', billId).eq('account_no', linkedNo).maybeSingle()
+  if (billError) throw billError
+  if (!bill) return fail('Bill not found', 404)
+  if (bill.status !== 'unpaid') return fail('Bill is already paid', 409)
+  const amount = Number(bill.amount)
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const rand = String(Math.floor(100000 + Math.random() * 900000))
+  const ref = `SIM-${date}-${rand}`
+  const { error: updateError, count } = await client.from('bills').update({ status: 'paid', paid_at: new Date().toISOString(), paid_channel: 'mobile_wallet', payment_ref: ref, recorded_by: s.id, updated_at: new Date().toISOString() }).eq('id', billId).eq('status', 'unpaid').select()
+  if (updateError) throw updateError
+  if (!count || count === 0) return fail('Bill was already paid', 409)
+  await audit(client, s, 'payment.simulated', 'bill', billId, { bill_id: billId, amount, method, provider: 'simulate' })
+  return json({ ok: true, payment_ref: ref, amount, period: bill.period, method })
+}
+
 async function login(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   const b = await body(req)
@@ -318,7 +346,7 @@ export default {
       if (parts[1] === 'login') return await login(req)
       const resource = parts[1]
       const id = parts[2]
-      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills']
+      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'simulate']
       if (!resource || !known.includes(resource)) return fail('Not found', 404)
       const client = supabase(req)
       if (resource === 'areas') return await areas(req, client, id)
@@ -328,6 +356,7 @@ export default {
       if (resource === 'stats') return await stats(req, client)
       if (resource === 'outages') return await outages(req, client, id)
       if (resource === 'bills') return await bills(req, client, id)
+      if (resource === 'simulate') return await paySimulate(req, client, id)
       return fail('Not found', 404)
     } catch (error) {
       return internalError(error)
