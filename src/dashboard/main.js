@@ -947,15 +947,16 @@ async function myBillsView(view) {
       </section>
       ${paymentSamples()}
     </div>`
+    // Store latest data on view so the listener always uses fresh data
+    view._billsData = data
     // Attach Pay button event listener once via delegation (inside myBillsView scope)
     if (!view._payListenerAttached) {
       view._payListenerAttached = true
       view.addEventListener('click', (e) => {
         const button = e.target.closest('[data-pay-bill]')
-        if (button) {
-          const bill = (data.bills || []).find((b) => String(b.id) === button.dataset.payBill)
-          if (bill) startSimulate(bill)
-        }
+        if (!button) return
+        const bill = (view._billsData?.bills || []).find((b) => String(b.id) === button.dataset.payBill)
+        if (bill) startSimulate(bill)
       })
     }
   }
