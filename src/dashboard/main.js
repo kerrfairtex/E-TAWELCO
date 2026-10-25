@@ -1008,7 +1008,7 @@ async function startSimulate(bill) {
     
     await new Promise(r => setTimeout(r, 1500))
     
-    const result = await api('/api/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
+    const result = await api('/api/pay/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
     if (result?.ok) {
       div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
         <div class="demo-banner">DEMO — No real money</div>

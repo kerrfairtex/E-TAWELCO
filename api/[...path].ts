@@ -311,9 +311,9 @@ async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   const rand = String(Math.floor(100000 + Math.random() * 900000))
   const ref = `SIM-${date}-${rand}`
-  const { error: updateError, count } = await client.from('bills').update({ status: 'paid', paid_at: new Date().toISOString(), paid_channel: 'mobile_wallet', payment_ref: ref, recorded_by: s.id, updated_at: new Date().toISOString() }).eq('id', billId).eq('status', 'unpaid').select()
+  const { data: updated, error: updateError } = await client.from('bills').update({ status: 'paid', paid_at: new Date().toISOString(), paid_channel: 'mobile_wallet', payment_ref: ref, recorded_by: s.id, updated_at: new Date().toISOString() }).eq('id', billId).eq('status', 'unpaid').select('id')
   if (updateError) throw updateError
-  if (!count || count === 0) return fail('Bill was already paid', 409)
+  if (!updated || updated.length === 0) return fail('Bill was already paid', 409)
   await audit(client, s, 'payment.simulated', 'bill', billId, { bill_id: billId, amount, method, provider: 'simulate' })
   return json({ ok: true, payment_ref: ref, amount, period: bill.period, method })
 }
@@ -346,7 +346,7 @@ export default {
       if (parts[1] === 'login') return await login(req)
       const resource = parts[1]
       const id = parts[2]
-      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'simulate']
+      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay/simulate']
       if (!resource || !known.includes(resource)) return fail('Not found', 404)
       const client = supabase(req)
       if (resource === 'areas') return await areas(req, client, id)
@@ -356,7 +356,7 @@ export default {
       if (resource === 'stats') return await stats(req, client)
       if (resource === 'outages') return await outages(req, client, id)
       if (resource === 'bills') return await bills(req, client, id)
-      if (resource === 'simulate') return await paySimulate(req, client, id)
+      if (resource === 'pay/simulate') return await paySimulate(req, client, id)
       return fail('Not found', 404)
     } catch (error) {
       return internalError(error)
