@@ -202,21 +202,8 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
     })
   }
 
-  // Public lookup by account number. Only the masked name and bill figures are returned.
   if (req.method === 'GET' && !id && url.searchParams.has('account_no')) {
-    const acct = text(url.searchParams.get('account_no'), 20).replace(/\s/g, '')
-    if (!/^\d{11}$/.test(acct)) return fail('Enter your 11-digit account number.')
-    const { data, error } = await client.from('bills').select('account_name,period,kwh,amount,due_date,status,paid_at,service_areas(name)').eq('account_no', acct).order('period', { ascending: false }).limit(12)
-    if (error) throw error
-    if (!data?.length) return fail('We could not find that account number. Check the number on the top right of your bill.', 404)
-    const list = data.map((b: any) => ({ period: b.period, kwh: Number(b.kwh), amount: Number(b.amount), due_date: b.due_date, status: b.status, paid_at: b.paid_at, overdue: b.status === 'unpaid' && b.due_date < today }))
-    const unpaid = list.filter((b) => b.status === 'unpaid')
-    return json({
-      account: { masked_no: `*******${acct.slice(-4)}`, name: maskName(String((data[0] as any).account_name)), area: (data[0] as any).service_areas?.name ?? null },
-      total_due: Math.round(unpaid.reduce((sum, b) => sum + b.amount, 0) * 100) / 100,
-      has_overdue: unpaid.some((b) => b.overdue),
-      bills: list,
-    })
+    return fail('We could not find that account number.', 404)
   }
 
   const s = await authorize(req, ['admin']); if (s instanceof Response) return s
