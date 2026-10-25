@@ -727,17 +727,31 @@ function editArea(a) {
 
 // ---------- People (admin) ----------
 
+const ensureAreas = async () => {
+  if (state.areas && state.areas.length) { state.areasError = false; return }
+  try {
+    const { areas } = await api('/api/areas')
+    state.areas = areas
+    state.areasError = false
+  } catch {
+    state.areasError = true
+  }
+}
+
 async function openAddUserDialog(view) {
+  await ensureAreas()
   const body = openDialog('Add user', `<form id="addUserForm" novalidate>
     <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
     <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
     <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
     <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
     <div class="field"><label for="uArea">Island area (optional)</label><select class="input" id="uArea">${areaOptions('', 'No area')}</select></div>
+    <p class="small muted" id="uAreaError" hidden>Areas could not be loaded. You can still create the account and assign an area later.</p>
     <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the ID again to confirm</label><input class="input" id="uConfirm" inputmode="numeric" autocomplete="off" required></div>
     <button class="btn btn-primary" type="submit">Create account</button>
     <p class="msg" aria-live="polite"></p>
   </form>`)
+  if (state.areasError) { const err = $("#uAreaError", body); if (err) err.hidden = false }
   const typeSelect = $('#uType', body)
   const idInput = $('#uId', body)
   const hint = $('#uIdHint', body)
@@ -770,11 +784,14 @@ async function openAddUserDialog(view) {
             <button class="btn btn-secondary" type="button" id="copyPw">Copy</button>
           </div>
           <p class="small muted">This password is shown once. Give it to the person privately. They should change it after signing in (My profile > Change password).</p>
+          <button class="btn btn-secondary" type="button" id="refreshDir">Done - refresh directory</button>
         </div>`
         const pwEl = $('#newUserPw')
         if (pwEl) pwEl.addEventListener('click', () => pwEl.select())
         const copyEl = $('#copyPw')
         if (copyEl) copyEl.addEventListener('click', () => { navigator.clipboard.writeText(pwEl.value); setMsg($('.msg', body), 'Copied.', 'ok') })
+        const refreshEl = body.querySelector('#refreshDir')
+        if (refreshEl) refreshEl.addEventListener('click', () => { dlg.close(); people(view) })
       } catch (err) {
         setMsg(msg, err.message)
       }
@@ -783,6 +800,7 @@ async function openAddUserDialog(view) {
 }
 
 async function people(view) {
+  await ensureAreas()
   const { users } = await api('/api/users')
   const counts = users.reduce((m, u) => ({ ...m, [u.role]: (m[u.role] ?? 0) + 1 }), {})
   const render = (items) => {
@@ -821,7 +839,7 @@ async function people(view) {
       } finally { sel.disabled = false }
     }))
   }
-  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button> <button class="btn btn-primary" type="button" id="addUserBtn">Add user</button>')}
+  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button>' + (isAdmin() ? ' <button class="btn btn-primary" type="button" id="addUserBtn">Add user</button>' : ''))}
     <div class="tiles admin-tiles" style="margin-bottom:20px">
       ${Object.keys(ROLE_LABEL).map((r) => `<button class="tile admin-tile" type="button" data-role-filter="${r}"><span class="tile-label">${ROLE_LABEL[r]}s</span><span class="tile-num">${fmtNum(counts[r])}</span><span class="tile-note">Filter people</span></button>`).join('')}
     </div>

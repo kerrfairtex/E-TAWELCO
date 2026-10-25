@@ -54,11 +54,13 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
     let password = ''
     const limit = 256 - (256 % pool.length)
     for (let i = 0; i < 14; i++) { let r; do { r = randomBytes(1)[0] } while (r >= limit); password += pool[r % pool.length] }
-    const { data: newUser, error: createError } = await (client as any).auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { role: type }, user_metadata: { full_name } })
-    if (createError || !newUser) {
+    const { data: created, error: createError } = await (client as any).auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { role: type }, user_metadata: { full_name } })
+    const userId = created?.user?.id
+    if (createError || !userId) {
       const msg = String(createError?.message || '')
       const dupErr = msg.includes('already') || msg.includes('exists') || msg.includes('duplicate')
       if (dupErr) return fail('That ID is already in use', 409)
+      console.error('[v0] createUser failed for email ' + email + ': ' + msg)
       return fail('Could not create the account', 502)
     }
     const update: Record<string, unknown> = { full_name, role: type, updated_at: new Date().toISOString() }
@@ -66,12 +68,27 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
     else update.admin_id = login_id
     if (area_id) update.area_id = area_id
     else update.area_id = null
-    const { error: updateError } = await client.from('profiles').update(update).eq('id', newUser.id)
-    if (updateError) { await (client as any).auth.admin.deleteUser(newUser.id); return fail('Could not create the account', 500) }
-    const { data: profile, error: readError } = await client.from('profiles').select('id, role').eq('id', newUser.id).maybeSingle()
-    if (readError || !profile || profile.role !== type) { await (client as any).auth.admin.deleteUser(newUser.id); return fail('Could not create the account', 500) }
-    await audit(client, s, 'user.create', 'profile', newUser.id, { role: type, id_masked: '****' + login_id.slice(-4) })
-    return json({ ok: true, id: newUser.id, role: type, login_id, password }, 201)
+    const { error: updateError } = await client.from('profiles').update(update).eq('id', userId)
+    if (updateError) {
+      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+      console.error('[v0] profile update failed for user ' + userId + ': ' + String(updateError.message))
+      return fail('Could not create the account', 500)
+    }
+    // If the trigger-created profile wasn't found (0 rows affected), upsert instead
+    const upserted = await client.from('profiles').upsert({ id: userId, email: `${login_id}@${type === 'member' ? 'member' : 'admin'}.tawelco.local`, ...update }, { onConflict: 'id' })
+    if (upserted.error) {
+      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+      console.error('[v0] profile upsert failed for user ' + userId + ': ' + String(upserted.error.message))
+      return fail('Could not create the account', 500)
+    }
+    const { data: profile, error: readError } = await client.from('profiles').select('id, full_name, role, account_no, admin_id, area_id').eq('id', userId).maybeSingle()
+    if (readError || !profile || profile.role !== type || profile.full_name !== full_name || (type === 'member' && profile.account_no !== login_id) || (type !== 'member' && profile.admin_id !== login_id) || (area_id && profile.area_id !== area_id) || (!area_id && profile.area_id !== null)) {
+      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+      console.error('[v0] profile verification failed for user ' + userId + ': ' + String(readError?.message || 'profile data mismatch'))
+      return fail('Could not create the account', 500)
+    }
+    await audit(client, s, 'user.create', 'profile', userId, { role: type, id_masked: '****' + login_id.slice(-4) })
+    return json({ ok: true, id: userId, role: type, login_id, password }, 201)
   }
   if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405); if (id === s.id) return fail('You cannot change your own role'); const role = oneOf((await body(req)).role, ['member', 'staff', 'admin'] as const); if (!role) return fail('Role must be member, staff or admin'); const { data: profile } = await client.from('profiles').select('role').eq('id', id).maybeSingle(); if (!profile) return fail('User not found', 404); const { error } = await client.from('profiles').update({ role }).eq('id', id); if (error) throw error; await audit(client, s, 'user.role', 'profile', id, { from: profile.role, to: role }); return json({ ok: true, role }) }
 
