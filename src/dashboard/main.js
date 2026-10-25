@@ -947,14 +947,19 @@ async function myBillsView(view) {
       </section>
       ${paymentSamples()}
     </div>`
-}
-    // Attach Pay button event listeners
-    $$('[data-pay-bill]', view).forEach((button) => {
-      button.addEventListener('click', () => {
-        const bill = (data.bills || []).find((b) => String(b.id) === button.dataset.payBill)
+    // Store latest data on view so the listener always uses fresh data
+    view._billsData = data
+    // Attach Pay button event listener once via delegation (inside myBillsView scope)
+    if (!view._payListenerAttached) {
+      view._payListenerAttached = true
+      view.addEventListener('click', (e) => {
+        const button = e.target.closest('[data-pay-bill]')
+        if (!button) return
+        const bill = (view._billsData?.bills || []).find((b) => String(b.id) === button.dataset.payBill)
         if (bill) startSimulate(bill)
       })
-    })
+    }
+  }
 
 function paymentSamples() {
   return `<section class="card">
@@ -1003,34 +1008,48 @@ async function startSimulate(bill) {
   })
   
   div.querySelector('.demo-pay-btn').addEventListener('click', async () => {
-    div.querySelector('.demo-pay-btn').disabled = true
-    div.querySelector('.demo-pay-btn').textContent = 'Processing…'
+    const btn = div.querySelector('.demo-pay-btn')
+    btn.disabled = true
+    btn.textContent = 'Processing…'
     
-    await new Promise(r => setTimeout(r, 1500))
-    
-    const result = await api('/api/pay/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
-    if (result?.ok) {
+    try {
+      await new Promise(r => setTimeout(r, 1500))
+      
+      const result = await api('/api/pay/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
+      if (result?.ok) {
+        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+          <div class="demo-banner">DEMO — No real money</div>
+          <div class="card-head"><h2>Payment successful</h2></div>
+          <div class="demo-receipt">
+            <div class="row"><span>Reference</span><strong>${esc(result.payment_ref)}</strong></div>
+            <div class="row"><span>Amount</span><strong>${esc(fmtPeso(result.amount))}</strong></div>
+            <div class="row"><span>Period</span><strong>${esc(fmtPeriod(bill.period))}</strong></div>
+            <div class="row"><span>Method</span><strong>${esc(result.method)}</strong></div>
+            <div class="row"><span>Paid on</span><strong>${esc(new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</strong></div>
+          </div>
+          <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
+        </div></div></div>`
+        div.querySelector('.demo-back').addEventListener('click', () => {
+          document.body.removeChild(div)
+          myBillsView(document.querySelector('[data-view="my-bills"]'))
+        })
+      } else {
+        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+          <div class="demo-banner">DEMO — No real money</div>
+          <div class="card-head"><h2>Payment failed</h2></div>
+          <p class="muted">${esc(result?.error || 'Something went wrong')}</p>
+          <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
+        </div></div></div>`
+        div.querySelector('.demo-back').addEventListener('click', () => {
+          document.body.removeChild(div)
+        })
+      }
+    } catch (err) {
+      btn.disabled = false
       div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
         <div class="demo-banner">DEMO — No real money</div>
-        <div class="card-head"><h2>Payment successful</h2></div>
-        <div class="demo-receipt">
-          <div class="row"><span>Reference</span><strong>${esc(result.payment_ref)}</strong></div>
-          <div class="row"><span>Amount</span><strong>${esc(fmtPeso(result.amount))}</strong></div>
-          <div class="row"><span>Period</span><strong>${esc(fmtPeriod(bill.period))}</strong></div>
-          <div class="row"><span>Method</span><strong>${esc(result.method)}</strong></div>
-          <div class="row"><span>Paid on</span><strong>${esc(new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</strong></div>
-        </div>
-        <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
-      </div></div></div>`
-      div.querySelector('.demo-back').addEventListener('click', () => {
-        document.body.removeChild(div)
-        myBillsView(document.querySelector('[data-view="my-bills"]'))
-      })
-    } else {
-      div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-        <div class="demo-banner">DEMO — No real money</div>
-        <div class="card-head"><h2>Payment failed</h2></div>
-        <p class="muted">${esc(result?.error || 'Something went wrong')}</p>
+        <div class="card-head"><h2>Payment error</h2></div>
+        <p class="muted">${esc(err.message || 'Something went wrong')}</p>
         <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
       </div></div></div>`
       div.querySelector('.demo-back').addEventListener('click', () => {
