@@ -178,7 +178,7 @@ describe('demo_payments_guard: all four flag combinations', () => {
   })
 
   test('DEMO_PAYMENTS not set, PAYMONGO enabled → 404 (guard blocked)', () => {
-    process.env.DEMO_PAYMENTS = undefined
+    delete process.env.DEMO_PAYMENTS
     process.env.PAYMONGO_ENABLED = 'true'
     process.env.PAYMONGO_SECRET_KEY = 'sk_test_xxx'
     const blocked = demoPaymentsGuard()
