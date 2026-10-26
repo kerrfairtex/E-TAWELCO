@@ -203,7 +203,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
   }
 
   if (req.method === 'GET' && !id && url.searchParams.has('account_no')) {
-    return fail('We could not find that account number.', 404)
+    return fail('Please log in to view your bill.', 401)
   }
 
   const s = await authorize(req, ['admin']); if (s instanceof Response) return s
