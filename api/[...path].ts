@@ -1,5 +1,6 @@
-import { createClient } from '@supabase/supabase-js'; import { randomBytes, timingSafeEqual, createHmac } from 'node:crypto'
+import { createClient } from '@supabase/supabase-js'; import { randomBytes } from 'node:crypto'
 import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, text, withTicket, audit, type Session } from './_lib/core.js'
+import { payMongoEnabled } from './_lib/paymongo.js'
 
 
 
@@ -293,8 +294,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
 
 async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
-  if (!payMongoEnabled()) return fail('PayMongo payments are not enabled', 404)
-  if (process.env.DEMO_PAYMENTS === 'true' && !payMongoEnabled()) return fail('Demo payments are not enabled', 404)
+  if (process.env.DEMO_PAYMENTS !== 'true' || payMongoEnabled()) return fail('Demo payments are not enabled', 404)
   const s = await authorize(req); if (s instanceof Response) return s
   const b = await body(req)
   const billId = Number(b.bill_id)
@@ -356,10 +356,6 @@ async function login(req: Request) {
 // ---------------------------------------------------------------------------
 
 // Feature flag: PayMongo active only when PAYMONGO_ENABLED === 'true' AND secret key exists
-const payMongoEnabled = () =>
-  process.env.PAYMONGO_ENABLED === 'true' &&
-  !!process.env.PAYMONGO_SECRET_KEY
-
 // POST /api/pay/create and POST /api/pay/webhook are in separate files:
 //   api/pay/create.ts and api/pay/webhook.ts
 // (Vercel Serverless Functions do not match multi-segment paths via [...path].ts)
