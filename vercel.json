@@ -7,6 +7,12 @@
     },
     "api/health.ts": {
       "maxDuration": 30
+    },
+    "api/pay/webhook.ts": {
+      "maxDuration": 30
+    },
+    "api/pay/create.ts": {
+      "maxDuration": 30
     }
   }
 }

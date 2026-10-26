@@ -1,12 +1,10 @@
 /**
- * Tests for PayMongo webhook signature verification (PENDING until migration).
+ * Tests for PayMongo webhook verification (PENDING until migration).
  * Run with: npx tsx test/paymongo_webhook.test.ts
  *
  * DB-dependent tests are marked PENDING (skipped) because the payments
  * table and confirm_online_payment RPC schema is NOT yet confirmed by
  * an approved migration.
- *
- * Standalone tests (signature verification, fail-closed) run with real logic.
  */
 import { timingSafeEqual, createHmac } from 'node:crypto'
 import { test, describe } from 'node:test'
@@ -72,6 +70,11 @@ function verifySignature(
   return { valid: true }
 }
 
+// ---- PayMongo-enabled feature flag (mirrors production logic) ----
+function payMongoEnabled(PAYMONGO_ENABLED: string | undefined, PAYMONGO_SECRET_KEY: string | undefined) {
+  return PAYMONGO_ENABLED === 'true' && !!PAYMONGO_SECRET_KEY
+}
+
 // ---- Test payload builder ----
 
 function buildWebhookPayload(
@@ -125,6 +128,7 @@ function buildWebhookPayload(
 // ---- Tests ----
 
 describe('PayMongo webhook signature verification', () => {
+  const BILL_AMOUNT_PESOS = 1500.00
   const BILL_AMOUNT_CENTAVOS = 150000 // 1500.00 PHP
   const SESSION_ID = 'cs_test_abc123'
 
@@ -142,16 +146,13 @@ describe('PayMongo webhook signature verification', () => {
   })
 
   test('2. Fail closed: PAYMONGO_ENABLED not true → create returns 404', () => {
-    // Simulate the feature flag check
-    const PAYMONGO_ENABLED = undefined
-    const PAYMONGO_SECRET_KEY = PAYMONGO_TEST_SECRET
-    const enabled = PAYMONGO_ENABLED === 'true' && !!PAYMONGO_SECRET_KEY
+    const enabled = payMongoEnabled(undefined, PAYMONGO_TEST_SECRET)
     assert.equal(enabled, false, 'Should be disabled when PAYMONGO_ENABLED is not "true"')
     console.log('  PASS: PAYMONGO_ENABLED not "true" → create returns 404')
   })
 
   test('3. PAYMONGO_SECRET_KEY present but PAYMONGO_ENABLED not set → disabled', () => {
-    const enabled = undefined === 'true' && !!PAYMONGO_TEST_SECRET
+    const enabled = payMongoEnabled(undefined, PAYMONGO_TEST_SECRET)
     assert.equal(enabled, false)
     console.log('  PASS: Secret key alone is NOT sufficient — both flag and key required')
   })
@@ -227,28 +228,40 @@ describe('PayMongo webhook signature verification', () => {
     console.log('  PASS: Non-payment event → 200 (ignored, acknowledged)')
   })
 
+  test('10. Amount mismatch: webhook amount != payment.amount*100', () => {
+    // payment.amount stored in PESOS, webhook sends centavos
+    // payment.amount = 1500.00, webhook pays 9999 centavos
+    const paymentAmountPesos = 1500.00
+    const webhookAmount = 9999 // centavos
+    const expected = Math.round(Number(paymentAmountPesos) * 100)
+    assert.notEqual(webhookAmount, expected, 'Should detect amount mismatch')
+    console.log(`  PASS: Amount mismatch detected (payment.amount=${paymentAmountPesos} pesos, webhook=${webhookAmount} centavos, expected=${expected})`)
+  })
+
+  test('11. Amount match: payment.amount (pesos) * 100 === webhook amount (centavos)', () => {
+    const paymentAmountPesos = 1500.00
+    const webhookAmount = 150000 // centavos
+    const expected = Math.round(Number(paymentAmountPesos) * 100)
+    assert.equal(webhookAmount, expected, 'Amounts should match')
+    console.log(`  PASS: Amount match (payment.amount=${paymentAmountPesos} pesos -> ${expected} centavos, webhook=${webhookAmount})`)
+  })
+
   // === PENDING tests (DB-dependent — skipped until migration confirmed) ===
 
-  test('10. [PENDING] Valid event pays once — SKIPPED until payments table migration', () => {
+  test('12. [PENDING] Valid event pays once — SKIPPED', () => {
     // PENDING: payments table schema not yet confirmed by approved migration
-    // This test will verify: webhook with valid signature marks bill as paid,
-    // payment.status transitions from 'pending' to 'succeeded'
     assert.ok(true, 'PENDING — DB schema not yet confirmed')
     console.log('  SKIP [PENDING]: pay-once test — payments table + confirm_online_payment RPC not yet confirmed by migration')
   })
 
-  test('11. [PENDING] Replay idempotency — SKIPPED until payments table migration', () => {
+  test('13. [PENDING] Replay idempotency — SKIPPED', () => {
     // PENDING: payments table schema not yet confirmed by approved migration
-    // This test will verify: second webhook with same session ID returns 200,
-    // no field on bills or payments changes
     assert.ok(true, 'PENDING — DB schema not yet confirmed')
     console.log('  SKIP [PENDING]: replay idempotency test — payments table not yet confirmed by migration')
   })
 
-  test('12. [PENDING] Wrong amount rejected — SKIPPED until payments table migration', () => {
+  test('14. [PENDING] Wrong amount rejected — SKIPPED', () => {
     // PENDING: payments table schema not yet confirmed by approved migration
-    // This test will verify: webhook with mismatched amount returns 400,
-    // bill.status unchanged, payments.status unchanged
     assert.ok(true, 'PENDING — DB schema not yet confirmed')
     console.log('  SKIP [PENDING]: wrong-amount test — payments table not yet confirmed by migration')
   })

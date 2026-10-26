@@ -294,7 +294,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
 async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   if (!payMongoEnabled()) return fail('PayMongo payments are not enabled', 404)
-  if (process.env.DEMO_PAYMENTS === 'true') return fail('Demo payments are not enabled when PayMongo is active', 404)
+  if (process.env.DEMO_PAYMENTS === 'true' && !payMongoEnabled()) return fail('Demo payments are not enabled', 404)
   const s = await authorize(req); if (s instanceof Response) return s
   const b = await body(req)
   const billId = Number(b.bill_id)
@@ -360,208 +360,9 @@ const payMongoEnabled = () =>
   process.env.PAYMONGO_ENABLED === 'true' &&
   !!process.env.PAYMONGO_SECRET_KEY
 
-// POST /api/pay/create — create a PayMongo v2 Checkout Session for a bill
-// DB references (PENDING — columns/functions are NOT yet confirmed by migration):
-//   payments table (PENDING) with columns: id, bill_id, provider, provider_ref,
-//     amount, currency, method, status, created_at — NOT YET created
-//   No bills.* changes needed for creation
-// DO NOT write to payments or bills directly in creation — only insert a pending payment
-// record (schema PENDING) to link the session.
-async function payCreate(req: Request, client: ReturnType<typeof supabase>) {
-  if (req.method !== 'POST') return fail('Method not allowed', 405)
-  if (!payMongoEnabled()) return fail('PayMongo payments are not enabled', 404)
-  const s = await authorize(req); if (s instanceof Response) return s
-  const b = await body(req)
-  const billId = Number(b.bill_id)
-  if (!Number.isInteger(billId) || billId <= 0) return fail('Invalid bill', 400)
-  const { data: profile, error: profileError } = await client.from('profiles').select('account_no').eq('id', s.id).maybeSingle()
-  if (profileError) throw profileError
-  const linkedNo = typeof profile?.account_no === 'string' ? profile.account_no.trim() : ''
-  const { data: bill, error: billError } = await client.from('bills').select('id,period,amount,status,account_no,account_name').eq('id', billId).eq('account_no', linkedNo).maybeSingle()
-  if (billError) throw billError
-  if (!bill) return fail('Bill not found', 404)
-  if (bill.status !== 'unpaid') return fail('Bill is already paid', 409)
-  // Check for existing pending payment (prevents duplicate checkout sessions)
-  const existing = await client.from('payments').select('id').eq('bill_id', billId).eq('status', 'pending').maybeSingle()
-  if (existing.data) return fail('Checkout session already created', 409)
-
-  // Payment method types from env, default to card,gcash
-  const methodsStr = process.env.PAYMONGO_METHODS || 'card,gcash'
-  const methods = methodsStr.split(',').map(m => m.trim()).filter(m => m.length > 0)
-  // Valid v2 values: card, gcash, paymaya, qrph
-
-  const amount = Math.round(Number(bill.amount) * 100) // PHP → centavos
-  const siteUrl = process.env.SITE_URL
-  if (!siteUrl) return fail('SITE_URL is not configured', 500)
-  const ref = `PM-${bill.id}-${Date.now()}`
-  const checkoutPayload = {
-    data: {
-      type: 'checkout_session',
-      attributes: {
-        line_items: [{
-          name: `E-TAWELCO Bill ${bill.period}`,
-          amount: amount,
-          currency: 'PHP',
-          quantity: 1,
-        }],
-        payment_method_types: methods,
-        success_url: `${siteUrl}/dashboard?tab=my-bills`,
-        cancel_url: `${siteUrl}/dashboard?tab=my-bills`,
-        reference_number: ref,
-        metadata: { bill_id: String(bill.id), account_no: bill.account_no },
-      },
-    },
-  }
-
-  // Create Checkout Session with PayMongo v2
-  // Endpoint from docs: https://api.paymongo.com/v2/checkout_sessions
-  const pmRes = await fetch('https://api.paymongo.com/v2/checkout_sessions', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Basic ' + Buffer.from(process.env.PAYMONGO_SECRET_KEY!).toString('base64'),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(checkoutPayload),
-  })
-  const pmData = await pmRes.json()
-  if (!pmRes.ok) {
-    return fail(pmData?.errors?.[0]?.detail || pmData?.message || 'Payment provider error', 502)
-  }
-
-  const checkoutUrl = pmData.data?.attributes?.checkout_url
-  const sessionId = pmData.data?.id || pmData.data?.attributes?.id
-
-  // Insert a pending payment record with the session id
-  // payments table (PENDING): id, bill_id, provider, provider_ref, amount,
-  //   currency, method, status, created_at, updated_at, paid_at, channel
-  // Schema PENDING until approved migration is provided.
-  const { error: insertErr } = await client.from('payments').insert({
-    bill_id: billId,
-    provider: 'paymongo',
-    provider_ref: sessionId,
-    amount: amount,
-    currency: 'PHP',
-    method: null,
-    status: 'pending',
-  })
-  if (insertErr) throw insertErr
-
-  await audit(client, s, 'payment.create', 'bill', billId, { bill_id: billId, amount, provider: 'paymongo' })
-  return json({ ok: true, checkout_url: checkoutUrl, session_id: sessionId, amount: Number(bill.amount), period: bill.period })
-}
-
-// POST /api/pay/webhook — PayMongo webhook receiver
-// DB references (PENDING — confirmed by migration required):
-//   confirm_online_payment(p_payment_id, p_provider_ref, p_amount, p_paid_at, p_paid_channel)
-//   RPC on payments/bills tables — NOT yet confirmed by migration
-//   payments table (PENDING): provider_ref, status, channel fields
-// The webhook NEVER writes to payments or bills directly.
-// It only calls confirm_online_payment RPC. If the RPC fails, return 500
-// so PayMongo retries. A request ID is logged for correlation.
-async function payWebhook(req: Request, client: ReturnType<typeof supabase>) {
-  if (req.method !== 'POST') return fail('Method not allowed', 405)
-  if (!payMongoEnabled()) return fail('PayMongo payments are not enabled', 404)
-
-  // Fail closed: if webhook secret is not configured, return 503 and process nothing
-  const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET
-  if (!webhookSecret) return fail('Webhook secret not configured', 503)
-
-  // Read raw body FIRST — before any other consumer touches the stream
-  const rawBody = await req.text()
-  const sigHeader = req.headers.get('paymongo-signature') || ''
-
-  // Parse Paymongo-Signature: t=<timestamp>,te=<test_sig>,li=<live_sig>
-  const parts: Record<string, string> = {}
-  for (const pair of sigHeader.split(',')) {
-    const idx = pair.indexOf('=')
-    if (idx > 0) parts[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim()
-  }
-  const t = parts['t']
-
-  // Timestamp tolerance: reject events older than 5 minutes (from header t)
-  if (!t) return fail('Missing timestamp', 401)
-  const eventTime = Number(t)
-  if (!Number.isFinite(eventTime) || Math.abs(Date.now() / 1000 - eventTime) > 300) {
-    return fail('Timestamp out of tolerance', 401)
-  }
-
-  // Determine key mode from the SECRET key prefix (sk_test_ or sk_live_)
-  const isLive = process.env.PAYMONGO_SECRET_KEY!.startsWith('sk_live_')
-  const sigToUse = isLive ? parts['li'] : parts['te']
-
-  // If live key receives a test-signed event (or vice versa), sigToUse will be empty → 401
-  if (!sigToUse) return fail('Signature field for key mode not present', 401)
-
-  // Compute HMAC: signedPayload = `${t}.${rawBody}`, HMAC-SHA256 with webhook secret
-  const signedPayload = `${t}.${rawBody}`
-  const expected = createHmac('sha256', webhookSecret).update(signedPayload).digest('hex')
-
-  // Constant-time comparison
-  const expectedBuf = Buffer.from(expected, 'hex')
-  const providedBuf = Buffer.from(sigToUse, 'hex')
-  if (expectedBuf.length !== providedBuf.length || !timingSafeEqual(expectedBuf, providedBuf)) {
-    return fail('Invalid signature', 401)
-  }
-
-  // Parse payload (defensive, optional chaining)
-  let payload: any = {}
-  try { payload = JSON.parse(rawBody) } catch { return fail('Invalid JSON', 400) }
-
-  const eventType = payload?.data?.attributes?.type
-  const checkoutData = payload?.data?.attributes?.data
-
-  // Ack 200 for non-checkout_session.payment.paid events
-  if (eventType !== 'checkout_session.payment.paid') {
-    return json({ ok: true, ignored: eventType })
-  }
-
-  // Look up payment by session ID (stored at creation as provider_ref)
-  // payments table (PENDING) — provider_ref column NOT confirmed by migration
-  const sessionId = checkoutData?.id
-  if (!sessionId) return fail('Missing session ID', 400)
-
-  const { data: payment, error: payErr } = await client.from('payments')
-    .select('id,status,amount')
-    .eq('provider_ref', sessionId)
-    .maybeSingle()
-  if (payErr) throw payErr
-  if (!payment) return fail('Payment record not found', 404)
-
-  // Idempotency: if already succeeded, return 200
-  if (payment.status === 'succeeded') {
-    return json({ ok: true, message: 'Payment already processed' })
-  }
-
-  // Amount verification: paid amount (centavos) must match
-  const paidAmount = checkoutData?.attributes?.payment_intent?.attributes?.amount ||
-                     checkoutData?.attributes?.payments?.[0]?.attributes?.amount || 0
-  if (paidAmount !== payment.amount) {
-    return fail('Amount mismatch', 400)
-  }
-
-  // Determine channel: store real channel on payments.channel
-  // bills.paid_channel: gcash/paymaya → mobile_wallet; card/qrph → NULL
-  const sourceType = checkoutData?.attributes?.payments?.[0]?.attributes?.source?.type || 'card'
-  const billPaidChannel = (sourceType === 'gcash' || sourceType === 'paymaya') ? 'mobile_wallet' : null
-
-  // Delegate to confirm_online_payment RPC (service role only)
-  // payments table and RPC are PENDING — schema NOT confirmed by migration
-  const requestId = randomBytes(8).toString('hex')
-  const { error: rpcErr } = await client.rpc('confirm_online_payment', {
-    p_payment_id: payment.id,
-    p_provider_ref: sessionId,
-    p_amount: payment.amount,
-    p_paid_at: new Date().toISOString(),
-    p_paid_channel: billPaidChannel,
-  })
-  if (rpcErr) {
-    // Log request ID and return 500 so PayMongo retries
-    console.error(`[webhook:${requestId}] confirm_online_payment failed:`, rpcErr)
-    return fail(`confirm_online_payment failed (req:${requestId})`, 500)
-  }
-
-  return json({ ok: true })
-}
+// POST /api/pay/create and POST /api/pay/webhook are in separate files:
+//   api/pay/create.ts and api/pay/webhook.ts
+// (Vercel Serverless Functions do not match multi-segment paths via [...path].ts)
 
 export default {
   async fetch(req: Request) {
@@ -573,7 +374,7 @@ export default {
       if (parts[1] === 'login') return await login(req)
       const resource = parts[1]
       const id = parts[2]
-      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay/simulate', 'pay/create', 'pay/webhook']
+      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay']
       if (!resource || !known.includes(resource)) return fail('Not found', 404)
       const client = supabase(req)
       if (resource === 'areas') return await areas(req, client, id)
@@ -583,9 +384,10 @@ export default {
       if (resource === 'stats') return await stats(req, client)
       if (resource === 'outages') return await outages(req, client, id)
       if (resource === 'bills') return await bills(req, client, id)
-      if (resource === 'pay/simulate') return await paySimulate(req, client, id)
-      if (resource === 'pay/create') return await payCreate(req, client)
-      if (resource === 'pay/webhook') return await payWebhook(req, client)
+      if (resource === 'pay') {
+        if (id === 'simulate') return await paySimulate(req, client, parts[3])
+        return fail('Not found', 404)
+      }
       return fail('Not found', 404)
     } catch (error) {
       return internalError(error)
