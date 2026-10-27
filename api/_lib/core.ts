@@ -38,7 +38,7 @@ export async function authorize(req: Request, roles?: Role[]) {
   return session
 }
 export const isStaff = (s: Session) => s.role === 'staff' || s.role === 'admin'
-export async function audit(client: SupabaseClient, s: Session, action: string, entity: string, entityId: string | number, details: unknown = {}) { await client.from('audit_log').insert({ actor_id: s.id, actor_email: s.email, action, entity, entity_id: String(entityId), details }) }
+export async function audit(client: SupabaseClient, s: Session, action: string, entity: string, entityId: string | number, details: unknown = {}) { return client.from('audit_log').insert({ actor_id: s.id, actor_email: s.email, action, entity, entity_id: String(entityId), details }) }
 
 export const statuses = ['received', 'assigned', 'in_progress', 'resolved'] as const
 export const areaStatuses = ['steady', 'limited', 'outage'] as const
