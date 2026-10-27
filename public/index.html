@@ -1867,26 +1867,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     $('#payAcct').setAttribute('aria-invalid', String(!ok));
     $('#payMsg').textContent = '';
     if (!ok) { setAnimatedVisibility(payResult, false); $('#payAcct').focus(); return; }
-    var request = ++payRequest, btn = $('#payBtn');
-    btn.disabled = true;
-    $('#payMsg').textContent = 'Checking your account…';
-    fetch('/api/bills?account_no=' + encodeURIComponent(v), {headers:{Accept:'application/json'}})
-      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok:r.ok, data:d}; }); })
-      .then(function(res){
-        if (request !== payRequest) return;
-        if (!res.ok) throw new Error(res.data.error || 'We could not check the amount. Please try again.');
-        $('#payMsg').textContent = '';
-        payResult.innerHTML = renderBill(res.data);
-        setAnimatedVisibility(payResult, true);
-      })
-      .catch(function(err){
-        if (request !== payRequest) return;
-        $('#payMsg').textContent = '';
-        $('#payErr').textContent = err && err.message && err.message !== 'Failed to fetch' ? err.message : 'We could not reach the billing service. Please try again.';
-        $('#payAcct').setAttribute('aria-invalid', 'true');
-        setAnimatedVisibility(payResult, false);
-      })
-      .then(function(){ if (request === payRequest) btn.disabled = false; });
+    $('#payMsg').innerHTML = 'Log in to view your bill. <a href="/dashboard/?login=member">Log in</a>';
+    setAnimatedVisibility(payResult, false);
   });
   $('#printBtn').addEventListener('click', function(){ window.print(); });
 
