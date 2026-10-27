@@ -141,7 +141,7 @@ No untracked files exist on demo-payments.
 
 - **Broken accounts** `09856432225` and `09666385222` (null name/area) — to be deleted by user in Supabase dashboard.
 - **Leftover test users** `test_*@test.com` in auth.users — to be deleted by user in Supabase dashboard.
-- **Vercel env var** `SUPABASE_SECRET_KEY` (misspelled, unused) — to be deleted by user.
+- **Vercel env var** `SUPABASE_SECRET_KEY` — the correct in-use server secret key (supabase-js key prefix `sb_secret_`); no action needed.
 - **Vercel Authentication for previews** is currently off.
 - **Merge of admin-user-creation into main** is pending user approval.
 - **DEMO_PAYMENTS** must be set for Preview only, never Production.
