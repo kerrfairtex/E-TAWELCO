@@ -281,7 +281,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
 async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   if (process.env.DEMO_PAYMENTS !== 'true') return fail('Demo payments are not enabled', 404)
-  const s = await authorize(req); if (s instanceof Response) return s
+  const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s
   const b = await body(req)
   const billId = Number(b.bill_id)
   if (!Number.isInteger(billId) || billId <= 0) return fail('Invalid bill', 400)
@@ -301,7 +301,8 @@ async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id
   const { data: updated, error: updateError } = await client.from('bills').update({ status: 'paid', paid_at: new Date().toISOString(), paid_channel: 'mobile_wallet', payment_ref: ref, recorded_by: s.id, updated_at: new Date().toISOString() }).eq('id', billId).eq('status', 'unpaid').select('id')
   if (updateError) throw updateError
   if (!updated || updated.length === 0) return fail('Bill was already paid', 409)
-  await audit(client, s, 'payment.simulated', 'bill', billId, { bill_id: billId, amount, method, provider: 'simulate' })
+  const { error: auditError } = await audit(client, s, 'payment.simulated', 'bill', billId, { bill_id: billId, amount, method, provider: 'simulate' })
+  if (auditError) throw auditError
   return json({ ok: true, payment_ref: ref, amount, period: bill.period, method })
 }
 
