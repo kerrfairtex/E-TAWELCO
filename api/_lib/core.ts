@@ -8,8 +8,18 @@ export type Session = { id: string; email: string; name: string | null; role: Ro
 // verified separately in currentSession(), never forwarded as the Authorization header.
 export function supabase(_req?: Request) {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  )
+}
+
+// Auth client for login flow. Uses the publishable key only (no service role).
+// Bearer parsing and auth.getUser(token) verification happen in currentSession().
+export function supabaseAuth(_req?: Request) {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_PUBLISHABLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 }

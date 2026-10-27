@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'; import { randomBytes } from 'node:crypto'
-import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, text, withTicket, audit, type Session } from './_lib/core.js'
+import { randomBytes } from 'node:crypto'
+import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, supabaseAuth, text, withTicket, audit, type Session } from './_lib/core.js'
 import { payMongoEnabled } from './_lib/paymongo.js'
 
 
@@ -327,11 +327,7 @@ async function login(req: Request) {
   const password = typeof b.password === 'string' ? b.password.slice(0, 200) : ''
   const valid = role === 'admin' ? /^\d{8}$/.test(identifier) : /^\d{11}$/.test(identifier)
   if (!role || !valid || !password) return fail('Enter your ID and password.')
-  const authClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  )
+  const authClient = supabaseAuth()
   const { data, error } = await authClient.auth.signInWithPassword({ email: `${identifier}@${role}.tawelco.local`, password })
   if (error || !data.session) return fail('That ID and password do not match.', 401)
   return json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token })
