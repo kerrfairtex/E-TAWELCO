@@ -8,8 +8,16 @@ export type Session = { id: string; email: string; name: string | null; role: Ro
 // verified separately in currentSession(), never forwarded as the Authorization header.
 export function supabase(_req?: Request) {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  )
+}
+
+export function supabaseAuth() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_PUBLISHABLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 }

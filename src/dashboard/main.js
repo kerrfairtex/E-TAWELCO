@@ -1,9 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../browser-supabase.js'
 
 const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY)
-const supabase = hasSupabaseConfig
-  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-  : null
 
 const configurationError = () => new Error('Dashboard authentication is not configured. Please contact the administrator.')
 const authClient = () => {
