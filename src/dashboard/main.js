@@ -947,14 +947,20 @@ async function myBillsView(view) {
       </section>
       ${paymentSamples()}
     </div>`
-}
     // Attach Pay button event listeners
     $$('[data-pay-bill]', view).forEach((button) => {
       button.addEventListener('click', () => {
         const bill = (data.bills || []).find((b) => String(b.id) === button.dataset.payBill)
+      // TEMP-DEBUG-PAY: pay tapped banner
+      let tappedBanner = document.createElement("div");
+      tappedBanner.style.cssText = "position:fixed;top:40px;left:50%;transform:translateX(-50%);background:#0066cc;color:#fff;padding:8px 16px;border-radius:6px;font-size:14px;font-weight:700;z-index:999999;";
+      tappedBanner.textContent = "pay tapped: bill " + bill.id;
+      document.body.appendChild(tappedBanner);
+      setTimeout(() => tappedBanner.remove(), 3000);
         if (bill) startSimulate(bill)
       })
     })
+  }
 
 function paymentSamples() {
   return `<section class="card">
@@ -989,6 +995,12 @@ async function startSimulate(bill) {
   const modal = checkoutUI(bill)
   const div = document.createElement('div')
   div.innerHTML = modal.trim()
+  // TEMP-DEBUG-PAY: modal added banner
+  let modalBanner = document.createElement("div");
+  modalBanner.style.cssText = "position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#0066cc;color:#fff;padding:8px 16px;border-radius:6px;font-size:14px;font-weight:700;z-index:999999;";
+  modalBanner.textContent = "modal added";
+  document.body.appendChild(modalBanner);
+  setTimeout(() => modalBanner.remove(), 3000);
   document.body.appendChild(div)
   
   // Set fake fields
@@ -1054,6 +1066,29 @@ async function startSimulate(bill) {
     }
   })
 }
+
+// TEMP-DEBUG-PAY: global error banners
+window.addEventListener('error', (e) => {
+  let b = document.getElementById('temp-debug-error');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'temp-debug-error';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff0000;color:#ffffff;font-size:14px;font-weight:700;padding:8px;text-align:center;z-index:999999;word-break:break-word;';
+    document.body.appendChild(b);
+  }
+  b.textContent = 'ERROR: ' + (e.error?.message || e.message || 'Unknown error');
+});
+window.addEventListener('unhandledrejection', (e) => {
+  let b = document.getElementById('temp-debug-error');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'temp-debug-error';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff0000;color:#ffffff;font-size:14px;font-weight:700;padding:8px;text-align:center;z-index:999999;word-break:break-word;';
+    document.body.appendChild(b);
+  }
+  b.textContent = 'UNHANDLED: ' + (e.reason?.message || String(e.reason));
+});
+
 
 // ---------- Boot ----------
 function renderWho() {
