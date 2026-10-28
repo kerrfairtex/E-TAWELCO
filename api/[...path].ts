@@ -366,7 +366,7 @@ export default {
       if (parts[1] === 'login') return await login(req)
       const resource = parts[1]
       const id = parts[2]
-      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay']
+      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay', 'demo-pay']
       if (!resource || !known.includes(resource)) return fail('Not found', 404)
       const client = supabase(req)
       if (resource === 'areas') return await areas(req, client, id)
@@ -377,8 +377,10 @@ export default {
       if (resource === 'outages') return await outages(req, client, id)
       if (resource === 'bills') return await bills(req, client, id)
       if (resource === 'pay') {
-        if (id === 'simulate') return await paySimulate(req, client, parts[3])
         return fail('Not found', 404)
+      }
+      if (resource === 'demo-pay') {
+        return await paySimulate(req, client)
       }
       return fail('Not found', 404)
     } catch (error) {

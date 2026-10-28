@@ -323,20 +323,25 @@ Option 2: Install and provide the "ws" package:
       </div>
       <button type="button" class="btn btn-primary demo-pay-btn" style="width:100%">Pay ${f(W(s.amount))}</button>
     </div>
-  </div>`}async function hi(s){let e=ui(s),t=document.createElement("div");t.innerHTML=e.trim(),document.body.appendChild(t);let r=t.querySelector("[data-method]"),a="gcash";t.querySelectorAll(".demo-method").forEach(n=>{n.addEventListener("click",()=>{t.querySelectorAll(".demo-method").forEach(i=>i.setAttribute("aria-pressed","false")),n.setAttribute("aria-pressed","true"),a=n.dataset.method})}),t.querySelector(".demo-pay-btn").addEventListener("click",async()=>{t.querySelector(".demo-pay-btn").disabled=!0,t.querySelector(".demo-pay-btn").textContent="Processing\u2026",await new Promise(i=>setTimeout(i,1500));let n=await P("/api/pay/simulate",{method:"POST",body:{bill_id:Number(s.id),method:a}});n?.ok?(t.innerHTML=`<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+  </div>`}async function hi(s){let e=ui(s),t=document.createElement("div");t.innerHTML=e.trim(),document.body.appendChild(t);let r=t.querySelector("[data-method]"),a="gcash";t.querySelectorAll(".demo-method").forEach(n=>{n.addEventListener("click",()=>{t.querySelectorAll(".demo-method").forEach(i=>i.setAttribute("aria-pressed","false")),n.setAttribute("aria-pressed","true"),a=n.dataset.method})}),t.querySelector(".demo-pay-btn").addEventListener("click",async()=>{let n=t.querySelector(".demo-pay-btn");n.disabled=!0,n.textContent="Processing\u2026",await new Promise(i=>setTimeout(i,1500));try{let i=await P("/api/demo-pay",{method:"POST",body:{bill_id:Number(s.id),method:a}});i?.ok?(t.innerHTML=`<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+          <div class="demo-banner">DEMO \u2014 No real money</div>
+          <div class="card-head"><h2>Payment successful</h2></div>
+          <div class="demo-receipt">
+            <div class="row"><span>Reference</span><strong>${f(i.payment_ref)}</strong></div>
+            <div class="row"><span>Amount</span><strong>${f(W(i.amount))}</strong></div>
+            <div class="row"><span>Period</span><strong>${f(ct(s.period))}</strong></div>
+            <div class="row"><span>Method</span><strong>${f(i.method)}</strong></div>
+            <div class="row"><span>Paid on</span><strong>${f(new Date().toLocaleString("en-PH",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}))}</strong></div>
+          </div>
+          <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
+        </div></div></div>`,t.querySelector(".demo-back").addEventListener("click",()=>{document.body.removeChild(t),ia(document.querySelector('[data-view="my-bills"]'))})):(t.innerHTML=`<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+          <div class="demo-banner">DEMO \u2014 No real money</div>
+          <div class="card-head"><h2>Payment failed</h2></div>
+          <p class="muted">${f(i?.error||"Something went wrong")}</p>
+          <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
+        </div></div></div>`,t.querySelector(".demo-back").addEventListener("click",()=>{document.body.removeChild(t)}))}catch{n.disabled=!1,n.textContent="Pay",t.innerHTML=`<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
         <div class="demo-banner">DEMO \u2014 No real money</div>
-        <div class="card-head"><h2>Payment successful</h2></div>
-        <div class="demo-receipt">
-          <div class="row"><span>Reference</span><strong>${f(n.payment_ref)}</strong></div>
-          <div class="row"><span>Amount</span><strong>${f(W(n.amount))}</strong></div>
-          <div class="row"><span>Period</span><strong>${f(ct(s.period))}</strong></div>
-          <div class="row"><span>Method</span><strong>${f(n.method)}</strong></div>
-          <div class="row"><span>Paid on</span><strong>${f(new Date().toLocaleString("en-PH",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}))}</strong></div>
-        </div>
-        <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
-      </div></div></div>`,t.querySelector(".demo-back").addEventListener("click",()=>{document.body.removeChild(t),ia(document.querySelector('[data-view="my-bills"]'))})):(t.innerHTML=`<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-        <div class="demo-banner">DEMO \u2014 No real money</div>
-        <div class="card-head"><h2>Payment failed</h2></div>
-        <p class="muted">${f(n?.error||"Something went wrong")}</p>
+        <div class="card-head"><h2>Payment could not be completed</h2></div>
+        <p class="muted">Please try again.</p>
         <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
-      </div></div></div>`,t.querySelector(".demo-back").addEventListener("click",()=>{document.body.removeChild(t)}))})}function oa(){let s=S.profile;u("#whoName").textContent=s.full_name||s.email;let e=u("#whoRole");e.className=`badge b-${s.role}`,e.textContent=ve[s.role],u("#who").hidden=!1}async function Wt(){let s=await Wn();if(!s)return Ft();let{profile:e}=await P("/api/me");if(!e)throw new Error("Your account profile is not available yet.");if(Mr&&Mr!==e.role)throw await zr().catch(()=>null),new Error(`This is a ${e.role==="admin"?"admin":"member"} account. Use the ${e.role==="admin"?"Admin":"Members"} login.`);S.profile={...e,email:s.email},S.areas=[],S.session={id:s.id,email:s.email,role:e.role},L("#sideNav [data-role]").forEach(t=>{t.hidden=t.dataset.role==="admin"?!Ts():!Es()}),oa(),u("#loading").hidden=!0,u("#auth").hidden=!0,u("#app").hidden=!1,(!location.hash||location.hash==="#login"||location.hash==="#admin"||location.hash==="#member")&&(location.hash="#overview"),Ht()}async function fi(){if(!Vr)throw Kr();await Wt()}fi().catch(s=>{u("#loading").textContent=s.message||"Could not load the dashboard."});
+      </div></div></div>`,t.querySelector(".demo-back").addEventListener("click",()=>{document.body.removeChild(t)})}})}function oa(){let s=S.profile;u("#whoName").textContent=s.full_name||s.email;let e=u("#whoRole");e.className=`badge b-${s.role}`,e.textContent=ve[s.role],u("#who").hidden=!1}async function Wt(){let s=await Wn();if(!s)return Ft();let{profile:e}=await P("/api/me");if(!e)throw new Error("Your account profile is not available yet.");if(Mr&&Mr!==e.role)throw await zr().catch(()=>null),new Error(`This is a ${e.role==="admin"?"admin":"member"} account. Use the ${e.role==="admin"?"Admin":"Members"} login.`);S.profile={...e,email:s.email},S.areas=[],S.session={id:s.id,email:s.email,role:e.role},L("#sideNav [data-role]").forEach(t=>{t.hidden=t.dataset.role==="admin"?!Ts():!Es()}),oa(),u("#loading").hidden=!0,u("#auth").hidden=!0,u("#app").hidden=!1,(!location.hash||location.hash==="#login"||location.hash==="#admin"||location.hash==="#member")&&(location.hash="#overview"),Ht()}async function fi(){if(!Vr)throw Kr();await Wt()}fi().catch(s=>{u("#loading").textContent=s.message||"Could not load the dashboard."});
