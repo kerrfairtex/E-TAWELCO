@@ -302,7 +302,7 @@ Option 2: Install and provide the "ws" package:
         </tr>`).join("")}</tbody></table></div>`:'<div class="card empty">No bills yet.</div>'}
       </section>
       ${Wr()}
-    </div>`}L("[data-pay-bill]",view).forEach(s=>{s.addEventListener("click",()=>{let e=(data.bills||[]).find(t=>String(t.id)===s.dataset.payBill);e&&hi(e)})});function Wr(){return`<section class="card">
+    </div>`,L("[data-pay-bill]",s).forEach(n=>{n.addEventListener("click",()=>{let i=(e.bills||[]).find(o=>String(o.id)===n.dataset.payBill);i&&hi(i)})})}function Wr(){return`<section class="card">
     <div class="card-head"><h2>Online payment</h2></div>
     <p class="muted">Pay your bill online during this demo. Select an unpaid bill below and follow the simulated checkout. No real money is transferred.</p>
   </section>`}function ui(s,e){return`<div class="demo-checkout" id="demoCheckout">

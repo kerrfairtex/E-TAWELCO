@@ -947,7 +947,6 @@ async function myBillsView(view) {
       </section>
       ${paymentSamples()}
     </div>`
-}
     // Attach Pay button event listeners
     $$('[data-pay-bill]', view).forEach((button) => {
       button.addEventListener('click', () => {
@@ -955,6 +954,7 @@ async function myBillsView(view) {
         if (bill) startSimulate(bill)
       })
     })
+  }
 
 function paymentSamples() {
   return `<section class="card">
