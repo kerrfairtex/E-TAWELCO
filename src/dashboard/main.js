@@ -979,8 +979,8 @@ function checkoutUI(bill, onConfirm) {
         <button type="button" class="demo-method" data-method="card">Card</button>
       </div>
       <div class="demo-fields">
-        <div class="field"><label>Mobile number (demo)</label><input class="input" type="text" value="" readonly style="background:#f5f5f5"></div>
-        <div class="field"><label>Account number (demo)</label><input class="input" type="text" value="" readonly style="background:#f5f5f5"></div>
+        <div class="field"><label>Mobile number (demo)</label><input class="input" type="text" value="" readonly></div>
+        <div class="field"><label>Account number (demo)</label><input class="input" type="text" value="" readonly></div>
       </div>
       <button type="button" class="btn btn-primary demo-pay-btn" style="width:100%">Pay ${esc(fmtPeso(bill.amount))}</button>
     </div>
