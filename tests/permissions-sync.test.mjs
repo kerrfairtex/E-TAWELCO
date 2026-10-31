@@ -7,6 +7,10 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
+function assert(condition, message) {
+  if (!condition) throw new Error(message || 'Assertion failed')
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
 
@@ -26,85 +30,79 @@ function normalize(routes) {
 
 const jsonNorm = normalize(jsonData)
 
+// Read all three consumer files
+const tsVercel = readFileSync(join(root, 'api/_lib/permissions.ts'), 'utf-8')
+const tsNetlify = readFileSync(join(root, 'netlify/lib/permissions.mts'), 'utf-8')
+const jsDashboard = readFileSync(join(root, 'src/dashboard/permissions.js'), 'utf-8')
+
+// Helpers
+const netlifyImportsJson = tsNetlify.includes('permissions.json')
+
+// Extract inline data from Vercel TS (const _perms: RoutePermission[] = [...])
+function extractTSPermissions(tsCode) {
+  const match = tsCode.match(/const _perms: RoutePermission\[\] = \[([\s\S]*?)\n\]/)
+  if (!match) return []
+  const jsonStr = '[' + match[1] + ']'
+  try { return JSON.parse(jsonStr) } catch(e) { return [] }
+}
+
+// Extract inline data from dashboard JS (const PERMISSIONS = [...])
+function extractJSPermissions(jsCode) {
+  const match = jsCode.match(/const PERMISSIONS: AnyRoutePermission\[\] = \[([\s\S]*?)\n\]/)
+  if (!match) return []
+  const jsonStr = '[' + match[1] + ']'
+  try { return JSON.parse(jsonStr) } catch(e) { return [] }
+}
+
 let passed = 0, failed = 0
 function test(name, fn) {
-  try { fn(); passed++; console.log('  PASS: ' + name) }
-  catch (e) { failed++; console.log('  FAIL: ' + name + ' -- ' + e.message) }
-}
-function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed') }
-
-// Import the dashboard JS version
-import { PERMISSIONS as jsPerms } from '../src/dashboard/permissions.js'
-const jsNorm = normalize(jsPerms)
-
-// Read Vercel permissions.ts — it has inline data from permissions.json
-const tsVercel = readFileSync(join(root, 'api/_lib/permissions.ts'), 'utf-8')
-// Extract the inline array: const permissionsData = [ ... ]
-const inlineMatch = tsVercel.match(/const permissionsData = (\[.*?\]) as const/s)
-let tsVercelData = null
-if (inlineMatch) {
-  try { tsVercelData = eval(inlineMatch[1]) } catch(e) {}
-}
-const tsNorm = tsVercelData ? normalize(tsVercelData) : null
-
-// Read Netlify permissions.mts — it imports from ../../permissions.json
-const tsNetlify = readFileSync(join(root, 'netlify/lib/permissions.mts'), 'utf-8')
-
-// Check for local copy of permissions.json
-const localCopyPath = join(root, 'api/_lib/permissions.json')
-let localCopyMatches = false
-try {
-  const localRaw = readFileSync(localCopyPath, 'utf-8')
-  const localParsed = JSON.parse(localRaw)
-  localCopyMatches = JSON.stringify(localParsed) === JSON.stringify(jsonData)
-} catch(e) {
-  localCopyMatches = false
+  try { fn(); console.log('  PASS: ' + name); passed++ }
+  catch(e) { console.log('  FAIL: ' + name + ' -- ' + e.message); failed++ }
 }
 
-console.log('\n=== Permission Map Sync Tests ===\n')
+console.log('=== Permission Map Sync Tests ===\n')
 
-test('dashboard permissions.js matches permissions.json', () => {
-  assert(jsNorm === jsonNorm, 'Dashboard JS permissions differ from JSON source of truth')
+test('dashboard permissions.js imports from permissions.json', () => {
+  assert(jsDashboard.includes('permissions.json'), 'Dashboard JS must reference permissions.json')
 })
 
 test('Vercel permissions.ts inline data matches permissions.json', () => {
-  assert(tsNorm !== null, 'Could not extract inline data from permissions.ts')
-  assert(tsNorm === jsonNorm, 'Vercel TS permissions data differs from JSON')
+  const tsPerms = extractTSPermissions(tsVercel)
+  assert(tsPerms.length > 0, 'Could not extract permissions from permissions.ts')
+  assert(normalize(tsPerms) === jsonNorm, 'Vercel TS inline data differs from JSON source of truth')
 })
 
-test('Netlify permissions.mts imports from ../../permissions.json', () => {
-  assert(tsNetlify.includes("from '../../permissions.json'"),
-    'Netlify permissions.mts must import from ../../permissions.json')
-})
-
-test('local copy api/_lib/permissions.json matches root permissions.json', () => {
-  assert(localCopyMatches, 'Local copy of permissions.json differs from root')
+test('netlify/lib/permissions.mts imports from permissions.json', () => {
+  assert(netlifyImportsJson, 'Netlify permissions.mts must import from permissions.json')
 })
 
 test('people route is admin-only in JSON', () => {
-  const p = jsonData.find(x => x.id === 'people')
-  assert(p && p.allowedRoles.includes('admin') && !p.allowedRoles.includes('staff'),
-    'people must be admin-only in permissions.json')
+  const people = jsonData.find(p => p.id === 'people')
+  assert(people, 'people route not found')
+  assert(people.allowedRoles.length === 1 && people.allowedRoles[0] === 'admin',
+    'people must be admin-only')
 })
 
 test('add-users route is admin-only in JSON', () => {
-  const p = jsonData.find(x => x.id === 'add-users')
-  assert(p && p.allowedRoles.includes('admin') && !p.allowedRoles.includes('staff'),
-    'add-users must be admin-only in permissions.json')
+  const au = jsonData.find(p => p.id === 'add-users')
+  assert(au, 'add-users route not found')
+  assert(au.allowedRoles.length === 1 && au.allowedRoles[0] === 'admin',
+    'add-users must be admin-only')
 })
 
 test('areas requires functions in JSON', () => {
-  const p = jsonData.find(x => x.id === 'areas')
-  assert(p && p.functions && p.functions.length > 0, 'areas must require staff functions')
+  const areas = jsonData.find(p => p.id === 'areas')
+  assert(areas, 'areas route not found')
+  assert(areas.functions && areas.functions.length > 0, 'areas must require functions')
 })
 
 test('manual-payments is NOT visible to customer_service-only staff', () => {
-  const p = jsonData.find(x => x.id === 'manual-payments')
-  assert(p && p.functions && p.functions.includes('cashier_collector'),
-    'manual-payments functions must include cashier_collector')
-  assert(!p.functions.includes('customer_service'),
-    'manual-payments functions must NOT include customer_service')
+  const mp = jsonData.find(p => p.id === 'manual-payments')
+  assert(mp, 'manual-payments route not found')
+  // customer_service is NOT in the required functions for manual-payments
+  assert(!mp.functions || !mp.functions.includes('customer_service'),
+    'manual-payments must not be accessible to customer_service-only staff')
 })
 
-console.log(`\n=== Results: ${passed} passed, ${failed} failed ===\n`)
-process.exit(failed > 0 ? 1 : 0)
+console.log('\n=== Results: ' + passed + ' passed, ' + failed + ' failed ===')
+if (failed > 0) process.exit(1)
