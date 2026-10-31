@@ -70,7 +70,7 @@ async function me(req: Request, client: ReturnType<typeof supabase>) {
 
 async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorizeRoute(req, 'service-areas'); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
 
-async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorizeRoute(req, 'users'); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) }
+async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorizeRoute(req, 'people'); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) }
   if (req.method === 'POST') {
     const b = await body(req)
     const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
