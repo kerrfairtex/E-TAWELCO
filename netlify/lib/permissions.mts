@@ -35,7 +35,10 @@ export function getPermission(route: string): RoutePermission | null {
 export function isMethodAllowed(route: string, method: string): boolean {
   const perm = getPermission(route)
   if (!perm) return method === 'GET' || method === 'HEAD'
-  return perm.methods.includes(method)
+  if (perm.methods && perm.methods.length > 0) return perm.methods.includes(method)
+  // Derive allowed methods from apiActions if methods is not explicitly set
+  const actionMethods = perm.apiActions.map(a => a.split(' ')[0])
+  return actionMethods.includes(method) || actionMethods.includes('GET')
 }
 
 export function verifyNoBrowserMoneyOrStatus(): { passed: boolean; violations: string[] } {
