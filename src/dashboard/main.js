@@ -1,3 +1,4 @@
+import { PERMISSIONS, canAccess, canAccessStaff, isUsable, STATUS } from './permissions.js'
 import { createClient } from '@supabase/supabase-js'
 
 const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY)
@@ -53,7 +54,7 @@ const ago = (d) => {
   return `${Math.round(h / 24)} days ago`
 }
 
-const state = { session: null, profile: null, areas: [], team: null }
+const state = { session: null, profile: null, areas: [], municipalities: [], team: null }
 const isStaff = () => state.session && state.session.role !== 'member'
 const isAdmin = () => state.session?.role === 'admin'
 
@@ -284,7 +285,15 @@ function wireTips(root, tipFor) {
   }
 
   async function unavailableAdminView(view, title, description) {
-    view.innerHTML = `${head(title, description)}<section class="card"><h2>Module not connected</h2><p class="muted">This area is now reserved in the Admin dashboard, but the current project has no data model or API endpoint for it yet. The existing People, Outage reports, Service areas, and Audit Log modules are live.</p></section>`
+    const route = PERMISSIONS.find((p) => p.id === view.getAttribute('data-current-view') || p.label === title)
+    const perm = route || PERMISSIONS.find((p) => p.label === title)
+    const statusLabel = perm ? (STATUS_LABEL[perm.status] || perm.status) : 'Coming soon'
+    view.innerHTML = `<div class="head"><h1>${esc(title)}</h1><p class="muted">${esc(description)}</p></div>
+    <section class="card">
+      <h2>Coming soon</h2>
+      <p class="muted">This module is reserved in the Admin dashboard but is not yet connected to a data model or API endpoint.</p>
+      <p class="muted">Status: <strong class="badge placeholder">${esc(statusLabel)}</strong> · The existing People, Outage reports, Service areas, and Audit Log modules are live.</p>
+    </section>`
   }
 
   const BILL_STATUS = { unpaid: 'Unpaid', overdue: 'Overdue', paid: 'Paid' }
@@ -295,6 +304,7 @@ function wireTips(root, tipFor) {
 
   async function billingView(view) {
     if (!state.areas.length) state.areas = (await api('/api/areas')).areas
+    if (!state.municipalities.length) await ensureMunicipalities()
     view.innerHTML = `${head('Billing Oversight', 'Bills that members see when they check their amount on the public site.', '<button class="btn btn-primary" id="newBill" type="button">Add bill</button>')}
       <div id="billStats"></div>
       <form class="filters" id="billFilters" novalidate>
@@ -526,6 +536,33 @@ const areaBadge = (id) => { const a = state.areas.find((x) => x.id === id); retu
 const areaOptions = (selected, blank = 'Choose an area') =>
   `<option value="">${esc(blank)}</option>${state.areas.map((a) => `<option value="${esc(a.id)}"${a.id === selected ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}`
 
+// Municipality helpers — geography data loaded from /api/municipalities
+const municipalityName = (id) => state.municipalities.find((m) => m.id === id)?.name ?? ''
+const municipalityOptions = (selected, blank = 'Choose a municipality') => {
+  const muns = state.municipalities
+  const tawelcoMuns = muns.filter((m) => m.serving_utility === 'TAWELCO')
+  const CASELCO = muns.filter((m) => m.serving_utility === 'CASELCO')
+  const parts = [`<option value="">${esc(blank)}</option>`]
+  parts.push(tawelcoMuns.map((m) => `<option value="${esc(m.id)}"${m.id === selected ? ' selected' : ''}>${esc(m.name)}</option>`).join(''))
+  if (CASELCO.length) {
+    parts.push(`<optgroup label="Served by CASELCO (not TAWELCO)">${CASELCO.map((m) => `<option value="${esc(m.id)}"${m.id === selected ? ' selected' : ''} data-caselco>${esc(m.name)}</option>`).join('')}</optgroup>`)
+  }
+  return parts.join('')
+}
+
+// Barangay options for a given municipality
+const barangayOptions = async (municipalityId, selected, blank = 'Choose a barangay') => {
+  if (!municipalityId) return `<option value="">${esc(blank)}</option>`
+  const { data, error } = await supabase
+    .from('barangays')
+    .select('id,name,is_poblacion')
+    .eq('municipality_id', Number(municipalityId))
+    .order('is_poblacion', { ascending: false })
+    .order('name')
+  if (error) throw error
+  return `<option value="">${esc(blank)}</option>${(data ?? []).map((b) => `<option value="${esc(b.id)}"${b.id === selected ? ' selected' : ''}>${esc(b.name)}</option>`).join('')}`
+}
+
 function reportTable(rows, staff) {
   return `<div class="table-wrap"><table>
     <thead><tr><th>Ticket</th><th>Where</th><th>What</th><th>Status</th>${staff ? '<th>Assignee</th>' : ''}<th>Reported</th></tr></thead>
@@ -575,21 +612,28 @@ async function outages(view) {
     bindReportRows(list, load)
   }
   $$('#filters select, #filters input').forEach((el) => el.addEventListener('change', load))
+  await ensureMunicipalities()
   if (!staff) bindReportForm(view, load)
   await load()
 }
 
 function reportForm() {
-  const mine = state.profile?.area_id ?? ''
+  const mine = (() => {
+    const mun = state.profile?.municipality_id
+    return mun ? String(mun) : ''
+  })()
   return `<form id="reportForm" novalidate>
     <p class="small muted">Keep away from fallen lines. Your report goes to the cooperative's outage desk.</p>
+    <div class="caselco-notice" id="caselcoNotice" hidden>
+      <p class="msg">These municipalities are reported to be served by Cagayan de Sulu Electric Cooperative (CASELCO). Confirm with your cooperative office before proceeding with a TAWELCO report.</p>
+    </div>
     <div class="grid-2">
-      <div class="field"><label for="rArea">Island area</label><select class="input" id="rArea" required>${areaOptions(mine)}</select></div>
-      <div class="field"><label for="rBrgy">Barangay</label><span id="rBrgyWrap"></span></div>
+      <div class="field"><label for="rMun">Municipality</label><select class="input" id="rMun" required>${municipalityOptions(mine)}</select></div>
+      <div class="field"><label for="rBrgyWrap">Barangay</label><span id="rBrgyWrap"></span></div>
       <div class="field"><label for="rObs">What do you see?</label><select class="input" id="rObs" required><option value="">Choose one</option>${OBSERVATIONS.map((o) => `<option>${esc(o)}</option>`).join('')}</select></div>
       <div class="field"><label for="rPhone">Phone for follow-up <span class="muted small">(optional)</span></label><input class="input" id="rPhone" inputmode="tel" autocomplete="tel" value="${esc(state.profile?.phone ?? '')}"></div>
     </div>
-    <div class="field"><label for="rLandmark">Nearby landmark <span class="muted small">(optional)</span></label><input class="input" id="rLandmark" maxlength="200"></div>
+    <div class="field"><label for="rLandmark">Sitio, purok or nearby landmark <span class="muted small">(optional)</span></label><input class="input" id="rLandmark" maxlength="200"></div>
     <button class="btn btn-primary" type="submit">Send report</button>
     <p class="msg" aria-live="polite"></p>
   </form>`
@@ -597,22 +641,57 @@ function reportForm() {
 
 function bindReportForm(root, onDone) {
   const form = $('#reportForm', root)
-  const renderBrgy = () => {
-    const area = state.areas.find((a) => a.id === $('#rArea').value)
-    $('#rBrgyWrap').innerHTML = area?.barangays?.length
-      ? `<select class="input" id="rBrgy" required><option value="">Choose a barangay</option>${area.barangays.map((b) => `<option>${esc(b)}</option>`).join('')}</select>`
-      : '<input class="input" id="rBrgy" maxlength="80" required>'
+  const rMun = $('#rMun', root)
+  const caselcoNotice = $('#caselcoNotice', root)
+
+  const updateCaselcoNotice = () => {
+    const mun = state.municipalities.find((m) => m.id === Number(rMun.value))
+    if (mun && mun.serving_utility === 'CASELCO') {
+      caselcoNotice.hidden = false
+    } else {
+      caselcoNotice.hidden = true
+    }
   }
-  $('#rArea').addEventListener('change', renderBrgy)
+
+  const renderBrgy = async () => {
+    const prev = $('#rBrgy')
+    if (prev) prev.replaceWith(document.createElement('div'))
+    if (!rMun.value) {
+      $('#rBrgyWrap').innerHTML = '<span class="small muted">Choose a municipality first.</span>'
+      updateCaselcoNotice()
+      return
+    }
+    try {
+      $('#rBrgyWrap').innerHTML = '<span class="small muted">Loading…</span>'
+      const html = await barangayOptions(Number(rMun.value), '', 'Choose a barangay')
+      // Replace the loading text with the actual select
+      const wrap = $('#rBrgyWrap')
+      wrap.innerHTML = html
+      updateCaselcoNotice()
+    } catch (err) {
+      $('#rBrgyWrap').innerHTML = '<span class="small muted">Could not load barangays.</span>'
+    }
+    updateCaselcoNotice()
+  }
+
+  rMun.addEventListener('change', renderBrgy)
   renderBrgy()
+
   form.addEventListener('submit', (e) => {
     e.preventDefault()
     const msg = $('.msg', form)
+    const brgyId = $('#rBrgy', root)?.value
+    const observation = $('#rObs').value
+    const phone = $('#rPhone').value.trim()
+    const landmark = $('#rLandmark').value.trim()
+    if (!rMun.value || !brgyId || !observation) return setMsg(msg, 'Choose the municipality, barangay and what you see.')
+    const mun = state.municipalities.find((m) => m.id === Number(rMun.value))
+    const areaId = mun ? mun.id : ''
     const body = {
-      area_id: $('#rArea').value, barangay: $('#rBrgy').value.trim(), observation: $('#rObs').value,
-      phone: $('#rPhone').value.trim(), landmark: $('#rLandmark').value.trim(),
+      municipality_id: Number(rMun.value), barangay_id: Number(brgyId),
+      area_id: areaId, barangay: mun?.name ? `${mun.name} barangay` : '',
+      observation, phone, landmark,
     }
-    if (!body.area_id || !body.barangay || !body.observation) return setMsg(msg, 'Choose the area, barangay and what you see.')
     busy($('button[type=submit]', form), async () => {
       try {
         const { report } = await api('/api/outages', { method: 'POST', body })
@@ -682,13 +761,14 @@ async function openReport(id, onChange) {
 
 // ---------- Service areas ----------
 async function areasView(view) {
+  if (!state.municipalities.length) await ensureMunicipalities()
   const { areas } = await api('/api/areas')
   state.areas = areas
   view.innerHTML = `${head('Service areas', 'Status, hours and notices shown to members for each island.')}
     <div class="table-wrap"><table>
       <thead><tr><th>Area</th><th>Status</th><th>Hours</th><th class="num">Rate / kWh</th><th>Notice</th><th>Updated</th><th><span class="visually-hidden">Edit</span></th></tr></thead>
       <tbody>${areas.map((a) => `<tr>
-        <td><strong>${esc(a.name)}</strong><br><span class="small muted">${esc(a.source)}</span></td>
+        <td><strong>${esc(a.name)}</strong>${a.municipality ? `<br><span class="small muted">${esc(a.municipality.name)}</span>` : ''}<br><span class="small muted">${esc(a.source)}</span></td>
         <td>${badge(a.status, AREA_STATUS)}</td>
         <td>${esc(a.hours)}</td>
         <td class="num">₱${Number(a.rate).toFixed(2)}</td>
@@ -735,6 +815,16 @@ const ensureAreas = async () => {
     state.areasError = false
   } catch {
     state.areasError = true
+  }
+}
+
+const ensureMunicipalities = async () => {
+  if (state.municipalities && state.municipalities.length) return
+  try {
+    const { municipalities } = await api('/api/municipalities')
+    state.municipalities = municipalities
+  } catch {
+    state.municipalities = []
   }
 }
 
@@ -860,14 +950,17 @@ async function people(view) {
 async function profileView(view) {
   const p = state.profile
   view.innerHTML = `${head('My profile', 'Used to prefill outage reports and show service news for your island.')}
-    <section class="card" style="max-width:640px">
+    <section class="card" style="max-width:640px" data-barangay-id="${p.barangay_id ?? ''}">
       <form id="profileForm" novalidate>
         <div class="field"><label>Email</label><div>${esc(p.email)} ${badge(p.role, ROLE_LABEL)}</div></div>
         <div class="grid-2">
           <div class="field"><label for="pName">Full name</label><input class="input" id="pName" maxlength="120" autocomplete="name" value="${esc(p.full_name ?? '')}"></div>
           <div class="field"><label for="pPhone">Phone</label><input class="input" id="pPhone" maxlength="30" inputmode="tel" autocomplete="tel" value="${esc(p.phone ?? '')}"></div>
         </div>
-        <div class="field"><label for="pArea">Island area</label><select class="input" id="pArea">${areaOptions(p.area_id, 'Not set')}</select></div>
+        <input type="hidden" id="pArea" value="${esc(p.area_id ?? '')}">
+        <div class="field"><label for="pMun">Municipality</label><select class="input" id="pMun">${municipalityOptions(p.municipality_id, 'Not set')}</select><span class="small muted" id="pMunNote"></span></div>
+        <div class="field"><label for="pBrgyWrap">Barangay</label><span id="pBrgyWrap"><span class="small muted">Choose a municipality first.</span></span></div>
+        <div class="field"><label for="pLandmark">Sitio / purok / landmark <span class="muted small">(optional)</span></label><input class="input" id="pLandmark" maxlength="200" value="${esc(p.sitio_purok_landmark ?? '')}"></div>
         <button class="btn btn-primary" type="submit">Save profile</button>
         <p class="msg" aria-live="polite"></p>
       </form>
@@ -889,13 +982,41 @@ async function profileView(view) {
     const msg = $('.msg', e.target)
     busy($('button[type=submit]', e.target), async () => {
       try {
-        const { profile } = await api('/api/me', { method: 'PATCH', body: { full_name: $('#pName').value, phone: $('#pPhone').value, area_id: $('#pArea').value } })
+        const brgyId = $('#pBrgy')?.value
+        const { profile } = await api('/api/me', { method: 'PATCH', body: { full_name: $('#pName').value, phone: $('#pPhone').value, area_id: $('#pArea').value, municipality_id: $('#pMun').value, barangay_id: brgyId || undefined, sitio_purok_landmark: $('#pLandmark').value.trim() } })
         state.profile = profile
         renderWho()
         setMsg(msg, 'Profile saved.', 'ok')
       } catch (err) { setMsg(msg, err.message) }
     })
   })
+  // Municipality → dependent barangay dropdown in profile
+  const pMun = $('#pMun')
+  const pBrgyWrap = $('#pBrgyWrap')
+  const pMunNote = $('#pMunNote')
+  const loadProfileBrgy = async () => {
+    const munId = pMun.value
+    const mun = state.municipalities.find((m) => m.id === Number(munId))
+    if (mun?.serving_utility === 'CASELCO') {
+      pMunNote.textContent = 'Served by CASELCO, not TAWELCO'
+      pMunNote.className = 'msg'
+    } else {
+      pMunNote.textContent = ''
+    }
+    if (!munId) { pBrgyWrap.innerHTML = '<span class="small muted">Choose a municipality first.</span>'; return }
+    try {
+      const { data: brgys, error } = await supabase.from('barangays').select('id,name,is_poblacion').eq('municipality_id', Number(munId)).order('is_poblacion', { ascending: false }).order('name')
+      if (error) throw error
+      const selected = p.getAttribute('data-barangay-id') ? Number(p.getAttribute('data-barangay-id')) : null
+      pBrgyWrap.innerHTML = `<select class="input" id="pBrgy"><option value="">Not set</option>${(brgys ?? []).map((b) => `<option value="${b.id}"${b.id === selected ? ' selected' : ''}>${esc(b.name)}</option>`).join('')}</select>`
+    } catch {
+      pBrgyWrap.innerHTML = '<span class="small muted">Could not load barangays.</span>'
+    }
+  }
+  pMun.addEventListener('change', loadProfileBrgy)
+  if (!state.municipalities.length) await ensureMunicipalities()
+  loadProfileBrgy()
+
   $('#pwForm').addEventListener('submit', (e) => {
     e.preventDefault()
     const msg = $('.msg', e.target)
@@ -1077,7 +1198,33 @@ async function start() {
   state.profile = { ...profile, email: user.email }
   state.areas = []
   state.session = { id: user.id, email: user.email, role: profile.role }
-  $$('#sideNav [data-role]').forEach((a) => { a.hidden = a.dataset.role === 'admin' ? !isAdmin() : !isStaff() })
+  // Render sidebar from permission map — hide items the user's role can't access,
+  // disable placeholder/needs-backend items with a "Coming soon" badge.
+  $$('#sideNav [data-view]').forEach((a) => {
+    const view = a.getAttribute('data-view')
+    const roles = (a.getAttribute('data-roles') || '').split(',').map(s => s.trim()).filter(Boolean)
+    const funcs = (a.getAttribute('data-functions') || '').split(',').map(s => s.trim()).filter(Boolean)
+    const role = state.session?.role
+    const staffFunctions = state.profile?.staff_function || []
+    
+    // Check role access
+    let visible = roles.includes(role)
+    if (role === 'staff' && funcs.length > 0) {
+      visible = staffFunctions.some(f => funcs.includes(f))
+    }
+    
+    a.hidden = !visible
+    a.classList.toggle('disabled', !isUsable(view))
+    
+    // Add click guard for disabled routes
+    a.removeEventListener('routeGuard')
+    a.addEventListener('routeGuard', function(e) {
+      if (!isUsable(view)) {
+        e.preventDefault()
+        alert('This feature is coming soon.')
+      }
+    })
+  })
   renderWho()
   $('#loading').hidden = true
   $('#auth').hidden = true

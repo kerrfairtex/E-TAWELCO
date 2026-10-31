@@ -1177,13 +1177,20 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   <form class="modal-body" id="outageForm" novalidate>
     <p class="small muted">Demo only: this creates a draft on screen, not a utility report. No details are sent or saved. For urgent hazards, keep away from fallen lines and contact an authorized utility or emergency service using a verified number.</p>
     <div class="field">
-      <label for="oIsland">Municipality / island area</label>
+      <label for="oIsland">Municipality</label>
       <select class="input" id="oIsland"></select>
+      <span class="hint">Choose your municipality. Island geography and electricity service boundaries are different.</span>
+      <span class="error" id="oMunErr" aria-live="polite"></span>
+    </div>
+    <div class="caselco-notice" id="caselcoNotice" hidden>
+      <p class="msg">These municipalities are reported to be served by Cagayan de Sulu Electric Cooperative (CASELCO). Confirm with your cooperative office before proceeding with a TAWELCO report.</p>
     </div>
     <div class="field">
       <label for="oBrgy">Barangay</label>
-      <input class="input" id="oBrgy" autocomplete="address-level3" aria-describedby="oBrgyHint oBrgyErr" required>
-      <span class="hint" id="oBrgyHint">Choose an official Bongao barangay, or enter the barangay for another area.</span>
+      <span id="oBrgyWrap">
+        <input class="input" id="oBrgy" autocomplete="address-level3" aria-describedby="oBrgyHint oBrgyErr" required>
+      </span>
+      <span class="hint" id="oBrgyHint">Choose a municipality first to load barangays.</span>
       <span class="error" id="oBrgyErr" aria-live="polite"></span>
     </div>
     <div class="field">
@@ -1248,21 +1255,139 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   var isLowData = function(){ return root.classList.contains('low-data'); };
   var calm = function(){ return reduceMotion || isLowData(); };
 
-  /* ---------- Data ---------- */
-  var ISLANDS = [
-{id:'bongao', name:'Bongao', status:'steady', source:'Diesel power plant serving the main town', rate:13.50, hours:'24 hours', office:'Main office, Bongao town', coords:[5.0292,119.7731]},
-  {id:'simunul', name:'Simunul', status:'limited', source:'Island diesel set', rate:15.20, hours:'Evening hours, 6 pm to 6 am', office:'Simunul satellite office', coords:[4.8961,120.0065]},
-  {id:'sibutu', name:'Sibutu', status:'steady', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sibutu collection office', coords:[4.8584,119.4686]},
-  {id:'sitangkai', name:'Sitangkai', status:'outage', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sitangkai collection office', coords:[4.6748,119.3553]},
-  {id:'taganak', name:'Turtle Islands (Taganak)', markerName:'Taganak', status:'limited', source:'Small island system', rate:16.00, hours:'Evening hours', office:'To be confirmed', coords:[6.0733,118.3128]}
-  ];
-  ['Mapun','Languyan','Sapa-Sapa','South Ubian','Tandubas','Panglima Sugala'].forEach(function(n){
-    ISLANDS.push({id:n.toLowerCase().replace(/[^a-z]+/g,'-'), name:n, extra:true, status:'limited', source:'To be confirmed', rate:15.00, hours:'To be confirmed', office:'To be confirmed'});
-  });
-  var STATUS = {steady:'Steady', limited:'Limited hours', outage:'Outage reported'};
-  var bongaoDirectory = $('#bongaoBarangay');
-  var BONGAO_BARANGAYS = Array.prototype.slice.call(bongaoDirectory.options, 1).map(function(option){ return option.value; });
+  /* ---------- Data (loaded from API) ---------- */
+  // ISLANDS and BONGAO_BARANGAYS are populated from /api/areas and /api/municipalities
+  // on page load. They start empty and the UI updates once data arrives.
+  var ISLANDS = [];
+  var MUNICIPALITIES = [];
+  var BONGAO_BARANGAYS = [];
   var BONGAO_URBAN = ['Bongao Poblacion','Simandagit','Lamion','Tubig-Boh','Nalil','Pag-asa','Tubig-Mampallam','Tubig Tanah'];
+  var STATUS = {steady:'Steady', limited:'Limited hours', outage:'Outage reported'};
+  var AREA_STATUS = {steady:'Steady', limited:'Limited hours', outage:'Outage reported'};
+  // Track loaded state so we can re-render dependent UI once data is available
+  var GEO_LOADED = false;
+  async function loadGeography() {
+    try {
+      var [areasResp, munsResp] = await Promise.all([
+        fetch('/api/areas').then(function(r){ return r.json() }),
+        fetch('/api/municipalities').then(function(r){ return r.json() }),
+      ]);
+      if (areasResp && areasResp.areas) {
+        // Merge service_areas (which have barangay data) into ISLANDS,
+        // enriched with municipality info from /api/municipalities.
+        var muns = munsResp && munsResp.municipalities ? munsResp.municipalities : [];
+        MUNICIPALITIES = muns;
+        ISLANDS = areasResp.areas.map(function(a) {
+          var mun = muns.find(function(m){ return m.name === a.name || (a.municipality && a.municipality.name === m.name) }) || {};
+          return {
+            id: a.id, name: a.name, markerName: a.marker_name || a.name,
+            status: a.status, source: a.source, rate: a.rate, hours: a.hours,
+            office: a.office, coords: a.coords || [0, 0],
+            servingUtility: mun.serving_utility, coverageStatus: mun.tawelco_coverage_status,
+            coverageNote: mun.coverage_note, isCapital: mun.is_capital,
+            barangayCount: a.barangays ? a.barangays.length : 0,
+            municipality: a.municipality ? a.municipality.name : (mun.name || a.name),
+          };
+        });
+        // Mark CASELCO-served islands
+        ISLANDS.forEach(function(i) {
+          var mun = MUNICIPALITIES.find(function(m){ return m.name === i.municipality });
+          if (mun && mun.serving_utility === 'CASELCO') {
+            i.caselco = true;
+            i.caselcoNote = mun.coverage_note || 'Served by CASELCO, not TAWELCO';
+          }
+        });
+      }
+      if (munsResp && munsResp.municipalities) {
+        MUNICIPALITIES = munsResp.municipalities;
+      }
+      GEO_LOADED = true;
+      // Re-populate dependent UI after data load
+      populateOutageIsland(); // re-populate the outage form municipality dropdown
+      populateBongaoDirectory(); // re-populate the barangay directory select
+    } catch (e) {
+      console.error('Failed to load geography:', e);
+    }
+  }
+  // Bongao barangay directory — populated from the API once loaded
+  function populateBongaoDirectory() {
+    var bongaoDirectory = $('#bongaoBarangay');
+    if (!bongaoDirectory) return;
+    // Keep existing static <option> elements; add the barangay list name array
+    var bongaoArea = ISLANDS.find(function(i){ return i.id === 'bongao' });
+    if (bongaoArea && bongaoArea.barangayCount) {
+      // The dropdown is static HTML; we just need to know the names for validation
+      BONGAO_BARANGAYS = Array.prototype.slice.call(bongaoDirectory.options, 1).map(function(option){ return option.value; });
+    }
+  }
+  // Populate the outage form municipality dropdown and bind dependent barangay loading
+  function populateOutageIsland() {
+    var oIsland = $('#oIsland');
+    var oMunErr = $('#oMunErr');
+    if (!oIsland) return;
+    // Clear existing options (except keep empty)
+    oIsland.innerHTML = '';
+    MUNICIPALITIES.forEach(function(m) {
+      var o = document.createElement('option');
+      o.value = m.id;
+      o.textContent = m.name;
+      if (m.serving_utility === 'CASELCO') o.dataset.caselco = 'true';
+      oIsland.appendChild(o);
+    });
+    // Re-bind the change handler for dependent barangay dropdown
+    bindOutageBarangayDependent();
+    oMunErr.textContent = '';
+  }
+
+  // Dependent barangay dropdown for the outage form
+  function bindOutageBarangayDependent() {
+    var oIsland = $('#oIsland');
+    var oBrgyWrap = $('#oBrgyWrap');
+    var oBrgyHint = $('#oBrgyHint');
+    var caselcoNotice = $('#caselcoNotice');
+
+    function updateCaselcoNotice() {
+      var selectedOption = oIsland.options[oIsland.selectedIndex];
+      if (selectedOption && selectedOption.dataset.caselco === 'true') {
+        caselcoNotice.hidden = false;
+      } else {
+        caselcoNotice.hidden = true;
+      }
+    }
+
+    async function loadBarangays() {
+      var munId = oIsland.value;
+      if (!munId) {
+        oBrgyWrap.innerHTML = '<input class="input" id="oBrgy" autocomplete="address-level3" aria-describedby="oBrgyHint oBrgyErr" required>';
+        oBrgyHint.textContent = 'Choose a municipality first to load barangays.';
+        updateCaselcoNotice();
+        return;
+      }
+      var mun = MUNICIPITIES.find(function(m) { return m.id === Number(munId) });
+      // Fetch barangays for this municipality
+      try {
+        oBrgyWrap.innerHTML = '<span class="small muted">Loading…</span>';
+        var resp = await fetch('/api/barangays?municipality_id=eq.' + encodeURIComponent(munId) + '&select=id,name,is_poblacion&order=is_poblacion.desc,name');
+        var brgys = await resp.json();
+        var html = '<select class="input" id="oBrgy" autocomplete="address-level3" aria-describedby="oBrgyHint oBrgyErr" required><option value="">Choose a barangay</option>';
+        brgys.forEach(function(b) {
+          html += '<option value="' + b.id + '">' + b.name + '</option>';
+        });
+        html += '</select>';
+        oBrgyWrap.innerHTML = html;
+        oBrgyHint.textContent = mun ? mun.name + ' municipality · barangay list from PSA PhilAtlas (2020).' : 'Choose a barangay.';
+      } catch (e) {
+        oBrgyWrap.innerHTML = '<input class="input" id="oBrgy" maxlength="80" required>';
+        oBrgyHint.textContent = 'Could not load barangays. Enter the barangay manually.';
+      }
+      updateCaselcoNotice();
+    }
+
+    oIsland.removeEventListener('change', loadBarangays);
+    oIsland.addEventListener('change', loadBarangays);
+    loadBarangays();
+  }
+  bongaoDirectory = $('#bongaoBarangay');
   bongaoDirectory.addEventListener('change', function(){
     var barangay = bongaoDirectory.value;
     $('#bongaoBarangayNote').textContent = barangay ? barangay + ' · Bongao municipality, Tawi-Tawi. PSA classification: ' + (BONGAO_URBAN.indexOf(barangay) > -1 ? 'urban' : 'rural') + '. Classification does not indicate electricity access, income or service eligibility.' : 'PSA municipality directory · barangay list dated July 31, 2025. All 35 choices are included, not just urban barangays.';
@@ -1642,6 +1767,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   var chipsBox = $('#chips'), card = $('#islandCard');
   var map = L.map('islandMap', {scrollWheelZoom:false, zoomControl:true}).setView([5.15,119.55], 8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+  // Load geography data from API on page init
+  loadGeography();
   var selected = ISLANDS[0];
   var islandMarkers = {};
   var moreList;
@@ -1751,15 +1878,24 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   /* ---------- Delegated links ---------- */
   var modal = $('#outageModal'), lastOpener = null;
   var oIsland = $('#oIsland');
-  ISLANDS.forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name; oIsland.appendChild(o); });
+  var oBrgyWrap = $('#oBrgyWrap');
+  // ISLANDS is populated async from /api/areas. The outage form dropdown
+  // is (re)populated by populateOutageIsland() after data loads.
+  if (GEO_LOADED && ISLANDS.length) {
+    populateOutageIsland();
+  } else {
+    // Will be populated by loadGeography() -> populateOutageIsland()
+    setTimeout(function() { if (GEO_LOADED && ISLANDS.length) populateOutageIsland(); }, 500);
+  }
   function updateBarangayField(preselected){
+    // Kept for backward compatibility with the "Prepare an outage note" button
     var previous = $('#oBrgy');
     var isBongao = oIsland.value === 'bongao';
     var field = document.createElement(isBongao ? 'select' : 'input');
     field.id = 'oBrgy'; field.className = 'input'; field.required = true;
     field.setAttribute('aria-describedby', 'oBrgyHint oBrgyErr');
     field.setAttribute('autocomplete', 'address-level3');
-    if (isBongao) {
+    if (isBongao && previous.tagName === 'SELECT') {
       Array.prototype.forEach.call(bongaoDirectory.options, function(option){ field.appendChild(option.cloneNode(true)); });
     }
     field.value = preselected || '';
@@ -1768,10 +1904,19 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     $('#oBrgyErr').textContent = '';
     $('#outageMsg').textContent = '';
   }
-  oIsland.addEventListener('change', function(){ updateBarangayField(); });
+  oIsland.addEventListener('change', function(){
+    // If ISLANDS is loaded, the dependent barangay dropdown handles it
+    if (GEO_LOADED) bindOutageBarangayDependent();
+    else updateBarangayField();
+  });
   $('#bongaoDraft').addEventListener('click', function(){
     openOutage('bongao', this);
-    updateBarangayField(bongaoDirectory.value);
+    if (GEO_LOADED) {
+      // The dependent barangay dropdown will load on oIsland change event
+      setTimeout(function(){ bindOutageBarangayDependent(); }, 50);
+    } else {
+      updateBarangayField(bongaoDirectory.value);
+    }
     $('#oBrgy').focus();
   });
   function openOutage(islandId, opener){
@@ -1779,7 +1924,16 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     closeCurrent(false); closeSheet(false); closeDrawer(false); closeSearch(false);
     $('#outageForm').reset();
     oIsland.value = islandId || selected.id;
-    updateBarangayField();
+    // Populate municipality dropdown if data is loaded, then trigger barangay load
+    if (GEO_LOADED && MUNICIPALITIES.length) {
+      // Set the municipality dropdown to match the selected island
+      var munMatch = MUNICIPALITIES.find(function(m) { return m.name === oIsland.options[oIsland.selectedIndex]?.textContent || m.psgc_code });
+      // Trigger the dependent barangay load
+      var event = new Event('change');
+      oIsland.dispatchEvent(event);
+    } else {
+      updateBarangayField();
+    }
     $('#outageMsg').innerHTML = ''; $('#oBrgyErr').textContent = '';
     if (typeof modal.showModal === 'function') modal.showModal(); else modal.setAttribute('open','');
     $('#oBrgy').focus();
@@ -1790,10 +1944,11 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   $('#outageForm').addEventListener('submit', function(e){
     e.preventDefault();
     var brgy = $('#oBrgy').value.trim();
-    if (!brgy || (oIsland.value === 'bongao' && BONGAO_BARANGAYS.indexOf(brgy) < 0)) { $('#oBrgyErr').textContent = 'Choose a Bongao barangay, or enter a barangay for the selected area.'; $('#oBrgy').setAttribute('aria-invalid', 'true'); $('#oBrgy').focus(); return; }
+    if (!brgy) { $('#oBrgyErr').textContent = 'Choose a municipality and barangay.'; $('#oBrgy').setAttribute('aria-invalid', 'true'); $('#oBrgy').focus(); return; }
     $('#oBrgyErr').textContent = '';
     $('#oBrgy').removeAttribute('aria-invalid');
-    var isl = ISLANDS.filter(function(x){ return x.id === oIsland.value; })[0];
+    var isl = ISLANDS.filter(function(x){ return x.id === oIsland.value; })[0] ||
+              MUNICIPALITIES.find(function(m){ return m.id === Number(oIsland.value); });
     var what = ($('input[name="what"]:checked') || {}).value || '';
     var phone = $('#oPhone').value.trim();
     var landmark = $('#oLandmark').value.trim();

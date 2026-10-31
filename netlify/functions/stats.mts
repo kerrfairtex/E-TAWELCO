@@ -3,7 +3,7 @@ import { authorize, db, isStaff, json } from '../lib/core.mts'
 
 // Summary numbers and series for the dashboard overview. Staff see the whole cooperative; members see their own reports.
 export default async (req: Request) => {
-  const s = await authorize(req)
+  const s = await authorizeRoute(req, 'stats')
   if (s instanceof Response) return s
   const sql = db().sql
 

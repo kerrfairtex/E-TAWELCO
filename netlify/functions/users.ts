@@ -1,10 +1,10 @@
 import type { Config, Context } from '@netlify/functions'
 import { admin } from '@netlify/identity'
-import { audit, authorize, db, fail, json, oneOf, readBody, roleMetadata, ROLES } from '../lib/core.mts'
+import { audit, authorize, authorizeRoute, db, fail, json, oneOf, readBody, roleMetadata, ROLES } from '../lib/core.mts'
 
 // Admin-only: list everyone who has signed in and grant member, staff or admin roles.
 export default async (req: Request, context: Context) => {
-  const s = await authorize(req, ['admin'])
+  const s = await authorizeRoute(req, 'users')
   if (s instanceof Response) return s
   const sql = db().sql
 

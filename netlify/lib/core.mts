@@ -1,6 +1,7 @@
 import { getDatabase } from '@netlify/database'
 import { verifyRequestOrigin } from '@netlify/identity'
 import { createClient } from '@supabase/supabase-js'
+import { getPermission, isMethodAllowed, verifyNoBrowserMoneyOrStatus } from './permissions.mts'
 
 export type Role = 'member' | 'staff' | 'admin'
 export const ROLES: Role[] = ['member', 'staff', 'admin']
@@ -10,6 +11,7 @@ export interface Session {
   email: string
   name: string | null
   role: Role
+  staff_function: string[] | null
 }
 
 export const db = () => getDatabase()
@@ -40,7 +42,7 @@ export async function currentSession(req?: Request): Promise<Session | null> {
   if (!user) return null
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, full_name')
+    .select('role, full_name, staff_function')
     .eq('id', user.id)
     .maybeSingle()
   const role = profile?.role === 'admin' ? 'admin' : profile?.role === 'staff' ? 'staff' : 'member'
@@ -51,7 +53,7 @@ export async function currentSession(req?: Request): Promise<Session | null> {
     ON CONFLICT (identity_id) DO UPDATE
       SET email = EXCLUDED.email, role = EXCLUDED.role,
           full_name = COALESCE(EXCLUDED.full_name, profiles.full_name), last_seen_at = NOW()`
-  return { id: user.id, email, name: profile?.full_name ?? user.user_metadata?.full_name ?? null, role }
+  return { id: user.id, email, name: profile?.full_name ?? user.user_metadata?.full_name ?? null, role, staff_function: profile?.staff_function ?? null }
 }
 
 // Guards an endpoint: checks the request origin on writes, requires a session, and optionally a role.
@@ -70,6 +72,34 @@ export async function authorize(req: Request, roles?: Role[]): Promise<Session |
 }
 
 export const isStaff = (s: Session | null) => !!s && (s.role === 'staff' || s.role === 'admin')
+
+// Shared route authorization — reads from the single permission map
+export async function authorizeRoute(req: Request, routeKey: string): Promise<Session | Response> {
+  const perm = getPermission(routeKey)
+  if (!perm) return fail('Unknown route', 404)
+  if (!isMethodAllowed(routeKey, req.method)) return fail('Method not allowed', 405)
+  if (perm.functions && perm.functions.length > 0) {
+    return await authorizeWithFunctions(req, perm.roles, perm.functions)
+  }
+  return await authorize(req, perm.roles.length > 0 ? perm.roles : undefined)
+}
+
+// Safety check: verify no browser-mutable payment routes allow member access
+export const PAYMENT_SECURITY_CHECK = verifyNoBrowserMoneyOrStatus()
+
+// Authorize with staff function requirement (server-side enforcement of permission map)
+export async function authorizeWithFunctions(req: Request, roles: Role[], functions?: string[]): Promise<Session | Response> {
+  const session = await authorize(req, roles)
+  if (session instanceof Response) return session
+  // Admin role bypasses staff_function check — admins have implicit access to all functions
+  if (session.role === 'admin') return session
+  if (functions && functions.length > 0) {
+    const userFunctions = session.staff_function ?? []
+    const hasFunction = functions.some((fn) => userFunctions.includes(fn))
+    if (!hasFunction) return fail('You do not have access to this', 403)
+  }
+  return session
+}
 
 export async function readBody(req: Request): Promise<Record<string, unknown>> {
   const contentLength = Number(req.headers.get('content-length') ?? 0)

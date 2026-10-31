@@ -1,5 +1,5 @@
 import type { Config, Context } from '@netlify/functions'
-import { audit, authorize, db, fail, json, oneOf, readBody, text } from '../lib/core.mts'
+import { audit, authorize, authorizeRoute, db, fail, json, oneOf, readBody, text } from '../lib/core.mts'
 
 const STATUSES = ['steady', 'limited', 'outage'] as const
 
@@ -10,13 +10,17 @@ export default async (req: Request, context: Context) => {
     const areas = await sql`
       SELECT a.id, a.name, a.marker_name, a.status, a.source, a.rate::float AS rate, a.hours, a.office, a.notice,
              a.extra, a.updated_at,
-             COALESCE((SELECT json_agg(b.name ORDER BY b.name) FROM barangays b WHERE b.area_id = a.id), '[]') AS barangays
-      FROM service_areas a ORDER BY a.sort_order, a.name`
+             COALESCE((SELECT json_agg(b.name ORDER BY b.name) FROM barangays b WHERE b.area_id = a.id), '[]') AS barangays,
+             m.id AS municipality_id, m.psgc_code, m.name AS municipality_name,
+             m.serving_utility, m.tawelco_coverage_status, m.coverage_note, m.is_capital
+      FROM service_areas a
+      LEFT JOIN municipalities m ON m.id = a.municipality_id
+      ORDER BY a.sort_order, a.name`
     return json({ areas })
   }
 
   if (req.method !== 'PATCH' || !context.params.id) return fail('Method not allowed', 405)
-  const s = await authorize(req, ['staff', 'admin'])
+  const s = await authorizeRoute(req, 'service-areas')
   if (s instanceof Response) return s
 
   const [area] = await sql`SELECT * FROM service_areas WHERE id = ${context.params.id}`

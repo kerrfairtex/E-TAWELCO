@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { authorize, db, fail, json, readBody, text } from '../lib/core.mts'
 
 export default async (req: Request) => {
-  const s = await authorize(req)
+  const s = await authorizeRoute(req, 'me')
   if (s instanceof Response) return s
   const sql = db().sql
 

@@ -137,6 +137,13 @@ textarea.input{padding:10px 12px;min-height:90px;resize:vertical}
 .demo-fields .field{margin-bottom:12px}
 .field label{font-size:12px;color:var(--muted)}
 .field input,.field select,.field textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}.field input::placeholder{color:var(--muted)}.field input:focus-visible{border-color:var(--brand);outline:2px solid var(--tint);outline-offset:1px}.field input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px var(--card) inset;-webkit-text-fill-color:var(--ink);caret-color:var(--ink)}
+    /* Status badges in sidebar */
+    #sideNav .badge{font-size:0.7em;padding:0 6px;border-radius:4px;margin-left:4px;font-weight:600}
+    #sideNav .badge.working{background:var(--tint);color:var(--ink)}
+    #sideNav .badge.partial{background:#fef3c7;color:#92400e}
+    #sideNav .badge.placeholder{background:var(--line);color:var(--muted)}
+    #sideNav .badge.backend{background:#fed7aa;color:#9a3412}
+    #sideNav a.disabled{opacity:0.5;pointer-events:none;cursor:not-allowed}
 .demo-pay-btn{width:100%;margin-top:12px}
 .demo-receipt .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}
 .demo-receipt .row:last-child{border-bottom:none}
@@ -297,18 +304,27 @@ dl.facts dd{margin:0}
 <div id="app" class="shell" hidden>
   <aside class="side">
     <nav aria-label="Dashboard" id="sideNav">
-      <a href="#overview" data-view="overview"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Overview</a>
-      <a href="#manage-admins" data-view="manage-admins" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-people"/></svg>People</a>
-      <a href="#repair-requests" data-view="repair-requests" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>Repair Requests</a>
-      <a href="#complaints" data-view="complaints" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>Complaints</a>
-      <a href="#billing" data-view="billing" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Billing Oversight</a>
-      <a href="#gcash" data-view="gcash" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>GCash Merchant</a>
-      <a href="#audit" data-view="audit" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Audit Log</a>
-      <a href="#settings" data-view="settings" data-role="admin"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Master Settings</a>
-      <a href="#outages" data-view="outages"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>Outage reports</a>
-      <a href="#my-bills" data-view="my-bills"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>My bills</a>
-      <a href="#areas" data-view="areas" data-role="staff"><svg class="icon" aria-hidden="true"><use href="#i-map"/></svg>Service areas</a>
-      <a href="#profile" data-view="profile"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg>My profile</a>
+      <!-- Home -->
+      <a href="#overview" data-view="overview" data-roles="member,staff,admin"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Overview <span class="badge partial" aria-label="Partial">Partial</span></a>
+      <a href="#outages" data-view="outages" data-roles="member,staff,admin"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>Outage reports <span class="badge partial" aria-label="Partial">Partial</span></a>
+      <a href="#areas" data-view="areas" data-roles="staff,admin" data-functions="customer_service,billing,cashier_collector,meter_reader,line_crew_dispatch"><svg class="icon" aria-hidden="true"><use href="#i-map"/></svg>Service areas <span class="badge partial" aria-label="Partial">Partial</span></a>
+      <!-- Billing -->
+      <a href="#my-bills" data-view="my-bills" data-roles="member"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>My bills <span class="badge backend" aria-label="Needs backend">Coming soon</span></a>
+      <a href="#billing" data-view="billing" data-roles="admin"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Billing Oversight <span class="badge partial" aria-label="Partial">Partial</span></a>
+      <a href="#gcash" data-view="gcash" data-roles="admin"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>GCash Merchant <span class="badge placeholder" aria-label="Coming soon">Coming soon</span></a>
+      <!-- Account -->
+      <a href="#profile" data-view="profile" data-roles="member,staff,admin"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg>My profile <span class="badge partial" aria-label="Partial">Partial</span></a>
+      <a href="#people" data-view="people" data-roles="admin"><svg class="icon" aria-hidden="true"><use href="#i-people"/></svg>People <span class="badge working" aria-label="Working">Working</span></a>
+      <a href="#member-lookup" data-view="member-lookup" data-roles="staff,admin" data-functions="customer_service"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>Member lookup <span class="badge backend" aria-label="Needs backend">Coming soon</span></a>
+      <a href="#account-links" data-view="account-links" data-roles="staff,admin" data-functions="customer_service,billing"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg>Account Link Requests <span class="badge backend" aria-label="Needs backend">Coming soon</span></a>
+      <a href="#notifications" data-view="notifications" data-roles="member,staff,admin"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg>Notifications <span class="badge backend" aria-label="Needs backend">Coming soon</span></a>
+      <!-- Operations -->
+      <a href="#repair-requests" data-view="repair-requests" data-roles="admin"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>Repair Requests <span class="badge partial" aria-label="Partial">Partial</span></a>
+      <a href="#complaints" data-view="complaints" data-roles="admin"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>Complaints <span class="badge placeholder" aria-label="Coming soon">Coming soon</span></a>
+      <a href="#manual-payments" data-view="manual-payments" data-roles="staff,admin" data-functions="cashier_collector,billing"><svg class="icon" aria-hidden="true"><use href="#i-cash"/></svg>Manual Payments <span class="badge backend" aria-label="Needs backend">Coming soon</span></a>
+      <!-- System -->
+      <a href="#audit" data-view="audit" data-roles="admin"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>Audit Log <span class="badge working" aria-label="Working">Working</span></a>
+      <a href="#settings" data-view="settings" data-roles="admin"><svg class="icon" aria-hidden="true"><use href="#i-cog"/></svg>Master Settings <span class="badge placeholder" aria-label="Coming soon">Coming soon</span></a>
     </nav>
   </aside>
   <main id="view" tabindex="-1" aria-live="polite"></main>

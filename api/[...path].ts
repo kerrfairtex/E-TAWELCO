@@ -1,12 +1,12 @@
 import { randomBytes } from 'node:crypto'
-import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, supabaseAuth, text, withTicket, audit, type Session } from './_lib/core.js'
+import { authorize, authorizeRoute, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readMunicipalities, readProfile, statuses, areaStatuses, observations, supabase, supabaseAuth, text, withTicket, audit, type Session } from './_lib/core.js'
 import { payMongoEnabled } from './_lib/paymongo.js'
 
 
 
 async function areas(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method === 'GET') return json({ areas: await readAreas(client) })
-  const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s
+  const s = await authorizeRoute(req, 'service-areas'); if (s instanceof Response) return s
   if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405)
   const { data: current } = await client.from('service_areas').select('*').eq('id', id).maybeSingle()
   if (!current) return fail('Area not found', 404)
@@ -21,6 +21,16 @@ async function areas(req: Request, client: ReturnType<typeof supabase>, id?: str
   return json({ area: data })
 }
 
+async function municipalities(req: Request, client: ReturnType<typeof supabase>) {
+  if (req.method === 'GET') {
+    const muns = await readMunicipalities(client)
+    const { data: counts, error: countsError } = await client.rpc('get_barangay_counts').catch(() => ({ data: null, error: null }))
+    const countMap = new Map((counts ?? []).map((c: any) => [c.municipality_id, c.count]))
+    return json({ municipalities: muns.map((m: any) => ({ ...m, barangay_count: countMap.get(m.id) ?? 0 })) })
+  }
+  return fail('Method not allowed', 405)
+}
+
 async function me(req: Request, client: ReturnType<typeof supabase>) {
   const s = await authorize(req); if (s instanceof Response) return s
   const existing = await readProfile(client, s.id)
@@ -28,14 +38,39 @@ async function me(req: Request, client: ReturnType<typeof supabase>) {
     const { error } = await client.from('profiles').upsert({ id: s.id, email: s.email, full_name: s.name, role: 'member', updated_at: new Date().toISOString() }, { onConflict: 'id' })
     if (error) throw error
   }
-  if (req.method === 'PATCH') { const b = await body(req); const areaId = text(b.area_id, 40) || null; if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area'); const { error } = await client.from('profiles').update({ full_name: text(b.full_name, 120) || null, phone: text(b.phone, 30) || null, area_id: areaId, updated_at: new Date().toISOString() }).eq('id', s.id); if (error) throw error }
+  if (req.method === 'PATCH') {
+    const b = await body(req)
+    const areaId = text(b.area_id, 40) || null
+    if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area')
+    const municipalityId = b.municipality_id ? Number(b.municipality_id) : null
+    const barangayId = b.barangay_id ? Number(b.barangay_id) : null
+    // Validate municipality_id and barangay_id exist
+    if (municipalityId !== null) {
+      const { data: mun } = await client.from('municipalities').select('id').eq('id', municipalityId).maybeSingle()
+      if (!mun) return fail('Unknown municipality')
+    }
+    if (barangayId !== null) {
+      const { data: brgy } = await client.from('barangays').select('id').eq('id', barangayId).maybeSingle()
+      if (!brgy) return fail('Unknown barangay')
+    }
+    const { error } = await client.from('profiles').update({
+      full_name: text(b.full_name, 120) || null,
+      phone: text(b.phone, 30) || null,
+      area_id: areaId,
+      municipality_id: municipalityId,
+      barangay_id: barangayId,
+      sitio_purok_landmark: text(b.sitio_purok_landmark, 200) || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', s.id)
+    if (error) throw error
+  }
   await client.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', s.id)
   return json({ profile: await readProfile(client, s.id) })
 }
 
-async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
+async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorizeRoute(req, 'service-areas'); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
 
-async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at,service_areas(name)').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) }
+async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorizeRoute(req, 'users'); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) }
   if (req.method === 'POST') {
     const b = await body(req)
     const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
@@ -150,7 +185,7 @@ async function stats(req: Request, client: ReturnType<typeof supabase>) {
 }
 
 async function outages(req: Request, client: ReturnType<typeof supabase>, id?: string) {
-  if (req.method === 'POST' && !id) { const s = await (async () => { const r = await authorize(req); return r instanceof Response ? null : r })(); const b = await body(req); const areaId = text(b.area_id, 40); const barangay = text(b.barangay, 80); const observation = oneOf(b.observation, observations); if (!areaId || !barangay || !observation) return fail('Choose an area, barangay and observation'); const phone = text(b.phone, 30) || null; if (phone && !/^[0-9+()\-\s]{7,20}$/.test(phone)) return fail('Enter a valid phone number'); const { data, error } = await client.from('outage_reports').insert({ reporter_id: s?.id ?? null, area_id: areaId, barangay, observation, phone, landmark: text(b.landmark, 200) || null }).select('id,status,created_at').single(); if (error) throw error; await client.from('outage_updates').insert({ report_id: data.id, author_id: s?.id ?? null, status: 'received', note: 'Report received' }); return json({ report: withTicket(data), tracked: !!s }, 201) }
+  if (req.method === 'POST' && !id) { const s = await (async () => { const r = await authorize(req); return r instanceof Response ? null : r })(); const b = await body(req); const areaId = text(b.area_id, 40); const barangay = text(b.barangay, 80); const municipalityId = b.municipality_id ? Number(b.municipality_id) : null; const barangayId = b.barangay_id ? Number(b.barangay_id) : null; const observation = oneOf(b.observation, observations); if (!areaId || !barangay || !observation) return fail('Choose an area, barangay and observation'); const phone = text(b.phone, 30) || null; if (phone && !/^[0-9+()\-\s]{7,20}$/.test(phone)) return fail('Enter a valid phone number'); const { data, error } = await client.from('outage_reports').insert({ reporter_id: s?.id ?? null, area_id: areaId, barangay, municipality_id: municipalityId, barangay_id: barangayId, observation, phone, landmark: text(b.landmark, 200) || null }).select('id,status,created_at').single(); if (error) throw error; await client.from('outage_updates').insert({ report_id: data.id, author_id: s?.id ?? null, status: 'received', note: 'Report received' }); return json({ report: withTicket(data), tracked: !!s }, 201) }
   const s = await authorize(req); if (s instanceof Response) return s; const staff = isStaff(s)
   if (req.method === 'GET' && !id) { let q = client.from('outage_reports').select('*,service_areas(name)').order('created_at', { ascending: false }).limit(200); if (!staff || new URL(req.url).searchParams.get('scope') === 'mine') q = q.eq('reporter_id', s.id); const { data, error } = await q; if (error) throw error; return json({ reports: (data ?? []).map(withTicket) }) }
   if (!id) return fail('Not found', 404)
@@ -220,7 +255,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
     })
   }
 
-  const s = await authorize(req, ['admin']); if (s instanceof Response) return s
+  const s = await authorizeRoute(req, 'bills'); if (s instanceof Response) return s
 
   if (req.method === 'GET' && !id) {
     const status = text(url.searchParams.get('status'), 10)
@@ -366,10 +401,11 @@ export default {
       if (parts[1] === 'login') return await login(req)
       const resource = parts[1]
       const id = parts[2]
-      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay', 'demo-pay']
+      const known: readonly string[] = ['areas', 'municipalities', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay', 'demo-pay']
       if (!resource || !known.includes(resource)) return fail('Not found', 404)
       const client = supabase(req)
       if (resource === 'areas') return await areas(req, client, id)
+      if (resource === 'municipalities') return await municipalities(req, client)
       if (resource === 'me') return await me(req, client)
       if (resource === 'team') return await team(req, client)
       if (resource === 'users') return await users(req, client, id)
