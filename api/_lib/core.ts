@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { getPermission, isMethodAllowed, verifyNoBrowserMoneyOrStatus } from './permissions'
+import { getPermission, isMethodAllowed, verifyNoBrowserMoneyOrStatus } from './permissions.js'
 
 export type Role = 'member' | 'staff' | 'admin'
 export type Session = { id: string; email: string; name: string | null; role: Role; staff_function: string[] | null }
