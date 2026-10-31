@@ -79,9 +79,9 @@ export async function authorizeRoute(req: Request, routeKey: string): Promise<Se
   if (!perm) return fail('Unknown route', 404)
   if (!isMethodAllowed(routeKey, req.method)) return fail('Method not allowed', 405)
   if (perm.functions && perm.functions.length > 0) {
-    return await authorizeWithFunctions(req, perm.roles, perm.functions)
+    return await authorizeWithFunctions(req, perm.allowedRoles, perm.functions)
   }
-  return await authorize(req, perm.roles.length > 0 ? perm.roles : undefined)
+  return await authorize(req, perm.allowedRoles.length > 0 ? perm.allowedRoles : undefined)
 }
 
 // Safety check: verify no browser-mutable payment routes allow member access
