@@ -294,10 +294,6 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
     const areaId = text(b.area_id, 40) || null
     const amount = Number(b.amount), kwh = b.kwh === undefined || b.kwh === '' ? 0 : Number(b.kwh)
     const centavos = Math.round(amount * 100)
-    if (!/^\d{11}$/.test(accountNo)) return fail('Account number must be 11 digits')
-    if (!accountName) return fail('Enter the account holder name')
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return fail('Choose the billing month')
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return fail('Choose a due date')
     if (!Number.isFinite(amount) || amount > 1_000_000) return fail('Enter a valid amount')
     if (!Number.isFinite(kwh) || kwh < 0 || kwh > 100_000) return fail('Enter valid kWh usage')
     if (centavos < 1) return fail('Amount must be greater than 0')
@@ -328,7 +324,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
       console.error('[bills POST] DB error code:', error.code, 'message:', error.message)
       return friendly ? fail(friendly, error.code === '23505' ? 409 : 400) : fail('Unexpected server error', 500)
     }
-    await audit(client, s, 'bill.create', 'bill', data.id, { account_no: accountNo, period, amount })
+    await audit(client, s, 'bill.create', 'bill', data.id, { account_no: accountNo, period, amount: centavos / 100 })
     return json({ ok: true, id: data.id }, 201)
   }
 
