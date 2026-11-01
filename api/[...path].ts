@@ -247,10 +247,12 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
     if (!accountName) return fail('Enter the account holder name')
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return fail('Choose the billing month')
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return fail('Choose a due date')
-    if (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000) return fail('Enter a valid amount')
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) return fail('Enter a valid amount')
     if (!Number.isFinite(kwh) || kwh < 0 || kwh > 100_000) return fail('Enter valid kWh usage')
     if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area')
-    const { data, error } = await client.from('bills').insert({ account_no: accountNo, account_name: accountName, area_id: areaId, period, kwh, amount: Math.round(amount * 100) / 100, due_date: dueDate, created_by: s.id }).select('id').single()
+    const amountPesos = Math.round(amount * 100) / 100
+    const amountCentavos = Math.round(amount * 100)
+    const { data, error } = await client.from('bills').insert({ account_no: accountNo, account_name: accountName, area_id: areaId, period, kwh, amount: amountPesos, amount_centavos: amountCentavos, due_date: dueDate, created_by: s.id }).select('id').single()
     if (error) { if (error.code === '23505') return fail('A bill for this account and month already exists', 409); throw error }
     await audit(client, s, 'bill.create', 'bill', data.id, { account_no: accountNo, period, amount })
     return json({ ok: true, id: data.id }, 201)
