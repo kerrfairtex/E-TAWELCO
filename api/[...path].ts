@@ -34,7 +34,7 @@ async function me(req: Request, client: ReturnType<typeof supabase>) {
 
 async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
 
-async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at,service_areas(name)').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) }
+async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at').order('role').limit(500); if (error) { console.error('[v0] People users query failed', error); return fail('Could not load people', 500) } return json({ users: data ?? [] }) }
   if (req.method === 'POST') {
     const b = await body(req)
     const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
