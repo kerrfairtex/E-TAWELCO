@@ -31,8 +31,8 @@ export async function currentSession(req?: Request): Promise<Session | null> {
   const authorization = req?.headers.get('authorization') ?? ''
   const bearer = authorization.startsWith('Bearer ') ? authorization.slice(7) : ''
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-    process.env.SUPABASE_ANON_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY ?? '',
+    process.env.SUPABASE_URL ?? '',
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? '',
     { global: { headers: bearer ? { Authorization: `Bearer ${bearer}` } : {} } },
   )
   const { data: authData } = await supabase.auth.getUser(bearer || undefined)

@@ -1,9 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../browser-supabase.js'
 
 const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY)
-const supabase = hasSupabaseConfig
-  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-  : null
 
 const configurationError = () => new Error('Dashboard authentication is not configured. Please contact the administrator.')
 const authClient = () => {
@@ -323,7 +320,7 @@ function wireTips(root, tipFor) {
           <td class="num">${esc(fmtNum(b.kwh))}</td>
           <td class="num">${esc(fmtPeso(b.amount))}</td>
           <td class="small">${esc(fmtDay(b.due_date, { month: 'short', day: 'numeric', year: 'numeric' }))}</td>
-          <td>${badge(billKind(b), BILL_STATUS)}${b.status === 'paid' ? `<br><span class="small muted" title="${esc(fmtDate(b.paid_at))}">${esc(PAY_CHANNEL[b.paid_channel] ?? '')}${b.payment_ref ? ` · ${esc(b.payment_ref)}` : ''}</span>` : ''}</td>
+          <td>${badge(billKind(b), BILL_STATUS)}${b.status === 'paid' ? `<br><span class="small muted" title="${esc(fmtDate(b.paid_at))}">${b.payment_ref && b.payment_ref.startsWith('SIM-') ? '<span class="demo-tag" title="Simulated payment">DEMO</span> ' : ''}${esc(PAY_CHANNEL[b.paid_channel] ?? '')}${b.payment_ref ? ` · ${esc(b.payment_ref)}` : ''}</span>` : ''}</td>
           <td>${b.status === 'paid' ? `<button class="btn btn-secondary" type="button" data-reopen="${b.id}">Reopen</button>` : `<button class="btn btn-secondary" type="button" data-pay="${b.id}">Record payment</button>`}</td>
         </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills match these filters.</div>'
     }
@@ -394,9 +391,10 @@ function wireTips(root, tipFor) {
   const repairAlias = (view) => outages(view)
   const VIEWS = {
     overview, outages, areas: areasView, people, profile: profileView,
-    'manage-admins': adminAlias, 'add-users': adminAlias, 'repair-requests': repairAlias,
+    'manage-admins': adminAlias, 'add-users': async (view) => { await people(view); openAddUserDialog(view) }, 'repair-requests': repairAlias,
     complaints: (view) => unavailableAdminView(view, 'Complaints', 'Review and resolve member complaints.'),
     billing: billingView,
+    'my-bills': myBillsView,
     gcash: (view) => unavailableAdminView(view, 'GCash Merchant', 'Manage GCash merchant reconciliation and settlement.'),
     audit: auditView,
     settings: (view) => unavailableAdminView(view, 'Master Settings', 'Configure cooperative-wide dashboard settings.'),
@@ -725,7 +723,81 @@ function editArea(a) {
 }
 
 // ---------- People (admin) ----------
+
+const ensureAreas = async () => {
+  if (state.areas && state.areas.length) { state.areasError = false; return }
+  try {
+    const { areas } = await api('/api/areas')
+    state.areas = areas
+    state.areasError = false
+  } catch {
+    state.areasError = true
+  }
+}
+
+async function openAddUserDialog(view) {
+  await ensureAreas()
+  const body = openDialog('Add user', `<form id="addUserForm" novalidate>
+    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+    <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
+    <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
+    <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
+    <div class="field"><label for="uArea">Island area (optional)</label><select class="input" id="uArea">${areaOptions('', 'No area')}</select></div>
+    <p class="small muted" id="uAreaError" hidden>Areas could not be loaded. You can still create the account and assign an area later.</p>
+    <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the ID again to confirm</label><input class="input" id="uConfirm" inputmode="numeric" autocomplete="off" required></div>
+    <button class="btn btn-primary" type="submit">Create account</button>
+    <p class="msg" aria-live="polite"></p>
+  </form>`)
+  if (state.areasError) { const err = $("#uAreaError", body); if (err) err.hidden = false }
+  const typeSelect = $('#uType', body)
+  const idInput = $('#uId', body)
+  const hint = $('#uIdHint', body)
+  const confirmWrap = $('#uConfirmWrap', body)
+  const updateHint = () => { hint.textContent = typeSelect.value === 'member' ? 'Member account number must be 11 digits.' : 'Staff and admin IDs must be 8 digits.'; confirmWrap.hidden = typeSelect.value !== 'admin' }
+  typeSelect.addEventListener('change', updateHint)
+  idInput.addEventListener('input', () => { const v = idInput.value.replace(/\s/g, ''); idInput.setCustomValidity(typeSelect.value === 'member' ? (/^\d{11}$/.test(v) ? '' : 'Must be 11 digits') : (/^\d{8}$/.test(v) ? '' : 'Must be 8 digits')); })
+  typeSelect.addEventListener('change', () => idInput.dispatchEvent(new Event('input')))
+  updateHint()
+  body.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', body)
+    const type = typeSelect.value
+    const full_name = $('#uName', body).value.trim()
+    const login_id = idInput.value.replace(/\s/g, '')
+    const area_id = $('#uArea', body).value || null
+    const confirm_id = $('#uConfirm', body)?.value.replace(/\s/g, '') ?? ''
+    if (!type || !full_name || full_name.length < 2 || !login_id) return setMsg(msg, 'Type, name and login ID are required.')
+    if (type === 'member' && !/^\d{11}$/.test(login_id)) return setMsg(msg, 'Member login ID must be 11 digits.')
+    if (type !== 'member' && !/^\d{8}$/.test(login_id)) return setMsg(msg, 'Staff and admin login IDs must be 8 digits.')
+    if (type === 'admin' && confirm_id !== login_id) return setMsg(msg, 'Type the ID again to confirm.')
+    busy($('button[type=submit]', body), async () => {
+      try {
+        const result = await api('/api/users', { method: 'POST', body: { type, full_name, login_id, area_id, confirm_id } })
+        body.innerHTML = `<div class="card"><h2>Account created</h2>
+          <p><strong>Login ID:</strong> <code>${esc(result.login_id)}</code></p>
+          <p><strong>One-time password:</strong></p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="newUserPw" value="${esc(result.password)}" readonly style="font-family:monospace" readonly onclick="this.select()">
+            <button class="btn btn-secondary" type="button" id="copyPw">Copy</button>
+          </div>
+          <p class="small muted">This password is shown once. Give it to the person privately. They should change it after signing in (My profile > Change password).</p>
+          <button class="btn btn-secondary" type="button" id="refreshDir">Done - refresh directory</button>
+        </div>`
+        const pwEl = $('#newUserPw')
+        if (pwEl) pwEl.addEventListener('click', () => pwEl.select())
+        const copyEl = $('#copyPw')
+        if (copyEl) copyEl.addEventListener('click', () => { navigator.clipboard.writeText(pwEl.value); setMsg($('.msg', body), 'Copied.', 'ok') })
+        const refreshEl = body.querySelector('#refreshDir')
+        if (refreshEl) refreshEl.addEventListener('click', () => { dlg.close(); people(view) })
+      } catch (err) {
+        setMsg(msg, err.message)
+      }
+    })
+  })
+}
+
 async function people(view) {
+  await ensureAreas()
   const { users } = await api('/api/users')
   const counts = users.reduce((m, u) => ({ ...m, [u.role]: (m[u.role] ?? 0) + 1 }), {})
   const render = (items) => {
@@ -764,7 +836,7 @@ async function people(view) {
       } finally { sel.disabled = false }
     }))
   }
-  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button>')}
+  view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button>' + (isAdmin() ? ' <button class="btn btn-primary" type="button" id="addUserBtn">Add user</button>' : ''))}
     <div class="tiles admin-tiles" style="margin-bottom:20px">
       ${Object.keys(ROLE_LABEL).map((r) => `<button class="tile admin-tile" type="button" data-role-filter="${r}"><span class="tile-label">${ROLE_LABEL[r]}s</span><span class="tile-num">${fmtNum(counts[r])}</span><span class="tile-note">Filter people</span></button>`).join('')}
     </div>
@@ -777,6 +849,7 @@ async function people(view) {
   $('#peopleRole', view).addEventListener('change', () => render(users))
   $$('[data-role-filter]', view).forEach((tile) => tile.addEventListener('click', () => { $('#peopleRole', view).value = tile.dataset.roleFilter; render(users) }))
   $('#peopleRefresh', view).addEventListener('click', () => people(view))
+  $('#addUserBtn', view).addEventListener('click', () => openAddUserDialog(view))
   render(users)
 }
 
@@ -796,6 +869,17 @@ async function profileView(view) {
         <p class="msg" aria-live="polite"></p>
       </form>
       <p class="small muted" style="margin:8px 0 0">Member since ${esc(new Date(p.created_at).toLocaleDateString('en-PH', { dateStyle: 'long' }))}</p>
+    </section>
+    <section class="card" style="max-width:640px">
+      <h2>Change password</h2>
+      <form id="pwForm" novalidate>
+        <div class="grid-2">
+          <div class="field"><label for="pwNew">New password</label><input class="input" id="pwNew" type="password" autocomplete="new-password" minlength="10" required></div>
+          <div class="field"><label for="pwConfirm">Confirm</label><input class="input" id="pwConfirm" type="password" autocomplete="new-password" minlength="10" required></div>
+        </div>
+        <button class="btn btn-primary" type="submit">Update password</button>
+        <p class="msg" aria-live="polite"></p>
+      </form>
     </section>`
   $('#profileForm').addEventListener('submit', (e) => {
     e.preventDefault()
@@ -808,6 +892,167 @@ async function profileView(view) {
         setMsg(msg, 'Profile saved.', 'ok')
       } catch (err) { setMsg(msg, err.message) }
     })
+  })
+  $('#pwForm').addEventListener('submit', (e) => {
+    e.preventDefault()
+    const msg = $('.msg', e.target)
+    const pw = $('#pwNew').value, cpw = $('#pwConfirm').value
+    if (pw.length < 10) return setMsg(msg, 'Password must be at least 10 characters.')
+    if (pw !== cpw) return setMsg(msg, 'Passwords do not match.')
+    busy($('button[type=submit]', e.target), async () => {
+      try { await updateUser({ password: pw }); setMsg(msg, 'Password updated', 'ok'); $('#pwNew').value = ''; $('#pwConfirm').value = '' } catch (err) { setMsg(msg, err.message) }
+    })
+  })
+}
+
+async function myBillsView(view) {
+  const data = await api('/api/bills?scope=mine')
+  if (!data.linked) {
+    view.innerHTML = `${head('My bills', 'Your current bill, due dates and payment history.')}
+      <div class="stack">
+        <section class="card"><h2>No account linked</h2><p class="muted">No account is linked to your profile yet. Ask the cooperative to link your account number.</p></section>
+        ${paymentSamples()}
+      </div>`
+    return
+  }
+  const summary = data.summary ?? {}
+  const bills = Array.isArray(data.bills) ? data.bills : []
+  const account = data.account ?? {}
+  view.innerHTML = `${head('My bills', 'Your current bill, due dates and payment history.')}
+    <div class="stack">
+      <section class="card">
+        <div class="card-head"><h2>Account</h2><span class="small muted mono">${esc(account.masked_no ?? '')}</span></div>
+        <p class="muted">${account.name ? esc(account.name) : 'No name on the latest bill.'}</p>
+      </section>
+      <div class="bill-stats">
+        <div class="card"><span class="small muted">Amount unpaid</span><strong>${esc(fmtPeso(summary.unpaid_total))}</strong></div>
+        <div class="card"><span class="small muted">Unpaid bills</span><strong>${esc(fmtNum(summary.unpaid_count))}</strong></div>
+        <div class="card"><span class="small muted">Overdue amount</span><strong>${esc(fmtPeso(summary.overdue_total))}</strong></div>
+      </div>
+      <section class="card">
+        <div class="card-head"><h2>Your bills</h2><span class="small muted">${esc(fmtNum(bills.length))} shown</span></div>
+        ${bills.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Period</th><th>Due date</th><th class="num">Amount</th><th>Status</th><th>Paid on</th><th></th></tr></thead>
+        <tbody>${bills.map((b) => `<tr>
+          <td>${esc(fmtPeriod(b.period))}</td>
+          <td class="small">${esc(fmtDay(b.due_date, { month: 'short', day: 'numeric', year: 'numeric' }))}</td>
+          <td class="num">${esc(fmtPeso(b.amount))}</td>
+          <td>${badge(billKind(b), BILL_STATUS)}</td>
+          <td class="small">${b.paid_at ? esc(fmtDate(b.paid_at)) : '<span class="muted">—</span>'}</td>
+          <td class="num">${b.status === 'unpaid' && data.pay?.enabled ? `<button class="btn btn-primary" type="button" data-pay-bill="${esc(b.id)}">Pay</button>` : ''}</td>
+        </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills yet.</div>'}
+      </section>
+      ${paymentSamples()}
+    </div>`
+    // Store latest data on view so the listener always uses fresh data
+    view._billsData = data
+    // Attach Pay button event listener once via delegation (inside myBillsView scope)
+    if (!view._payListenerAttached) {
+      view._payListenerAttached = true
+      view.addEventListener('click', (e) => {
+        const button = e.target.closest('[data-pay-bill]')
+        if (!button) return
+        const bill = (view._billsData?.bills || []).find((b) => String(b.id) === button.dataset.payBill)
+        if (bill) startSimulate(bill)
+      })
+    }
+  }
+
+function paymentSamples() {
+  return `<section class="card">
+    <div class="card-head"><h2>Online payment</h2></div>
+    <p class="muted">Pay your bill online during this demo. Select an unpaid bill below and follow the simulated checkout. No real money is transferred.</p>
+  </section>`
+}
+
+function checkoutUI(bill, onConfirm) {
+  return `<div class="demo-checkout" id="demoCheckout">
+    <div class="demo-overlay"></div>
+    <div class="demo-modal">
+      <div class="demo-banner">DEMO — No real money</div>
+      <div class="card-head"><h2>Pay bill — ${esc(fmtPeriod(bill.period))}</h2></div>
+      <div class="demo-amount"><strong>${esc(fmtPeso(bill.amount))}</strong></div>
+      <label class="small muted">Payment method</label>
+      <div class="pay-choose">
+        <button type="button" class="demo-method" data-method="gcash" aria-pressed="true">GCash</button>
+        <button type="button" class="demo-method" data-method="maya">Maya</button>
+        <button type="button" class="demo-method" data-method="card">Card</button>
+      </div>
+      <div class="demo-fields">
+        <div class="field"><label>Mobile number (demo)</label><input class="input" type="text" value="" readonly></div>
+        <div class="field"><label>Account number (demo)</label><input class="input" type="text" value="" readonly></div>
+      </div>
+      <button type="button" class="btn btn-primary demo-pay-btn" style="width:100%">Pay ${esc(fmtPeso(bill.amount))}</button>
+    </div>
+  </div>`
+}
+
+async function startSimulate(bill) {
+  const modal = checkoutUI(bill)
+  const div = document.createElement('div')
+  div.innerHTML = modal.trim()
+  document.body.appendChild(div)
+  
+  // Set fake fields
+  const methodBtn = div.querySelector('[data-method]')
+  let selectedMethod = 'gcash'
+  div.querySelectorAll('.demo-method').forEach(btn => {
+    btn.addEventListener('click', () => {
+      div.querySelectorAll('.demo-method').forEach(b => b.setAttribute('aria-pressed', 'false'))
+      btn.setAttribute('aria-pressed', 'true')
+      selectedMethod = btn.dataset.method
+    })
+  })
+  
+  div.querySelector('.demo-pay-btn').addEventListener('click', async () => {
+    const btn = div.querySelector('.demo-pay-btn')
+    btn.disabled = true
+    btn.textContent = 'Processing…'
+    
+    try {
+      await new Promise(r => setTimeout(r, 1500))
+      
+      const result = await api('/api/pay/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
+      if (result?.ok) {
+        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+          <div class="demo-banner">DEMO — No real money</div>
+          <div class="card-head"><h2>Payment successful</h2></div>
+          <div class="demo-receipt">
+            <div class="row"><span>Reference</span><strong>${esc(result.payment_ref)}</strong></div>
+            <div class="row"><span>Amount</span><strong>${esc(fmtPeso(result.amount))}</strong></div>
+            <div class="row"><span>Period</span><strong>${esc(fmtPeriod(bill.period))}</strong></div>
+            <div class="row"><span>Method</span><strong>${esc(result.method)}</strong></div>
+            <div class="row"><span>Paid on</span><strong>${esc(new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</strong></div>
+          </div>
+          <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
+        </div></div></div>`
+        div.querySelector('.demo-back').addEventListener('click', () => {
+          document.body.removeChild(div)
+          myBillsView(document.querySelector('[data-view="my-bills"]'))
+        })
+      } else {
+        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+          <div class="demo-banner">DEMO — No real money</div>
+          <div class="card-head"><h2>Payment failed</h2></div>
+          <p class="muted">${esc(result?.error || 'Something went wrong')}</p>
+          <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
+        </div></div></div>`
+        div.querySelector('.demo-back').addEventListener('click', () => {
+          document.body.removeChild(div)
+        })
+      }
+    } catch (err) {
+      btn.disabled = false
+      div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
+        <div class="demo-banner">DEMO — No real money</div>
+        <div class="card-head"><h2>Payment error</h2></div>
+        <p class="muted">${esc(err.message || 'Something went wrong')}</p>
+        <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
+      </div></div></div>`
+      div.querySelector('.demo-back').addEventListener('click', () => {
+        document.body.removeChild(div)
+      })
+    }
   })
 }
 

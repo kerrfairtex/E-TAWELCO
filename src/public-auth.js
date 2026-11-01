@@ -1,6 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+import { supabase } from './browser-supabase.js'
 
 function bind(formId, identifierId, passwordId, messageId, role) {
   const form = document.getElementById(formId)

@@ -207,8 +207,8 @@ async function login(req: Request) {
   const valid = role === 'admin' ? /^\d{8}$/.test(identifier) : /^\d{11}$/.test(identifier)
   if (!role || !valid || !password) return fail('Enter your ID and password.')
   const authClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    (process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY)!,
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_PUBLISHABLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
   const { data, error } = await authClient.auth.signInWithPassword({ email: `${identifier}@${role}.tawelco.local`, password })

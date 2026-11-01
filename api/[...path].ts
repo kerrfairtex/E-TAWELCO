@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, text, withTicket, audit, type Session } from './_lib/core.js'
+import { randomBytes } from 'node:crypto'
+import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, supabaseAuth, text, withTicket, audit, type Session } from './_lib/core.js'
 
 
 
@@ -34,7 +34,63 @@ async function me(req: Request, client: ReturnType<typeof supabase>) {
 
 async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
 
-async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at,service_areas(name)').order('role').limit(500); if (error) throw error; return json({ users: data ?? [] }) } if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405); if (id === s.id) return fail('You cannot change your own role'); const role = oneOf((await body(req)).role, ['member', 'staff', 'admin'] as const); if (!role) return fail('Role must be member, staff or admin'); const { data: profile } = await client.from('profiles').select('role').eq('id', id).maybeSingle(); if (!profile) return fail('User not found', 404); const { error } = await client.from('profiles').update({ role }).eq('id', id); if (error) throw error; await audit(client, s, 'user.role', 'profile', id, { from: profile.role, to: role }); return json({ ok: true, role }) }
+async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data, error } = await client.from('profiles').select('id,email,full_name,role,area_id,created_at,last_seen_at').order('role').limit(500); if (error) { console.error('[v0] People users query failed', error); return fail('Could not load people', 500) } return json({ users: data ?? [] }) }
+  if (req.method === 'POST') {
+    const b = await body(req)
+    const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
+    const full_name = text(b.full_name, 120)
+    const login_id = text(b.login_id, 20).replace(/\s/g, '')
+    const area_id = b.area_id ? text(b.area_id, 100) : null
+    const confirm_id = text(b.confirm_id, 20).replace(/\s/g, '')
+    if (!type || !full_name || full_name.length < 2 || !login_id) return fail('Type, name and login ID are required.')
+    if (type === 'member' && !/^\d{11}$/.test(login_id)) return fail('Member login ID must be 11 digits.')
+    if (type !== 'member' && !/^\d{8}$/.test(login_id)) return fail('Staff and admin login IDs must be 8 digits.')
+    if (type === 'admin' && confirm_id !== login_id) return fail('Type the ID again to confirm.')
+    if (area_id) { const { data: area } = await client.from('service_areas').select('id').eq('id', area_id).maybeSingle(); if (!area) return fail('Unknown area.') }
+    const dup = type === 'member' ? (await client.from('profiles').select('id').eq('account_no', login_id).maybeSingle()).data : (await client.from('profiles').select('id').eq('admin_id', login_id).maybeSingle()).data
+    if (dup) return fail('That ID is already in use', 409)
+    const email = `${login_id}@${type === 'member' ? 'member' : 'admin'}.tawelco.local`
+    const pool = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+    let password = ''
+    const limit = 256 - (256 % pool.length)
+    for (let i = 0; i < 14; i++) { let r; do { r = randomBytes(1)[0] } while (r >= limit); password += pool[r % pool.length] }
+    const { data: created, error: createError } = await (client as any).auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { role: type }, user_metadata: { full_name } })
+    const userId = created?.user?.id
+    if (createError || !userId) {
+      const msg = String(createError?.message || '')
+      const dupErr = msg.includes('already') || msg.includes('exists') || msg.includes('duplicate')
+      if (dupErr) return fail('That ID is already in use', 409)
+      console.error('[v0] createUser failed for email ' + email + ': ' + msg)
+      return fail('Could not create the account', 502)
+    }
+    const update: Record<string, unknown> = { full_name, role: type, updated_at: new Date().toISOString() }
+    if (type === 'member') update.account_no = login_id
+    else update.admin_id = login_id
+    if (area_id) update.area_id = area_id
+    else update.area_id = null
+    const { error: updateError } = await client.from('profiles').update(update).eq('id', userId)
+    if (updateError) {
+      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+      console.error('[v0] profile update failed for user ' + userId + ': ' + String(updateError.message))
+      return fail('Could not create the account', 500)
+    }
+    // If the trigger-created profile wasn't found (0 rows affected), upsert instead
+    const upserted = await client.from('profiles').upsert({ id: userId, email: `${login_id}@${type === 'member' ? 'member' : 'admin'}.tawelco.local`, ...update }, { onConflict: 'id' })
+    if (upserted.error) {
+      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+      console.error('[v0] profile upsert failed for user ' + userId + ': ' + String(upserted.error.message))
+      return fail('Could not create the account', 500)
+    }
+    const { data: profile, error: readError } = await client.from('profiles').select('id, full_name, role, account_no, admin_id, area_id').eq('id', userId).maybeSingle()
+    if (readError || !profile || profile.role !== type || profile.full_name !== full_name || (type === 'member' && profile.account_no !== login_id) || (type !== 'member' && profile.admin_id !== login_id) || (area_id && profile.area_id !== area_id) || (!area_id && profile.area_id !== null)) {
+      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+      console.error('[v0] profile verification failed for user ' + userId + ': ' + String(readError?.message || 'profile data mismatch'))
+      return fail('Could not create the account', 500)
+    }
+    await audit(client, s, 'user.create', 'profile', userId, { role: type, id_masked: '****' + login_id.slice(-4) })
+    return json({ ok: true, id: userId, role: type, login_id, password }, 201)
+  }
+  if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405); if (id === s.id) return fail('You cannot change your own role'); const role = oneOf((await body(req)).role, ['member', 'staff', 'admin'] as const); if (!role) return fail('Role must be member, staff or admin'); const { data: profile } = await client.from('profiles').select('role').eq('id', id).maybeSingle(); if (!profile) return fail('User not found', 404); const { error } = await client.from('profiles').update({ role }).eq('id', id); if (error) throw error; await audit(client, s, 'user.role', 'profile', id, { from: profile.role, to: role }); return json({ ok: true, role }) }
 
 async function stats(req: Request, client: ReturnType<typeof supabase>) {
   const s = await authorize(req)
@@ -109,21 +165,45 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
   const url = new URL(req.url)
   const today = todayManila()
 
-  // Public lookup by account number. Only the masked name and bill figures are returned.
-  if (req.method === 'GET' && !id && url.searchParams.has('account_no')) {
-    const acct = text(url.searchParams.get('account_no'), 20).replace(/\s/g, '')
-    if (!/^\d{11}$/.test(acct)) return fail('Enter your 11-digit account number.')
-    const { data, error } = await client.from('bills').select('account_name,period,kwh,amount,due_date,status,paid_at,service_areas(name)').eq('account_no', acct).order('period', { ascending: false }).limit(12)
+  if (req.method === 'GET' && !id && url.searchParams.get('scope') === 'mine') {
+    const s = await authorize(req); if (s instanceof Response) return s
+    const { data: profile, error: profileError } = await client.from('profiles').select('account_no').eq('id', s.id).maybeSingle()
+    if (profileError) throw profileError
+    const linkedNo = typeof profile?.account_no === 'string' ? profile.account_no.trim() : ''
+    const emptySummary = { unpaid_count: 0, unpaid_total: 0, overdue_count: 0, overdue_total: 0 }
+    if (!linkedNo) return json({ linked: false, bills: [], summary: emptySummary })
+    const { data, error } = await client.from('bills').select('id,period,kwh,amount,due_date,status,paid_at,paid_channel,account_name').eq('account_no', linkedNo).order('period', { ascending: false }).limit(24)
     if (error) throw error
-    if (!data?.length) return fail('We could not find that account number. Check the number on the top right of your bill.', 404)
-    const list = data.map((b: any) => ({ period: b.period, kwh: Number(b.kwh), amount: Number(b.amount), due_date: b.due_date, status: b.status, paid_at: b.paid_at, overdue: b.status === 'unpaid' && b.due_date < today }))
+    const list = (data ?? []).map((b: any) => ({
+      id: b.id,
+      period: b.period,
+      kwh: Number(b.kwh),
+      amount: Number(b.amount),
+      due_date: b.due_date,
+      status: b.status,
+      paid_at: b.paid_at,
+      paid_channel: b.paid_channel,
+      overdue: b.status === 'unpaid' && b.due_date < today,
+    }))
     const unpaid = list.filter((b) => b.status === 'unpaid')
+    const summary = {
+      unpaid_count: unpaid.length,
+      unpaid_total: Math.round(unpaid.reduce((sum, b) => sum + b.amount, 0) * 100) / 100,
+      overdue_count: unpaid.filter((b) => b.overdue).length,
+      overdue_total: Math.round(unpaid.filter((b) => b.overdue).reduce((sum, b) => sum + b.amount, 0) * 100) / 100,
+    }
+    const latestName = (data ?? [])[0]?.account_name
     return json({
-      account: { masked_no: `*******${acct.slice(-4)}`, name: maskName(String((data[0] as any).account_name)), area: (data[0] as any).service_areas?.name ?? null },
-      total_due: Math.round(unpaid.reduce((sum, b) => sum + b.amount, 0) * 100) / 100,
-      has_overdue: unpaid.some((b) => b.overdue),
+      linked: true,
+      account: { masked_no: `*******${linkedNo.slice(-4)}`, name: latestName ? maskName(String(latestName)) : null },
       bills: list,
+      summary,
+      pay: { enabled: process.env.DEMO_PAYMENTS === 'true', demo: true },
     })
+  }
+
+  if (req.method === 'GET' && !id && url.searchParams.has('account_no')) {
+    return fail('Please log in to view your bill.', 401)
   }
 
   const s = await authorize(req, ['admin']); if (s instanceof Response) return s
@@ -167,10 +247,12 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
     if (!accountName) return fail('Enter the account holder name')
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return fail('Choose the billing month')
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return fail('Choose a due date')
-    if (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000) return fail('Enter a valid amount')
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) return fail('Enter a valid amount')
     if (!Number.isFinite(kwh) || kwh < 0 || kwh > 100_000) return fail('Enter valid kWh usage')
     if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area')
-    const { data, error } = await client.from('bills').insert({ account_no: accountNo, account_name: accountName, area_id: areaId, period, kwh, amount: Math.round(amount * 100) / 100, due_date: dueDate, created_by: s.id }).select('id').single()
+    const amountPesos = Math.round(amount * 100) / 100
+    const amountCentavos = Math.round(amount * 100)
+    const { data, error } = await client.from('bills').insert({ account_no: accountNo, account_name: accountName, area_id: areaId, period, kwh, amount: amountPesos, amount_centavos: amountCentavos, due_date: dueDate, created_by: s.id }).select('id').single()
     if (error) { if (error.code === '23505') return fail('A bill for this account and month already exists', 409); throw error }
     await audit(client, s, 'bill.create', 'bill', data.id, { account_no: accountNo, period, amount })
     return json({ ok: true, id: data.id }, 201)
@@ -198,6 +280,34 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
   return fail('Method not allowed', 405)
 }
 
+async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id?: string) {
+  if (req.method !== 'POST') return fail('Method not allowed', 405)
+  if (process.env.DEMO_PAYMENTS !== 'true') return fail('Demo payments are not enabled', 404)
+  const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s
+  const b = await body(req)
+  const billId = Number(b.bill_id)
+  if (!Number.isInteger(billId) || billId <= 0) return fail('Invalid bill', 400)
+  const method = oneOf(b.method, ['gcash', 'maya', 'card'])
+  if (!method) return fail('Invalid payment method', 400)
+  const { data: profile, error: profileError } = await client.from('profiles').select('account_no').eq('id', s.id).maybeSingle()
+  if (profileError) throw profileError
+  const linkedNo = typeof profile?.account_no === 'string' ? profile.account_no.trim() : ''
+  const { data: bill, error: billError } = await client.from('bills').select('id,period,amount,status,account_no').eq('id', billId).eq('account_no', linkedNo).maybeSingle()
+  if (billError) throw billError
+  if (!bill) return fail('Bill not found', 404)
+  if (bill.status !== 'unpaid') return fail('Bill is already paid', 409)
+  const amount = Number(bill.amount)
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const rand = String(Math.floor(100000 + Math.random() * 900000))
+  const ref = `SIM-${date}-${rand}`
+  const { data: updated, error: updateError } = await client.from('bills').update({ status: 'paid', paid_at: new Date().toISOString(), paid_channel: 'mobile_wallet', payment_ref: ref, recorded_by: s.id, updated_at: new Date().toISOString() }).eq('id', billId).eq('status', 'unpaid').select('id')
+  if (updateError) throw updateError
+  if (!updated || updated.length === 0) return fail('Bill was already paid', 409)
+  const { error: auditError } = await audit(client, s, 'payment.simulated', 'bill', billId, { bill_id: billId, amount, method, provider: 'simulate' })
+  if (auditError) throw auditError
+  return json({ ok: true, payment_ref: ref, amount, period: bill.period, method })
+}
+
 async function login(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   const b = await body(req)
@@ -206,11 +316,7 @@ async function login(req: Request) {
   const password = typeof b.password === 'string' ? b.password.slice(0, 200) : ''
   const valid = role === 'admin' ? /^\d{8}$/.test(identifier) : /^\d{11}$/.test(identifier)
   if (!role || !valid || !password) return fail('Enter your ID and password.')
-  const authClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  )
+  const authClient = supabaseAuth()
   const { data, error } = await authClient.auth.signInWithPassword({ email: `${identifier}@${role}.tawelco.local`, password })
   if (error || !data.session) return fail('That ID and password do not match.', 401)
   return json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token })
@@ -226,7 +332,7 @@ export default {
       if (parts[1] === 'login') return await login(req)
       const resource = parts[1]
       const id = parts[2]
-      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills']
+      const known: readonly string[] = ['areas', 'me', 'team', 'users', 'stats', 'outages', 'bills', 'pay/simulate']
       if (!resource || !known.includes(resource)) return fail('Not found', 404)
       const client = supabase(req)
       if (resource === 'areas') return await areas(req, client, id)
@@ -236,6 +342,7 @@ export default {
       if (resource === 'stats') return await stats(req, client)
       if (resource === 'outages') return await outages(req, client, id)
       if (resource === 'bills') return await bills(req, client, id)
+      if (resource === 'pay/simulate') return await paySimulate(req, client, id)
       return fail('Not found', 404)
     } catch (error) {
       return internalError(error)

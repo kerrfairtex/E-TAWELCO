@@ -4,8 +4,8 @@ export default {
       status: 'ok',
       timestamp: new Date().toISOString(),
       env: {
-        hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasSecretKey: !!process.env.SUPABASE_SECRET_KEY,
         hasSecretKey: !!process.env.SUPABASE_SECRET_KEY,
       }
     }), {

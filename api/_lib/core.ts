@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-export type Role = 'member' | 'staff' | 'admin'
+export type Role = 'member' | 'staff' | 'admin' | 'master_admin'
 export type Session = { id: string; email: string; name: string | null; role: Role }
 
 // Server-only client. It always runs as service role because the tables have RLS enabled with no
@@ -8,8 +8,16 @@ export type Session = { id: string; email: string; name: string | null; role: Ro
 // verified separately in currentSession(), never forwarded as the Authorization header.
 export function supabase(_req?: Request) {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  )
+}
+
+export function supabaseAuth() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_PUBLISHABLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 }
@@ -27,18 +35,19 @@ export async function currentSession(req: Request, client: SupabaseClient = supa
   const { data: auth, error } = await client.auth.getUser(token)
   if (error || !auth.user) return null
   const { data: profile } = await client.from('profiles').select('role, full_name').eq('id', auth.user.id).maybeSingle()
-  const role: Role = profile?.role === 'admin' ? 'admin' : profile?.role === 'staff' ? 'staff' : 'member'
+  const role: Role = profile?.role === 'master_admin' ? 'master_admin' : profile?.role === 'admin' ? 'admin' : profile?.role === 'staff' ? 'staff' : 'member'
   return { id: auth.user.id, email: auth.user.email ?? '', name: profile?.full_name ?? null, role }
 }
 
 export async function authorize(req: Request, roles?: Role[]) {
   const session = await currentSession(req)
   if (!session) return fail('Please log in', 401)
-  if (roles && !roles.includes(session.role)) return fail('You do not have access to this', 403)
+  const effectiveRole = session.role === 'master_admin' ? 'admin' : session.role
+  if (roles && !roles.includes(session.role) && !roles.includes(effectiveRole as Role)) return fail('You do not have access to this', 403)
   return session
 }
-export const isStaff = (s: Session) => s.role === 'staff' || s.role === 'admin'
-export async function audit(client: SupabaseClient, s: Session, action: string, entity: string, entityId: string | number, details: unknown = {}) { await client.from('audit_log').insert({ actor_id: s.id, actor_email: s.email, action, entity, entity_id: String(entityId), details }) }
+export const isStaff = (s: Session) => s.role === 'staff' || s.role === 'admin' || s.role === 'master_admin'
+export async function audit(client: SupabaseClient, s: Session, action: string, entity: string, entityId: string | number, details: unknown = {}) { return client.from('audit_log').insert({ actor_id: s.id, actor_email: s.email, action, entity, entity_id: String(entityId), details }) }
 
 export const statuses = ['received', 'assigned', 'in_progress', 'resolved'] as const
 export const areaStatuses = ['steady', 'limited', 'outage'] as const
