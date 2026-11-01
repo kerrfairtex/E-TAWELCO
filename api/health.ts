@@ -6,7 +6,6 @@ export default {
       env: {
         hasSupabaseUrl: !!process.env.SUPABASE_URL,
         hasSecretKey: !!process.env.SUPABASE_SECRET_KEY,
-        hasSecretKey: !!process.env.SUPABASE_SECRET_KEY,
       }
     }), {
       status: 200,
