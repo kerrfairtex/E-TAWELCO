@@ -1,11 +1,7 @@
 import crypto from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { fail, json } from '../_lib/core.ts'
-import { createCheckoutSession, getPayMongoSecret, getWebhookSecret, isLiveAvailable } from '../_lib/paymongo.ts'
-
-function amountInCentavos(value: number) {
-  return Math.round(Number(value) * 100)
-}
+import { createCheckoutSession, isLiveAvailable } from '../_lib/paymongo.ts'
 
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
@@ -29,9 +25,7 @@ export default async function handler(req: Request) {
 
   const body = await req.json().catch(() => ({}))
   const billId = Number(body.bill_id)
-  const amount = Number(body.amount)
   if (!Number.isFinite(billId) || billId <= 0) return fail('Invalid bill', 400)
-  if (!Number.isFinite(amount) || amount <= 0) return fail('Invalid amount', 400)
 
   const { data: profile, error: profileError } = await client.from('profiles').select('account_no, full_name, email').eq('id', auth.user.id).maybeSingle()
   if (profileError || !profile) return fail('Profile not found', 404)
@@ -39,22 +33,25 @@ export default async function handler(req: Request) {
   const linkedNo = typeof profile.account_no === 'string' ? profile.account_no.trim() : ''
   if (!linkedNo) return fail('No linked account number found', 400)
 
-  const { data: bill, error: billError } = await client.from('bills').select('id, account_no, amount, status, due_date, period').eq('id', String(billId)).eq('account_no', linkedNo).maybeSingle()
+  const { data: bill, error: billError } = await client.from('bills').select('id, account_no, amount, amount_centavos, status, due_date, period').eq('id', String(billId)).eq('account_no', linkedNo).maybeSingle()
   if (billError || !bill) return fail('Bill not found', 404)
   if (bill.status !== 'unpaid') return fail('Bill is already paid', 409)
+
+  const billAmountCentavos = Number(bill.amount_centavos ?? Math.round(Number(bill.amount) * 100))
+  if (!Number.isSafeInteger(billAmountCentavos) || billAmountCentavos <= 0) return fail('Bill amount is invalid', 500)
 
   const sessionPayload = {
     data: {
       attributes: {
         line_items: [{
           name: `TAWELCO bill ${bill.period}`,
-          amount: amountInCentavos(amount),
+          amount: billAmountCentavos,
           currency: 'PHP',
           quantity: 1,
         }],
-        payment_method_types: ['card', 'gcash', 'qrph'],
-        success_url: `${process.env.APP_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=success`,
-        cancel_url: `${process.env.APP_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=cancelled`,
+        payment_method_types: ['card', 'gcash', 'paymaya', 'qrph'],
+        success_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=success`,
+        cancel_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=cancelled`,
         reference_number: `BILL-${bill.id}-${bill.period}`,
         send_email_receipt: false,
         metadata: {
@@ -81,7 +78,7 @@ export default async function handler(req: Request) {
       checkout_url: checkoutUrl,
       checkout_id: checkoutId,
       bill_id: bill.id,
-      amount,
+      amount: billAmountCentavos / 100,
       currency: 'PHP',
       success_url: sessionPayload.data.attributes.success_url,
       cancel_url: sessionPayload.data.attributes.cancel_url,
