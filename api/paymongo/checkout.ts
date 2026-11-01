@@ -18,7 +18,7 @@ async function markAttemptFailed(client: SupabaseClient, attemptId: number) {
 async function readActivePendingAttempt(client: SupabaseClient, billId: number) {
   const { data, error } = await client
     .from('payment_attempts')
-    .select('id, provider_checkout_session_id, checkout_url, created_at')
+    .select('id, provider_checkout_session_id, checkout_url, created_at, amount_centavos')
     .eq('bill_id', billId)
     .eq('status', 'pending')
     .gt('expires_at', new Date().toISOString())
@@ -34,13 +34,13 @@ export default {
     if (req.method !== 'POST') return fail('Method not allowed', 405)
 
     const SUPABASE_URL = process.env.SUPABASE_URL
-    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY
     const PAYMONGO_KEY = process.env.PAYMONGO_SECRET_KEY
     const SITE_URL = process.env.SITE_URL
     if (!SUPABASE_URL || !SERVICE_KEY || !PAYMONGO_KEY || !SITE_URL) {
       console.error('[paymongo-checkout] missing env', {
         SUPABASE_URL: !!SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY: !!SERVICE_KEY,
+        SUPABASE_SECRET_KEY: !!SERVICE_KEY,
         PAYMONGO_SECRET_KEY: !!PAYMONGO_KEY,
         SITE_URL: !!SITE_URL,
       })
@@ -139,7 +139,18 @@ export default {
       if (ageMs < IN_FLIGHT_MS) {
         return fail('A payment is already being prepared. Try again in a few seconds.', 409)
       }
-      await markAttemptFailed(client, pending.id) // true orphan
+      // Reuse pending session only if amount_centavos matches the bill's current amount
+      const { data: bill } = await client
+        .from('bills')
+        .select('amount_centavos')
+        .eq('id', billId)
+        .single()
+      if (bill && bill.amount_centavos === pending.amount_centavos && pending.checkout_url) {
+        // Session amounts match, reuse it
+        return respond(pending.checkout_url, pending.provider_checkout_session_id)
+      }
+      // Amounts differ or no checkout_url: cancel old attempt and create new
+      await markAttemptFailed(client, pending.id)
     }
 
     const { data: attempt, error: insertError } = await client
