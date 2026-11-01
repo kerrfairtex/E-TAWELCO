@@ -293,15 +293,41 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
     const dueDate = text(b.due_date, 10)
     const areaId = text(b.area_id, 40) || null
     const amount = Number(b.amount), kwh = b.kwh === undefined || b.kwh === '' ? 0 : Number(b.kwh)
+    const centavos = Math.round(amount * 100)
     if (!/^\d{11}$/.test(accountNo)) return fail('Account number must be 11 digits')
     if (!accountName) return fail('Enter the account holder name')
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return fail('Choose the billing month')
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return fail('Choose a due date')
-    if (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000) return fail('Enter a valid amount')
+    if (!Number.isFinite(amount) || amount > 1_000_000) return fail('Enter a valid amount')
     if (!Number.isFinite(kwh) || kwh < 0 || kwh > 100_000) return fail('Enter valid kWh usage')
-    if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area')
-    const { data, error } = await client.from('bills').insert({ account_no: accountNo, account_name: accountName, area_id: areaId, period, kwh, amount: Math.round(amount * 100) / 100, due_date: dueDate, created_by: s.id }).select('id').single()
-    if (error) { if (error.code === '23505') return fail('A bill for this account and month already exists', 409); throw error }
+    if (centavos < 1) return fail('Amount must be greater than 0')
+    if (!/^\d{11}$/.test(accountNo)) return fail('Account number must be 11 digits')
+    if (!accountName) return fail('Enter the account holder name')
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return fail('Choose the billing month')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return fail('Choose a due date')
+    const errorMap: Record<string, string> = {
+      '23502': 'A required field is missing',
+      '23503': 'Unknown area or user',
+      '23505': 'A bill for this account and month already exists',
+      '23514': 'Invalid value',
+    }
+    const { data, error } = await client.from('bills').insert({
+      account_no: accountNo,
+      account_name: accountName,
+      area_id: areaId,
+      period,
+      kwh,
+      amount: centavos / 100,
+      due_date: dueDate,
+      status: 'unpaid',
+      amount_centavos: centavos,
+      created_by: s.id,
+    }).select('id').single()
+    if (error) {
+      const friendly = errorMap[error.code]
+      console.error('[bills POST] DB error code:', error.code, 'message:', error.message)
+      return friendly ? fail(friendly, error.code === '23505' ? 409 : 400) : fail('Unexpected server error', 500)
+    }
     await audit(client, s, 'bill.create', 'bill', data.id, { account_no: accountNo, period, amount })
     return json({ ok: true, id: data.id }, 201)
   }
