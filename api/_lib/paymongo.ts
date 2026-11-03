@@ -1,58 +1,65 @@
-import crypto from 'node:crypto'
-import { createClient } from '@supabase/supabase-js'
-import { fail, json } from '../_lib/core.ts'
-import { getWebhookSecret } from '../_lib/paymongo.ts'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-export default async function handler(req: Request) {
-  if (req.method !== 'POST') return fail('Method not allowed', 405)
+export type PayMongoCheckoutStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
 
-  const rawBody = await req.text()
-  const signature = req.headers.get('paymongo-signature') || ''
-  const secret = getWebhookSecret()
+export const PAYMONGO_API_BASE = 'https://api.paymongo.com/v2'
 
-  if (!secret) return fail('Webhook secret not configured', 503)
-  if (!signature) return fail('Missing PayMongo signature', 401)
-
-  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
-  if (crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'))) {
-    // exact match — okay
-  } else if (expected !== signature) {
-    return fail('Invalid webhook signature', 401)
+export function paymongoHeaders(secretKey: string) {
+  return {
+    Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString('base64')}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
   }
+}
 
-  let event
-  try {
-    event = JSON.parse(rawBody)
-  } catch {
-    return fail('Invalid JSON body', 400)
-  }
+export function getPayMongoSecret() {
+  return process.env.PAYMONGO_SECRET_KEY || ''
+}
 
-  const payment = event?.data?.attributes || event?.data || null
-  const paymentId = event?.data?.id || payment?.id || null
-  const status = payment?.status || event?.type || null
-  const metadata = payment?.metadata || {}
-  const billId = Number(metadata.bill_id || payment?.bill_id || 0)
+export function getWebhookSecret() {
+  return process.env.PAYMONGO_WEBHOOK_SECRET || ''
+}
 
-  if (!paymentId || !billId || !status) {
-    return json({ ok: false, ignored: true }, 202)
-  }
-
-  const client = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
+export function isLiveAvailable() {
+  return Boolean(
+    process.env.PAYMONGO_SECRET_KEY &&
+      process.env.PAYMONGO_PUBLIC_KEY &&
+      process.env.PAYMONGO_WEBHOOK_SECRET,
   )
+}
 
-  const amount = Number(payment.amount || metadata.amount || 0)
-  const settlement = payment?.paid_at || payment?.updated_at || null
+export function createSupabaseServerClient(): SupabaseClient {
+  const url = process.env.SUPABASE_URL
+  const secretKey = process.env.SUPABASE_SECRET_KEY
+  if (!url || !secretKey) throw new Error('Supabase server configuration is missing')
 
-  await client.from('bills').update({
-    status: status === 'paid' ? 'paid' : 'unpaid',
-    paid_at: status === 'paid' ? settlement : null,
-    paid_channel: 'mobile_wallet',
-    payment_ref: paymentId,
-    updated_at: new Date().toISOString(),
-  }).eq('id', billId)
+  return createClient(url, secretKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
 
-  return json({ ok: true, processed: true, payment_id: paymentId })
+export async function createCheckoutSession(payload: Record<string, unknown>) {
+  const secretKey = getPayMongoSecret()
+  if (!secretKey) throw new Error('PayMongo server configuration is missing')
+
+  const response = await fetch(`${PAYMONGO_API_BASE}/checkout_sessions`, {
+    method: 'POST',
+    headers: paymongoHeaders(secretKey),
+    body: JSON.stringify(payload),
+  })
+
+  const text = await response.text()
+  if (!response.ok) {
+    console.error('[paymongo] checkout request failed', {
+      status: response.status,
+      response: text.slice(0, 500),
+    })
+    throw new Error('PayMongo checkout request failed')
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error('PayMongo returned an invalid response')
+  }
 }
