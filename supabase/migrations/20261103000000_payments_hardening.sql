@@ -1,5 +1,5 @@
 -- Targeted payment hardening. Not applied by this change.
--- Profiles write restrictions remain intentionally unresolved pending live grants/policy output.
+-- profiles: authenticated holds SELECT only (verified live); writes go through the service-role API.
 
 BEGIN;
 
@@ -220,7 +220,5 @@ REVOKE ALL ON FUNCTION public.apply_checkout_paid(text, text, boolean, jsonb, te
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.apply_checkout_paid(text, text, boolean, jsonb, text, text, bigint, text, timestamptz, text)
   TO service_role;
-
--- PROFILES: intentionally left pending the required live privilege/policy query output.
 
 COMMIT;
