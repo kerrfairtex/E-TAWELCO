@@ -1,37 +1,65 @@
-import crypto from 'node:crypto'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+
+export type PayMongoCheckoutStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
 
 export const PAYMONGO_API_BASE = 'https://api.paymongo.com/v2'
-export const PAYMONGO_PAYMENT_METHODS = ['card', 'gcash', 'paymaya', 'qrph'] as const
+
+export function paymongoHeaders(secretKey: string) {
+  return {
+    Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString('base64')}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  }
+}
+
+export function getPayMongoSecret() {
+  return process.env.PAYMONGO_SECRET_KEY || ''
+}
 
 export function getWebhookSecret() {
   return process.env.PAYMONGO_WEBHOOK_SECRET || ''
 }
 
-export function parsePaymongoHeader(header: string | null) {
-  if (!header) return null
-  const parts: Record<string, string> = {}
-  for (const piece of header.split(',')) {
-    const i = piece.indexOf('=')
-    if (i > 0) parts[piece.slice(0, i).trim()] = piece.slice(i + 1).trim()
-  }
-  if (!/^\d+$/.test(parts.t ?? '')) return null
-  return { tRaw: parts.t, te: parts.te ?? '', li: parts.li ?? '' }
+export function isLiveAvailable() {
+  return Boolean(
+    process.env.PAYMONGO_SECRET_KEY &&
+      process.env.PAYMONGO_PUBLIC_KEY &&
+      process.env.PAYMONGO_WEBHOOK_SECRET,
+  )
 }
 
-export function verifyPaymongoSignature(
-  rawBody: string,
-  header: string | null,
-  secret: string,
-  nowSec = Math.floor(Date.now() / 1000),
-): boolean {
-  if (!secret) return false
-  const sig = parsePaymongoHeader(header)
-  if (!sig) return false
-  const t = Number(sig.tRaw)
-  const tSec = t > 1e12 ? t / 1000 : t
-  if (Math.abs(nowSec - tSec) > 300) return false
-  const expected = crypto.createHmac('sha256', secret).update(`${sig.tRaw}.${rawBody}`).digest()
-  return [sig.li, sig.te]
-    .filter(Boolean)
-    .some((c) => /^[0-9a-f]{64}$/i.test(c) && crypto.timingSafeEqual(Buffer.from(c, 'hex'), expected))
+export function createSupabaseServerClient(): SupabaseClient {
+  const url = process.env.SUPABASE_URL
+  const secretKey = process.env.SUPABASE_SECRET_KEY
+  if (!url || !secretKey) throw new Error('Supabase server configuration is missing')
+
+  return createClient(url, secretKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+export async function createCheckoutSession(payload: Record<string, unknown>) {
+  const secretKey = getPayMongoSecret()
+  if (!secretKey) throw new Error('PayMongo server configuration is missing')
+
+  const response = await fetch(`${PAYMONGO_API_BASE}/checkout_sessions`, {
+    method: 'POST',
+    headers: paymongoHeaders(secretKey),
+    body: JSON.stringify(payload),
+  })
+
+  const text = await response.text()
+  if (!response.ok) {
+    console.error('[paymongo] checkout request failed', {
+      status: response.status,
+      response: text.slice(0, 500),
+    })
+    throw new Error('PayMongo checkout request failed')
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error('PayMongo returned an invalid response')
+  }
 }
