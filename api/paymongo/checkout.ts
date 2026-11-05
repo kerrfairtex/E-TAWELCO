@@ -68,6 +68,9 @@ async function handle(req: Request) {
       .single()
     if (attemptError) throw attemptError
 
+    const siteUrl = process.env.SITE_URL || (process.env.VERCEL_ENV === 'production' ? '' : 'http://localhost:3000')
+    if (!siteUrl) throw new Error('SITE_URL is not set')
+
     const sessionPayload = {
       data: {
         attributes: {
@@ -78,8 +81,8 @@ async function handle(req: Request) {
             quantity: 1,
           }],
           payment_method_types: ['card', 'gcash', 'paymaya', 'qrph'],
-          success_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=success`,
-          cancel_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=cancelled`,
+          success_url: `${siteUrl}/dashboard/#my-bills?pay=success`,
+          cancel_url: `${siteUrl}/dashboard/#my-bills?pay=cancelled`,
           reference_number: `BILL-${bill.id}-${bill.period}`,
           send_email_receipt: false,
           metadata: {

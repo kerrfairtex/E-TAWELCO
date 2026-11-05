@@ -9,3 +9,6 @@ dashboard/app.js
 .env*
 api/*.js
 api/_lib/*.js
+.env
+.env.*
+!.env.example

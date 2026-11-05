@@ -66,17 +66,26 @@ async function handle(req: Request) {
       livemode,
     })
     if (eventError) {
-      if (errorCode(eventError) === '23505') return json({ ok: true, replay: true }, 200)
-      throw eventError
+      if (errorCode(eventError) !== '23505') throw eventError
+      const { data: existing, error: lookupError } = await client.from('payment_events').select('processed_at').eq('provider_event_id', eventId).maybeSingle()
+      if (lookupError) throw lookupError
+      if (existing?.processed_at) return json({ ok: true, replay: true }, 200)
     }
 
     const attributes = event?.data?.attributes || {}
-    const checkoutSessionId = String(attributes.checkout_session_id || attributes.checkout_session?.id || attributes.metadata?.checkout_session_id || '')
-    const paymentId = String(attributes.payment_id || attributes.payment?.id || event?.data?.id || '')
-    const amountCentavos = Number(attributes.amount ?? attributes.payment?.amount ?? 0)
+    const resource = attributes.data || {}
+    const resourceAttrs = resource.attributes || {}
+    const firstPayment = Array.isArray(resourceAttrs.payments) ? resourceAttrs.payments[0] : null
+    const paymentAttrs = firstPayment?.attributes || {}
+    const checkoutSessionId = String(
+      (typeof resource.id === 'string' && resource.id.startsWith('cs_') ? resource.id : '') ||
+      attributes.checkout_session_id || attributes.checkout_session?.id || attributes.metadata?.checkout_session_id || '')
+        const paymentId = String(firstPayment?.id || attributes.payment_id || attributes.payment?.id || event?.data?.id || '')
+        const amountCentavos = Number(paymentAttrs.amount ?? attributes.amount ?? attributes.payment?.amount ?? 0)
     const currency = String(attributes.currency || attributes.payment?.currency || 'PHP').toUpperCase()
-    const method = String(attributes.payment_method_type || attributes.method || 'unknown')
-    const paidAt = attributes.paid_at || attributes.updated_at || new Date().toISOString()
+        const method = String(paymentAttrs.source?.type || attributes.payment_method_type || attributes.method || 'unknown')
+        const rawPaidAt = paymentAttrs.paid_at ?? attributes.paid_at ?? attributes.updated_at
+    const paidAt = typeof rawPaidAt === 'number' ? new Date(rawPaidAt * 1000).toISOString() : (rawPaidAt || new Date().toISOString())
 
     const { data: attempt, error: attemptError } = await client
       .from('payment_attempts')
@@ -94,14 +103,14 @@ async function handle(req: Request) {
     if (billError) throw billError
 
     if (eventType.endsWith('.paid')) {
-      const expectedAmount = Number(bill.amount_centavos)
+            const expectedAmount = Number(attempt.amount_centavos ?? bill.amount_centavos ?? Math.round(Number(bill.amount) * 100))
       if (amountCentavos !== expectedAmount || currency !== 'PHP' || currency !== String(attempt.currency).toUpperCase()) {
         const { error: auditError } = await client.from('audit_log').insert(auditPayload(eventId, eventType, { reason: 'amount_or_currency_mismatch', attempt_id: attempt.id, expected_amount_centavos: expectedAmount, received_amount_centavos: amountCentavos, received_currency: currency }))
         if (auditError) throw auditError
         return json({ ok: true, flagged: true }, 200)
       }
 
-      const { error: rpcError } = await client.rpc('apply_checkout_paid', {
+      const { data: rpcResult, error: rpcError } = await client.rpc('apply_checkout_paid', {
         p_event_id: eventId,
         p_event_type: eventType,
         p_livemode: livemode,
@@ -114,6 +123,11 @@ async function handle(req: Request) {
         p_channel: 'paymongo',
       })
       if (rpcError) throw rpcError
+      if (rpcResult !== 'paid' && rpcResult !== 'duplicate') {
+        const { error: flagError } = await client.from('audit_log').insert(auditPayload(eventId, eventType, { reason: `apply_checkout_paid:${rpcResult}`, attempt_id: attempt.id, payment_id: paymentId, amount_centavos: amountCentavos }))
+        if (flagError) throw flagError
+        return json({ ok: true, flagged: true, result: rpcResult }, 200)
+      }
     } else {
       const nextStatus = eventType.endsWith('failed') ? 'failed' : 'expired'
       const { error: updateError } = await client.from('payment_attempts').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', attempt.id)
