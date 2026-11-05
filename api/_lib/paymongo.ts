@@ -1,4 +1,22 @@
+import crypto from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+
+export function verifyPaymongoSignature(rawBody: string, header: string | null, secret: string, nowSec = Math.floor(Date.now() / 1000)) {
+  if (!secret || !header) return false
+  const parts: Record<string, string> = {}
+  for (const piece of header.split(',')) {
+    const index = piece.indexOf('=')
+    if (index > 0) parts[piece.slice(0, index).trim()] = piece.slice(index + 1).trim()
+  }
+  if (!/^\d+$/.test(parts.t ?? '')) return false
+  const timestamp = Number(parts.t)
+  if (Math.abs(nowSec - (timestamp > 1e12 ? timestamp / 1000 : timestamp)) > 300) return false
+  const expected = crypto.createHmac('sha256', secret).update(`${parts.t}.${rawBody}`).digest()
+  return [parts.te, parts.li].filter(Boolean).some((candidate) => {
+    if (!/^[0-9a-f]{64}$/i.test(candidate)) return false
+    return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), expected)
+  })
+}
 
 export type PayMongoCheckoutStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
 
