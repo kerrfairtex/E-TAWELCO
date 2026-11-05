@@ -942,7 +942,7 @@ async function myBillsView(view) {
           <td class="num">${b.status === 'unpaid' && data.pay?.enabled ? `<button class="btn btn-primary" type="button" data-pay-bill="${esc(b.id)}">Pay</button>` : ''}</td>
         </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills yet.</div>'}
       </section>
-      ${paymentSamples()}
+      ${paymentSamples(data.pay?.enabled === true)}
     </div>`
     // Store latest data on view so the listener always uses fresh data
     view._billsData = data
@@ -958,10 +958,10 @@ async function myBillsView(view) {
     }
   }
 
-function paymentSamples() {
+function paymentSamples(enabled) {
   return `<section class="card">
-    <div class="card-head"><h2>Online payment</h2></div>
-    <p class="muted">Pay your bill online during this demo. Select an unpaid bill below and follow the simulated checkout. No real money is transferred.</p>
+    <div class="card-head"><h2>Online payment</h2><span class="status-pill ${enabled ? 'status-ok' : 'status-muted'}">${enabled ? 'Available' : 'Payments unavailable'}</span></div>
+    <p class="muted">${enabled ? 'Select an unpaid bill to continue to secure online payment.' : 'Online payments are temporarily unavailable. Please use an accredited payment channel or contact the cooperative for assistance.'}</p>
   </section>`
 }
 
