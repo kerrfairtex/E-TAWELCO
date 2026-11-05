@@ -1,5 +1,4 @@
 import crypto from 'node:crypto'
-import type { Config } from '@netlify/functions'
 import { fail, json } from '../_lib/core.ts'
 import {
   createCheckoutSession,
@@ -7,7 +6,7 @@ import {
   isLiveAvailable,
 } from '../_lib/paymongo.ts'
 
-export default async function handler(req: Request) {
+async function handle(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   if (!isLiveAvailable()) return fail('PayMongo is not configured', 503)
 
@@ -119,4 +118,4 @@ export default async function handler(req: Request) {
   }
 }
 
-export const config: Config = { path: '/api/paymongo/checkout', method: 'POST' }
+export default { fetch: handle }

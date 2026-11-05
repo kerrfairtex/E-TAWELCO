@@ -1,5 +1,4 @@
 import crypto from 'node:crypto'
-import type { Config } from '@netlify/functions'
 import { fail, json } from '../_lib/core.ts'
 import { createSupabaseServerClient, getWebhookSecret } from '../_lib/paymongo.ts'
 
@@ -40,7 +39,7 @@ function auditPayload(eventId: string, eventType: string, details: Record<string
   return { action: `paymongo.${eventType}`, entity_type: 'payment_event', entity_id: eventId, details }
 }
 
-export default async function handler(req: Request) {
+async function handle(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
 
   try {
@@ -133,4 +132,4 @@ export default async function handler(req: Request) {
   }
 }
 
-export const config: Config = { path: '/api/paymongo/webhook', method: 'POST' }
+export default { fetch: handle }
