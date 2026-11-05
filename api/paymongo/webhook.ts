@@ -36,7 +36,7 @@ function errorCode(error: unknown) {
 }
 
 function auditPayload(eventId: string, eventType: string, details: Record<string, unknown>) {
-  return { action: `paymongo.${eventType}`, entity_type: 'payment_event', entity_id: eventId, details }
+  return { action: `paymongo.${eventType}`, entity: 'payment_event', entity_id: eventId, actor_email: 'paymongo-webhook', details }
 }
 
 async function handle(req: Request) {
