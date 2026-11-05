@@ -5,7 +5,7 @@ import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, 
 
 async function areas(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method === 'GET') return json({ areas: await readAreas(client) })
-  const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s
+  const s = await authorize(req, ['admin']); if (s instanceof Response) return s
   if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405)
   const { data: current } = await client.from('service_areas').select('*').eq('id', id).maybeSingle()
   if (!current) return fail('Area not found', 404)
@@ -23,16 +23,13 @@ async function areas(req: Request, client: ReturnType<typeof supabase>, id?: str
 async function me(req: Request, client: ReturnType<typeof supabase>) {
   const s = await authorize(req); if (s instanceof Response) return s
   const existing = await readProfile(client, s.id)
-  if (!existing) {
-    const { error } = await client.from('profiles').upsert({ id: s.id, email: s.email, full_name: s.name, role: 'member', updated_at: new Date().toISOString() }, { onConflict: 'id' })
-    if (error) throw error
-  }
-  if (req.method === 'PATCH') { const b = await body(req); const areaId = text(b.area_id, 40) || null; if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area'); const { error } = await client.from('profiles').update({ full_name: text(b.full_name, 120) || null, phone: text(b.phone, 30) || null, area_id: areaId, updated_at: new Date().toISOString() }).eq('id', s.id); if (error) throw error }
+  if (!existing) return fail('Profile not found', 404)
+  if (req.method === 'PATCH') { const b = await body(req); const fullName = text(b.full_name, 120); if (b.full_name !== undefined && !fullName) return fail('Full name must be non-empty', 400); const { error } = await client.from('profiles').update({ full_name: fullName || null }).eq('id', s.id); if (error) throw error }
   await client.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', s.id)
   return json({ profile: await readProfile(client, s.id) })
 }
 
-async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
+async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
 
 async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, req.method === 'PATCH' ? ['master_admin'] : ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data: profiles, error: profileError } = await client.from('profiles').select('id,email,full_name,role,area_id,is_active,created_at,last_seen_at').order('role').limit(500); if (profileError) { console.error('[v0] People users query failed', profileError); return fail('Could not load people', 500) } let areaMap = new Map<string, string | null>(); const { data: areas, error: areaError } = await client.from('service_areas').select('id,name'); if (areaError) { console.error('[v0] People areas query failed', areaError) } else { areaMap = new Map((areas ?? []).map((a: any) => [a.id, a.name])) }; const users = (profiles ?? []).map((u: any) => ({ ...u, area_name: areaMap.get(u.area_id) ?? null })); return json({ users }) }
   if (req.method === 'POST') {
@@ -54,7 +51,7 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
     let password = ''
     const limit = 256 - (256 % pool.length)
     for (let i = 0; i < 14; i++) { let r; do { r = randomBytes(1)[0] } while (r >= limit); password += pool[r % pool.length] }
-    const { data: created, error: createError } = await (client as any).auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { role: type }, user_metadata: { full_name } })
+    const { data: created, error: createError } = await (client as any).auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name } })
     const userId = created?.user?.id
     if (createError || !userId) {
       const msg = String(createError?.message || '')
@@ -63,7 +60,7 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
       console.error('[v0] createUser failed for email ' + email + ': ' + msg)
       return fail('Could not create the account', 502)
     }
-    const update: Record<string, unknown> = { full_name, role: type, updated_at: new Date().toISOString() }
+    const update: Record<string, unknown> = { full_name, updated_at: new Date().toISOString() }
     if (type === 'member') update.account_no = login_id
     else update.admin_id = login_id
     if (area_id) update.area_id = area_id
@@ -79,6 +76,13 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
     if (upserted.error) {
       try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
       console.error('[v0] profile upsert failed for user ' + userId + ': ' + String(upserted.error.message))
+      return fail('Could not create the account', 500)
+    }
+    const caller = supabaseAuth(req)
+    const { error: roleError } = await caller.rpc('set_user_role', { target_user_id: userId, new_role: type })
+    if (roleError) {
+      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+      console.error('[v0] set_user_role failed for user ' + userId, roleError)
       return fail('Could not create the account', 500)
     }
     const { data: profile, error: readError } = await client.from('profiles').select('id, full_name, role, account_no, admin_id, area_id').eq('id', userId).maybeSingle()
@@ -202,7 +206,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
       account: { masked_no: `*******${linkedNo.slice(-4)}`, name: latestName ? maskName(String(latestName)) : null },
       bills: list,
       summary,
-      pay: { enabled: process.env.DEMO_PAYMENTS === 'true', demo: true },
+      pay: { enabled: process.env.ENABLE_DEMO_PAYMENTS === 'true', demo: true },
     })
   }
 
