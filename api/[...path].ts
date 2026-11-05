@@ -256,8 +256,11 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return fail('Choose the billing month')
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return fail('Choose a due date')
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) return fail('Enter a valid amount')
-    if (!Number.isFinite(kwh) || kwh < 0 || kwh > 100_000) return fail('Enter valid kWh usage')
-    if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area')
+    if (!Number.isFinite(kwh) || kwh < 0 || kwh > 100_000) return fail('Enter valid kWh usage', 400)
+    if (areaId && !(await client.from('service_areas').select('id').eq('id', areaId).maybeSingle()).data) return fail('Unknown area', 400)
+    const { data: member, error: memberError } = await client.from('profiles').select('id,full_name,role,account_no').eq('account_no', accountNo).eq('role', 'member').maybeSingle()
+    if (memberError) throw memberError
+    if (!member) return fail('No member account matches this 11-digit account number', 404)
     const amountPesos = Math.round(amount * 100) / 100
     const amountCentavos = Math.round(amount * 100)
     const { data, error } = await client.from('bills').insert({ account_no: accountNo, account_name: accountName, area_id: areaId, period, kwh, amount: amountPesos, amount_centavos: amountCentavos, due_date: dueDate, created_by: s.id }).select('id').single()
