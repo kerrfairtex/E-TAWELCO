@@ -929,10 +929,10 @@ async function myBillsView(view) {
           <td class="num">${esc(fmtPeso(b.amount))}</td>
           <td>${badge(billKind(b), BILL_STATUS)}</td>
           <td class="small">${b.paid_at ? esc(fmtDate(b.paid_at)) : '<span class="muted">—</span>'}</td>
-          <td class="num">${b.status === 'unpaid' && data.pay?.enabled ? `<button class="btn btn-primary" type="button" data-pay-bill="${esc(b.id)}">Pay</button>` : ''}</td>
+          <td class="num">${b.status === 'unpaid' && (data.pay?.real || data.pay?.demo) ? `<button class="btn btn-primary" type="button" data-pay-bill="${esc(b.id)}">Pay</button>` : ''}</td>
         </tr>`).join('')}</tbody></table></div>` : '<div class="card empty">No bills yet.</div>'}
       </section>
-      ${paymentSamples(data.pay?.enabled === true)}
+      ${paymentSamples(Boolean(data.pay?.real || data.pay?.demo))}
     </div>`
     // Store latest data on view so the listener always uses fresh data
     view._billsData = data
@@ -943,7 +943,10 @@ async function myBillsView(view) {
         const button = e.target.closest('[data-pay-bill]')
         if (!button) return
         const bill = (view._billsData?.bills || []).find((b) => String(b.id) === button.dataset.payBill)
-        if (bill) startSimulate(bill)
+        if (bill) {
+          if (data.pay?.real) startRealPay(bill)
+          else if (data.pay?.demo) startSimulate(bill)
+        }
       })
     }
   }
@@ -1044,6 +1047,22 @@ async function startSimulate(bill) {
       })
     }
   })
+}
+
+async function startRealPay(bill) {
+  try {
+    const result = await api('/api/paymongo/checkout', {
+      method: 'POST',
+      body: { bill_id: Number(bill.id) }
+    })
+    if (result?.checkout_url) {
+      window.location.href = result.checkout_url
+    } else {
+      throw new Error(result?.error || 'No checkout URL returned')
+    }
+  } catch (err) {
+    alert('Unable to start payment: ' + (err.message || 'Unknown error'))
+  }
 }
 
 // ---------- Boot ----------

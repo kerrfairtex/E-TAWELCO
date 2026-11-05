@@ -206,7 +206,10 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
       account: { masked_no: `*******${linkedNo.slice(-4)}`, name: latestName ? maskName(String(latestName)) : null },
       bills: list,
       summary,
-      pay: { enabled: process.env.ENABLE_DEMO_PAYMENTS === 'true', demo: true },
+      pay: {
+        demo: process.env.ENABLE_DEMO_PAYMENTS === 'true' && process.env.PAYMONGO_MODE !== 'live',
+        real: Boolean(process.env.PAYMONGO_SECRET_KEY && process.env.PAYMONGO_PUBLIC_KEY && process.env.PAYMONGO_WEBHOOK_SECRET),
+      },
     })
   }
 
@@ -293,7 +296,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
 
 async function paySimulate(req: Request, client: ReturnType<typeof supabase>, id?: string) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
-  if (process.env.DEMO_PAYMENTS !== 'true') return fail('Demo payments are not enabled', 404)
+  if (process.env.ENABLE_DEMO_PAYMENTS !== 'true' || process.env.PAYMONGO_MODE === 'live') return fail('Demo payments are not enabled', 404)
   const s = await authorize(req, ['staff', 'admin']); if (s instanceof Response) return s
   const b = await body(req)
   const billId = Number(b.bill_id)
