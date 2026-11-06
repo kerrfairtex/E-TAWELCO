@@ -33,9 +33,10 @@ async function team(req: Request, client: ReturnType<typeof supabase>) { const s
 
 async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, req.method === 'PATCH' ? ['master_admin'] : ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data: profiles, error: profileError } = await client.from('profiles').select('id,email,full_name,role,area_id,is_active,created_at,last_seen_at').order('role').limit(500); if (profileError) { console.error('[v0] People users query failed', profileError); return fail('Could not load people', 500) } let areaMap = new Map<string, string | null>(); const { data: areas, error: areaError } = await client.from('service_areas').select('id,name'); if (areaError) { console.error('[v0] People areas query failed', areaError) } else { areaMap = new Map((areas ?? []).map((a: any) => [a.id, a.name])) }; const users = (profiles ?? []).map((u: any) => ({ ...u, area_name: areaMap.get(u.area_id) ?? null })); return json({ users }) }
   if (req.method === 'POST') {
-    const b = await body(req)
-    const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
-    const full_name = text(b.full_name, 120)
+  const b = await body(req)
+  const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
+  if (type && type !== 'member' && s.role !== 'master_admin') return fail('Only a master admin can create staff or admin accounts', 403)
+  const full_name = text(b.full_name, 120)
     const login_id = text(b.login_id, 20).replace(/\s/g, '')
     const area_id = b.area_id ? text(b.area_id, 100) : null
     const confirm_id = text(b.confirm_id, 20).replace(/\s/g, '')
@@ -78,13 +79,15 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
       console.error('[v0] profile upsert failed for user ' + userId + ': ' + String(upserted.error.message))
       return fail('Could not create the account', 500)
     }
-    const caller = supabaseAuth(req)
-    const { error: roleError } = await caller.rpc('set_user_role', { target_user_id: userId, new_role: type })
-    if (roleError) {
-      try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
-      console.error('[v0] set_user_role failed for user ' + userId, roleError)
-      return fail('Could not create the account', 500)
-    }
+  if (type !== 'member') {
+  const caller = supabaseAuth(req)
+  const { error: roleError } = await caller.rpc('set_user_role', { target_user_id: userId, new_role: type })
+  if (roleError) {
+  try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
+  console.error('[v0] set_user_role failed for user ' + userId, roleError)
+  return fail('Could not create the account', 500)
+  }
+  }
     const { data: profile, error: readError } = await client.from('profiles').select('id, full_name, role, account_no, admin_id, area_id').eq('id', userId).maybeSingle()
     if (readError || !profile || profile.role !== type || profile.full_name !== full_name || (type === 'member' && profile.account_no !== login_id) || (type !== 'member' && profile.admin_id !== login_id) || (area_id && profile.area_id !== area_id) || (!area_id && profile.area_id !== null)) {
       try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
