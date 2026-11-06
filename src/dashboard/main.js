@@ -945,7 +945,7 @@ async function myBillsView(view) {
         const button = e.target.closest('[data-pay-bill]')
         if (!button) return
         const bill = (view._billsData?.bills || []).find((b) => String(b.id) === button.dataset.payBill)
-        if (bill) startSimulate(bill)
+        if (bill) startPayment(bill)
       })
     }
   }
@@ -979,73 +979,17 @@ function checkoutUI(bill, onConfirm) {
   </div>`
 }
 
-async function startSimulate(bill) {
-  const modal = checkoutUI(bill)
-  const div = document.createElement('div')
-  div.innerHTML = modal.trim()
-  document.body.appendChild(div)
-  
-  // Set fake fields
-  const methodBtn = div.querySelector('[data-method]')
-  let selectedMethod = 'gcash'
-  div.querySelectorAll('.demo-method').forEach(btn => {
-    btn.addEventListener('click', () => {
-      div.querySelectorAll('.demo-method').forEach(b => b.setAttribute('aria-pressed', 'false'))
-      btn.setAttribute('aria-pressed', 'true')
-      selectedMethod = btn.dataset.method
-    })
-  })
-  
-  div.querySelector('.demo-pay-btn').addEventListener('click', async () => {
-    const btn = div.querySelector('.demo-pay-btn')
-    btn.disabled = true
-    btn.textContent = 'Processing…'
-    
-    try {
-      await new Promise(r => setTimeout(r, 1500))
-      
-      const result = await api('/api/pay/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
-      if (result?.ok) {
-        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-          <div class="demo-banner">DEMO — No real money</div>
-          <div class="card-head"><h2>Payment successful</h2></div>
-          <div class="demo-receipt">
-            <div class="row"><span>Reference</span><strong>${esc(result.payment_ref)}</strong></div>
-            <div class="row"><span>Amount</span><strong>${esc(fmtPeso(result.amount))}</strong></div>
-            <div class="row"><span>Period</span><strong>${esc(fmtPeriod(bill.period))}</strong></div>
-            <div class="row"><span>Method</span><strong>${esc(result.method)}</strong></div>
-            <div class="row"><span>Paid on</span><strong>${esc(new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</strong></div>
-          </div>
-          <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
-        </div></div></div>`
-        div.querySelector('.demo-back').addEventListener('click', () => {
-          document.body.removeChild(div)
-          myBillsView(document.querySelector('[data-view="my-bills"]'))
-        })
-      } else {
-        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-          <div class="demo-banner">DEMO — No real money</div>
-          <div class="card-head"><h2>Payment failed</h2></div>
-          <p class="muted">${esc(result?.error || 'Something went wrong')}</p>
-          <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
-        </div></div></div>`
-        div.querySelector('.demo-back').addEventListener('click', () => {
-          document.body.removeChild(div)
-        })
-      }
-    } catch (err) {
-      btn.disabled = false
-      div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-        <div class="demo-banner">DEMO — No real money</div>
-        <div class="card-head"><h2>Payment error</h2></div>
-        <p class="muted">${esc(err.message || 'Something went wrong')}</p>
-        <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
-      </div></div></div>`
-      div.querySelector('.demo-back').addEventListener('click', () => {
-        document.body.removeChild(div)
-      })
-    }
-  })
+async function startPayment(bill) {
+  const button = document.querySelector(`[data-pay-bill="${CSS.escape(String(bill.id))}"]`)
+  if (button) { button.disabled = true; button.textContent = 'Opening payment…' }
+  try {
+    const result = await api('/api/paymongo/checkout', { method: 'POST', body: { bill_id: Number(bill.id) } })
+    if (!result?.checkout_url) throw new Error('Payment checkout is unavailable.')
+    window.location.assign(result.checkout_url)
+  } catch (err) {
+    if (button) { button.disabled = false; button.textContent = 'Pay' }
+    alert(err.message || 'Unable to start payment. Please try again.')
+  }
 }
 
 // ---------- Boot ----------

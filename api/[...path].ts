@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { authorize, body, fail, handleApi, internalError, isStaff, json, oneOf, pathParts, readAreas, readProfile, statuses, areaStatuses, observations, supabase, supabaseAuth, text, withTicket, audit, type Session } from './_lib/core.js'
+import { isLiveAvailable } from './_lib/paymongo.js'
 
 
 
@@ -209,7 +210,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
       account: { masked_no: `*******${linkedNo.slice(-4)}`, name: latestName ? maskName(String(latestName)) : null },
       bills: list,
       summary,
-      pay: { enabled: process.env.ENABLE_DEMO_PAYMENTS === 'true', demo: true },
+      pay: { enabled: isLiveAvailable(), demo: false },
     })
   }
 
