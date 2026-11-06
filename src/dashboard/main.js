@@ -52,7 +52,9 @@ const ago = (d) => {
 
 const state = { session: null, profile: null, areas: [], team: null }
 const isStaff = () => state.session && state.session.role !== 'member'
-const isAdmin = () => state.session?.role === 'admin' || state.session?.role === 'master_admin'
+  const isAdmin = () => state.session?.role === 'admin' || state.session?.role === 'master_admin'
+  const isMasterAdmin = () => state.session?.role === 'master_admin'
+
 
 // ---------- API ----------
 async function api(path, opts = {}) {
@@ -728,7 +730,7 @@ const ensureAreas = async () => {
 async function openAddUserDialog(view) {
   await ensureAreas()
   const body = openDialog('Add user', `<form id="addUserForm" novalidate>
-    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option>${isMasterAdmin() ? '<option value="staff">Staff</option><option value="admin">Admin</option>' : ''}</select></div>
     <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
     <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
     <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
@@ -804,10 +806,10 @@ async function people(view) {
       <td class="num">${fmtNum(u.reports)}</td>
       <td class="small muted" title="${esc(u.last_seen_at ? fmtDate(u.last_seen_at) : 'Not seen yet')}">${esc(u.last_seen_at ? ago(u.last_seen_at) : 'Never')}</td>
       <td>${u.id === state.session.id ? badge(u.role, ROLE_LABEL) + ' <span class="small muted">(you)</span>'
-        : `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
+        : isMasterAdmin() ? `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
            <select class="input role-select" id="role-${esc(u.id)}" data-user="${esc(u.id)}" data-was="${esc(u.role)}">
              ${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}"${k === u.role ? ' selected' : ''}>${v}</option>`).join('')}
-           </select>`}
+           </select>` : badge(u.role, ROLE_LABEL)}
         <span class="small" data-role-msg="${esc(u.id)}" aria-live="polite"></span></td>
     </tr>`).join('') : '<tr><td colspan="5" class="empty">No people match these filters.</td></tr>'
     $$('[data-user]', view).forEach((sel) => sel.addEventListener('change', async () => {
@@ -943,7 +945,7 @@ async function myBillsView(view) {
         const button = e.target.closest('[data-pay-bill]')
         if (!button) return
         const bill = (view._billsData?.bills || []).find((b) => String(b.id) === button.dataset.payBill)
-        if (bill) startSimulate(bill)
+        if (bill) startPayment(bill)
       })
     }
   }
@@ -977,73 +979,17 @@ function checkoutUI(bill, onConfirm) {
   </div>`
 }
 
-async function startSimulate(bill) {
-  const modal = checkoutUI(bill)
-  const div = document.createElement('div')
-  div.innerHTML = modal.trim()
-  document.body.appendChild(div)
-  
-  // Set fake fields
-  const methodBtn = div.querySelector('[data-method]')
-  let selectedMethod = 'gcash'
-  div.querySelectorAll('.demo-method').forEach(btn => {
-    btn.addEventListener('click', () => {
-      div.querySelectorAll('.demo-method').forEach(b => b.setAttribute('aria-pressed', 'false'))
-      btn.setAttribute('aria-pressed', 'true')
-      selectedMethod = btn.dataset.method
-    })
-  })
-  
-  div.querySelector('.demo-pay-btn').addEventListener('click', async () => {
-    const btn = div.querySelector('.demo-pay-btn')
-    btn.disabled = true
-    btn.textContent = 'Processing…'
-    
-    try {
-      await new Promise(r => setTimeout(r, 1500))
-      
-      const result = await api('/api/pay/simulate', { method: 'POST', body: { bill_id: Number(bill.id), method: selectedMethod } })
-      if (result?.ok) {
-        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-          <div class="demo-banner">DEMO — No real money</div>
-          <div class="card-head"><h2>Payment successful</h2></div>
-          <div class="demo-receipt">
-            <div class="row"><span>Reference</span><strong>${esc(result.payment_ref)}</strong></div>
-            <div class="row"><span>Amount</span><strong>${esc(fmtPeso(result.amount))}</strong></div>
-            <div class="row"><span>Period</span><strong>${esc(fmtPeriod(bill.period))}</strong></div>
-            <div class="row"><span>Method</span><strong>${esc(result.method)}</strong></div>
-            <div class="row"><span>Paid on</span><strong>${esc(new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</strong></div>
-          </div>
-          <button type="button" class="btn btn-primary demo-back" style="width:100%">Back to My bills</button>
-        </div></div></div>`
-        div.querySelector('.demo-back').addEventListener('click', () => {
-          document.body.removeChild(div)
-          myBillsView(document.querySelector('[data-view="my-bills"]'))
-        })
-      } else {
-        div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-          <div class="demo-banner">DEMO — No real money</div>
-          <div class="card-head"><h2>Payment failed</h2></div>
-          <p class="muted">${esc(result?.error || 'Something went wrong')}</p>
-          <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
-        </div></div></div>`
-        div.querySelector('.demo-back').addEventListener('click', () => {
-          document.body.removeChild(div)
-        })
-      }
-    } catch (err) {
-      btn.disabled = false
-      div.innerHTML = `<div class="demo-checkout"><div class="demo-overlay"></div><div class="demo-modal">
-        <div class="demo-banner">DEMO — No real money</div>
-        <div class="card-head"><h2>Payment error</h2></div>
-        <p class="muted">${esc(err.message || 'Something went wrong')}</p>
-        <button type="button" class="btn btn-secondary demo-back" style="width:100%">Back to My bills</button>
-      </div></div></div>`
-      div.querySelector('.demo-back').addEventListener('click', () => {
-        document.body.removeChild(div)
-      })
-    }
-  })
+async function startPayment(bill) {
+  const button = document.querySelector(`[data-pay-bill="${CSS.escape(String(bill.id))}"]`)
+  if (button) { button.disabled = true; button.textContent = 'Opening payment…' }
+  try {
+    const result = await api('/api/paymongo/checkout', { method: 'POST', body: { bill_id: Number(bill.id) } })
+    if (!result?.checkout_url) throw new Error('Payment checkout is unavailable.')
+    window.location.assign(result.checkout_url)
+  } catch (err) {
+    if (button) { button.disabled = false; button.textContent = 'Pay' }
+    alert(err.message || 'Unable to start payment. Please try again.')
+  }
 }
 
 // ---------- Boot ----------
