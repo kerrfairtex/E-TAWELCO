@@ -52,7 +52,9 @@ const ago = (d) => {
 
 const state = { session: null, profile: null, areas: [], team: null }
 const isStaff = () => state.session && state.session.role !== 'member'
-const isAdmin = () => state.session?.role === 'admin' || state.session?.role === 'master_admin'
+  const isAdmin = () => state.session?.role === 'admin' || state.session?.role === 'master_admin'
+  const isMasterAdmin = () => state.session?.role === 'master_admin'
+
 
 // ---------- API ----------
 async function api(path, opts = {}) {
@@ -728,7 +730,7 @@ const ensureAreas = async () => {
 async function openAddUserDialog(view) {
   await ensureAreas()
   const body = openDialog('Add user', `<form id="addUserForm" novalidate>
-    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option>${isMasterAdmin() ? '<option value="staff">Staff</option><option value="admin">Admin</option>' : ''}</select></div>
     <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
     <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
     <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
@@ -804,10 +806,10 @@ async function people(view) {
       <td class="num">${fmtNum(u.reports)}</td>
       <td class="small muted" title="${esc(u.last_seen_at ? fmtDate(u.last_seen_at) : 'Not seen yet')}">${esc(u.last_seen_at ? ago(u.last_seen_at) : 'Never')}</td>
       <td>${u.id === state.session.id ? badge(u.role, ROLE_LABEL) + ' <span class="small muted">(you)</span>'
-        : `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
+        : isMasterAdmin() ? `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
            <select class="input role-select" id="role-${esc(u.id)}" data-user="${esc(u.id)}" data-was="${esc(u.role)}">
              ${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}"${k === u.role ? ' selected' : ''}>${v}</option>`).join('')}
-           </select>`}
+           </select>` : badge(u.role, ROLE_LABEL)}
         <span class="small" data-role-msg="${esc(u.id)}" aria-live="polite"></span></td>
     </tr>`).join('') : '<tr><td colspan="5" class="empty">No people match these filters.</td></tr>'
     $$('[data-user]', view).forEach((sel) => sel.addEventListener('change', async () => {
