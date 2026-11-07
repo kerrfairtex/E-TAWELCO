@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>E-TAWELCO Tawi-Tawi | Electricity service for the islands of Tawi-Tawi</title>
-<meta name="description" content="Independent concept, not an official TAWELCO website. Sample bill estimator, outage note draft and barangay directory for Bongao, Tawi-Tawi.">
+<meta name="description" content="E-TAWELCO Tawi-Tawi customer services: pay your bill, report an outage, request a connection and find practical electricity guidance for your community.">
 <meta property="og:title" content="E-TAWELCO Tawi-Tawi | Electricity service for the islands of Tawi-Tawi">
 <meta property="og:description" content="Independent concept, not an official TAWELCO website. Sample bill estimator, outage note draft and barangay directory for Bongao, Tawi-Tawi.">
 <meta name="twitter:title" content="E-TAWELCO Tawi-Tawi | Electricity service for the islands of Tawi-Tawi">
@@ -594,6 +594,23 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 @media (max-width:760px){.container{padding-inline:18px}.section{padding-block:44px}.hero h1{font-size:2.7rem}.island-map{height:360px}.card,.bongao-directory,.island-card{padding:22px}}
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover,.service-link:hover{transform:none}.mega,.popover,.drawer,.search-overlay,.acc-panel,.callout-panel,.island-card .inner{transition-duration:0s!important}.drawer{transform:none}.popover,.acc-panel,.callout-panel{transform:none}}
 .field-slide-deck{max-width:980px;margin:28px auto 0}.field-gallery-grid{position:relative;min-height:clamp(260px,48vw,560px);overflow:hidden;border-radius:18px;background:var(--art-bg)}.field-shot{display:none;width:100%;height:100%;min-height:clamp(260px,48vw,560px);padding:0;border:0;background:none;cursor:pointer}.field-shot.is-active{display:block}.field-shot img{width:100%;height:100%;object-fit:cover}.field-slide-controls{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:18px}.field-dots{display:flex;gap:8px}.field-dot{width:10px;height:10px;padding:0;border:1px solid var(--brand);border-radius:50%;background:transparent;cursor:pointer}.field-dot[aria-selected="true"]{background:var(--brand);transform:scale(1.25)}
+  /* Utility-site finish: calm, accessible, operational rather than dashboard-like. */
+  :root{--foam:#f7f9fb;--card:#fff;--ink:#17324d;--muted:#5b6b7b;--line:#d8e1e8;--soft:#edf4f7;--sea:#123b5d;--brand:#0b6e8f;--brand-fill:#0b6e8f;--brand-hover:#07536d;--lagoon:#0b6e8f;--tint:rgba(11,110,143,.08);--art-bg:#e8f1f4;color-scheme:light}
+  body{background:var(--foam);color:var(--ink);font-family:var(--font-body)}
+  h1,h2,h3{font-family:var(--font-head);letter-spacing:-.025em}
+  .site-header{background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);box-shadow:0 2px 12px rgba(16,55,78,.06)}
+  .logo{color:var(--sea)}.logo-sub{color:var(--muted)}
+  .btn{border-radius:6px}.btn-primary{background:var(--brand-fill);box-shadow:0 3px 10px rgba(11,110,143,.16)}.btn-primary:hover{background:var(--brand-hover)}.btn-secondary{border-color:var(--brand);color:var(--brand)}
+  .card,.bongao-directory,.island-card,.panel,.news-list li{background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 22px rgba(16,55,78,.06)}
+  .card::before,.bongao-directory::before,.island-card::before,.panel::before,.news-list li::before{display:none}
+  .card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover{border-color:#b7ccd7;transform:translateY(-2px)}
+  .input,select.input{background:var(--card);border-color:var(--line);border-radius:7px;color:var(--ink)}
+  .hero{background:linear-gradient(120deg,#eef6f8,#dcecf1 52%,#f4f8f9)}.hero-copy::before{background:rgba(255,255,255,.94);box-shadow:18px 0 42px rgba(16,55,78,.08)}.hero h1{color:var(--sea)}.hero p,.mission p,.block .text p{color:var(--muted)}.hero-caption{background:var(--sea);border-radius:8px}
+  .quick-services{background:var(--card);border-color:var(--line)}.service-link{border-color:var(--line);color:var(--ink)}.service-link .icon{color:var(--brand)}.service-link:hover{background:var(--tint)}
+  .concept-notice{display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;padding:14px 24px;background:#eaf4f1;color:var(--ink);border-block:1px solid #cbe2d9;border-left:0;border-radius:0}.concept-notice .text-link{font-size:.9rem}.status-item{display:flex;align-items:center;gap:8px}.status-item span:last-child{color:var(--muted);font-size:.9rem}.status-dot{width:9px;height:9px;border-radius:50%;background:#2e9e3f;box-shadow:0 0 0 4px rgba(46,158,63,.14)}
+  .mission{background:var(--foam)}.bongao-context,#islands{background:#f0f6f8;border-block-color:var(--line)}.stats{background:var(--sea)}.closing-band{background:var(--brand-fill)}.site-footer{background:var(--sea);background-image:none;border-top:0}
+  .badge.steady{background:#e2f2e7;color:#23733a}.badge.limited{background:#fff1d2;color:#875d08}.badge.outage{background:#fde4e1;color:#a52c26}.badge{border-radius:999px;font-family:var(--font-body);font-size:.78rem}
+  @media (max-width:760px){.concept-notice{align-items:flex-start;justify-content:flex-start;gap:10px}.status-item{width:100%;align-items:flex-start}.status-item span:last-child{flex:1}.hero h1{font-size:2.65rem}}
 </style>
 </head>
 <body>
@@ -774,14 +791,14 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       <div class="hero-photo deco" aria-hidden="true"><img data-photo="hero" alt="" width="1440" height="1080" fetchpriority="high" decoding="async"></div>
       <div class="hero-grid">
         <div class="hero-copy">
-          <p class="hero-kicker" data-i18n="hero.kicker">Independent concept · Tawi-Tawi service information</p>
-          <h1 id="heroTitle" data-i18n="hero.title">Electricity service for the islands of Tawi-Tawi</h1>
-          <p data-i18n="hero.lead">Try sample tools to estimate a bill, prepare an outage note and review a new connection checklist. Includes census-based information for Bongao and its 35 barangays.</p>
+          <p class="hero-kicker" data-i18n="hero.kicker">Tawi-Tawi electric service · customer support</p>
+          <h1 id="heroTitle" data-i18n="hero.title">Reliable power starts with better service</h1>
+          <p data-i18n="hero.lead">Pay your bill, report a power interruption, request a connection and find practical guidance for your household or business.</p>
           <div class="hero-actions">
-            <a class="btn btn-primary" href="#islands" data-i18n="hero.discover">Find your island</a>
-            <a class="text-link" href="#connect" data-i18n="hero.apply">Apply for a connection</a>
+            <a class="btn btn-primary" href="#pay" data-i18n="hero.discover">Pay your bill</a>
+            <a class="text-link" href="#report" data-i18n="hero.apply">Report an outage</a>
           </div>
-          <p class="hotline" data-i18n="hero.hotline">Bill estimate, outage note and connection checklist.</p>
+          <p class="hotline" data-i18n="hero.hotline">Account services are available online. For emergencies, stay away from fallen lines and contact the number on your bill.</p>
         </div>
       </div>
       <a class="hero-caption deco" href="#solar"><svg class="icon" aria-hidden="true"><use href="#i-solar"/></svg><span data-i18n="hero.caption">How the island grid works</span></a>
@@ -797,14 +814,16 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     </div>
   </nav>
 
-  <aside class="concept-notice" aria-label="Service availability">
-    <p><strong>Independent concept, not an official TAWELCO service.</strong> Billing and outage tools are demonstrations. No payment or report is submitted. <a href="#bongao">Explore sourced Bongao information</a>.</p>
+  <aside class="concept-notice service-status" aria-label="Service information">
+    <div class="status-item"><span class="status-dot" aria-hidden="true"></span><strong>Service information</strong><span>Check your account for the latest bill and outage updates.</span></div>
+    <a class="text-link" href="#report">Report an outage</a>
+    <a class="text-link" href="#pay">Pay or view your bill</a>
   </aside>
 
   <section class="mission" aria-labelledby="missionTitle">
     <div class="container">
-      <div><p class="section-label" data-i18n="mission.label">Household energy guidance</p><h2 id="missionTitle" data-i18n="mission.title">Understand your household electricity service</h2></div>
-      <div><p data-i18n="mission.copy">This section explains billing, new connections and outage reporting for households in Tawi-Tawi. Use the tools on this page to estimate a monthly bill, find your barangay and prepare an outage note.</p><a class="text-link" href="#home" data-i18n="mission.link">View household guidance</a></div>
+      <div><p class="section-label" data-i18n="mission.label">Customer service, made practical</p><h2 id="missionTitle" data-i18n="mission.title">Everything you need to manage your electric service</h2></div>
+      <div><p data-i18n="mission.copy">Use the customer portal to keep your account current, pay securely, report interruptions and follow service requests. Helpful billing and safety guidance is available for households, businesses and new connections.</p><a class="text-link" href="#connect" data-i18n="mission.link">Explore customer services</a></div>
     </div>
   </section>
 
