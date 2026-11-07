@@ -60,11 +60,22 @@ export async function createCheckoutSession(payload: Record<string, unknown>) {
   const secretKey = getPayMongoSecret()
   if (!secretKey) throw new Error('PayMongo server configuration is missing')
 
-  const response = await fetch(`${PAYMONGO_API_BASE}/checkout_sessions`, {
-    method: 'POST',
-    headers: paymongoHeaders(secretKey),
-    body: JSON.stringify(payload),
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 15000)
+  let response: Response
+  try {
+    response = await fetch(`${PAYMONGO_API_BASE}/checkout_sessions`, {
+      method: 'POST',
+      headers: paymongoHeaders(secretKey),
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw new Error('PayMongo checkout timed out')
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
 
   const text = await response.text()
   if (!response.ok) {

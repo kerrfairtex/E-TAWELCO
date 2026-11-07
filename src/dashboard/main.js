@@ -67,6 +67,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
     headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
+    signal: opts.signal,
   })
   const data = await res.json().catch(() => ({}))
   if (res.status === 401) { showAuth(); throw new Error('Please log in again') }
@@ -982,13 +983,19 @@ function checkoutUI(bill, onConfirm) {
 async function startPayment(bill) {
   const button = document.querySelector(`[data-pay-bill="${CSS.escape(String(bill.id))}"]`)
   if (button) { button.disabled = true; button.textContent = 'Opening payment…' }
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 20000)
   try {
-    const result = await api('/api/paymongo/checkout', { method: 'POST', body: { bill_id: Number(bill.id) } })
-    if (!result?.checkout_url) throw new Error('Payment checkout is unavailable.')
-    window.location.assign(result.checkout_url)
+    const result = await api('/api/paymongo/checkout', { method: 'POST', body: { bill_id: Number(bill.id) }, signal: controller.signal })
+    if (!result?.checkout_url || !/^https:\/\//i.test(result.checkout_url)) throw new Error('Payment checkout is unavailable.')
+    window.location.href = result.checkout_url
   } catch (err) {
+    const message = err?.name === 'AbortError' ? 'Payment checkout timed out. Please try again.' : (err.message || 'Unable to start payment. Please try again.')
     if (button) { button.disabled = false; button.textContent = 'Pay' }
-    alert(err.message || 'Unable to start payment. Please try again.')
+    alert(message)
+    return
+  } finally {
+    window.clearTimeout(timeout)
   }
 }
 
