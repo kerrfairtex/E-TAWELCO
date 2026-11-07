@@ -61,7 +61,7 @@ export async function createCheckoutSession(payload: Record<string, unknown>) {
   if (!secretKey) throw new Error('PayMongo server configuration is missing')
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 15000)
+  const timeout = setTimeout(() => controller.abort(), 30000)
   let response: Response
   try {
     response = await fetch(`${PAYMONGO_API_BASE}/checkout_sessions`, {

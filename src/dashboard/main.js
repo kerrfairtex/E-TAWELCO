@@ -984,7 +984,7 @@ async function startPayment(bill) {
   const button = document.querySelector(`[data-pay-bill="${CSS.escape(String(bill.id))}"]`)
   if (button) { button.disabled = true; button.textContent = 'Opening payment…' }
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 20000)
+  const timeout = window.setTimeout(() => controller.abort(), 45000)
   try {
     const result = await api('/api/paymongo/checkout', { method: 'POST', body: { bill_id: Number(bill.id) }, signal: controller.signal })
     if (!result?.checkout_url || !/^https:\/\//i.test(result.checkout_url)) throw new Error('Payment checkout is unavailable.')
@@ -1020,7 +1020,8 @@ async function start() {
     throw new Error(`This is a ${adminAccount ? ROLE_LABEL[profile.role] : ROLE_LABEL.member} account. Use the ${adminAccount ? 'Admin' : 'Members'} login.`)
   }
   state.profile = { ...profile, email: user.email }
-  state.areas = []
+  const areaResponse = await api('/api/areas')
+  state.areas = Array.isArray(areaResponse?.areas) ? areaResponse.areas : []
   state.session = { id: user.id, email: user.email, role: profile.role }
   $$('#sideNav [data-role]').forEach((a) => {
     const required = a.dataset.role

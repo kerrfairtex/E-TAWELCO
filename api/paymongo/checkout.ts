@@ -78,7 +78,7 @@ export default async function handler(req: Request) {
             currency: 'PHP',
             quantity: 1,
           }],
-          payment_method_types: ['card', 'gcash', 'paymaya', 'qrph'],
+          payment_method_types: ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'],
           success_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=success`,
           cancel_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=cancelled`,
           reference_number: `BILL-${bill.id}-${bill.period}`,
