@@ -97,7 +97,7 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
       console.error('[v0] profile verification failed for user ' + userId + ': ' + String(readError?.message || 'profile data mismatch'))
       return fail('Could not create the account', 500)
     }
-    await audit(client, s, 'user.create', 'profile', userId, { role: type, id_masked: '****' + login_id.slice(-4) })
+    await audit(client, s, 'user.create', 'profile', userId, { role: type, id_masked: email.replace(/^(.).*(@.*)$/, '$1***$2') })
     return json({ ok: true, id: userId, role: type, login_id, password }, 201)
   }
   if (!id) return fail('User ID is required', 400)
