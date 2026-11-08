@@ -595,6 +595,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover,.service-link:hover{transform:none}.mega,.popover,.drawer,.search-overlay,.acc-panel,.callout-panel,.island-card .inner{transition-duration:0s!important}.drawer{transform:none}.popover,.acc-panel,.callout-panel{transform:none}}
 .field-slide-deck{max-width:980px;margin:28px auto 0}.field-gallery-grid{position:relative;min-height:clamp(260px,48vw,560px);overflow:hidden;border-radius:18px;background:var(--art-bg)}.field-shot{display:none;width:100%;height:100%;min-height:clamp(260px,48vw,560px);padding:0;border:0;background:none;cursor:pointer}.field-shot.is-active{display:block}.field-shot img{width:100%;height:100%;object-fit:cover}.field-slide-controls{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:18px}.field-dots{display:flex;gap:8px}.field-dot{width:10px;height:10px;padding:0;border:1px solid var(--brand);border-radius:50%;background:transparent;cursor:pointer}.field-dot[aria-selected="true"]{background:var(--brand);transform:scale(1.25)}
 </style>
+<style>.pw-wrap{position:relative}.pw-wrap .input{padding-right:4.75rem;width:100%}.pw-toggle{position:absolute;right:.25rem;top:50%;transform:translateY(-50%);min-width:44px;min-height:44px;padding:0 .6rem;background:none;border:0;color:inherit;font:inherit;font-size:.85em;font-weight:600;cursor:pointer;border-radius:8px}.pw-toggle:focus-visible{outline:2px solid currentColor;outline-offset:-2px}button[aria-busy="true"]{opacity:.7;cursor:progress}</style>
 </head>
 <body>
 <a class="skip" href="#main" data-i18n="skip">Skip to main content</a>
@@ -646,13 +647,13 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <h2 data-i18n="login.title">Member log-in</h2>
           <form id="loginForm" novalidate>
             <div class="field">
-              <label for="acct">Account number</label>
-              <input class="input" id="acct" name="acct" inputmode="numeric" autocomplete="username" aria-describedby="acctErr">
+              <label for="acct">Email</label>
+              <input class="input" id="acct" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="acctErr">
               <span class="error" id="acctErr" aria-live="polite"></span>
             </div>
             <div class="field">
               <label for="pw">Password</label>
-              <input class="input" id="pw" name="pw" type="password" autocomplete="current-password" aria-describedby="pwErr">
+              <div class="pw-wrap"><input class="input" id="pw" name="pw" type="password" autocomplete="current-password" aria-describedby="pwErr"><button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false" aria-controls="pw">Show</button></div>
               <span class="error" id="pwErr" aria-live="polite"></span>
             </div>
             <div class="field">
@@ -673,13 +674,13 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <h2>Admin log-in</h2>
           <form id="adminLoginForm" novalidate>
             <div class="field">
-              <label for="adminId">Admin ID</label>
-              <input class="input" id="adminId" name="adminId" autocomplete="username" aria-describedby="adminIdErr">
+              <label for="adminId">Email</label>
+              <input class="input" id="adminId" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="adminIdErr">
               <span class="error" id="adminIdErr" aria-live="polite"></span>
             </div>
             <div class="field">
               <label for="adminPw">Password</label>
-              <input class="input" id="adminPw" name="adminPw" type="password" autocomplete="current-password" aria-describedby="adminPwErr">
+              <div class="pw-wrap"><input class="input" id="adminPw" name="adminPw" type="password" autocomplete="current-password" aria-describedby="adminPwErr"><button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false" aria-controls="adminPw">Show</button></div>
               <span class="error" id="adminPwErr" aria-live="polite"></span>
             </div>
             <div class="form-links"><a href="#footer">Need access?</a><a href="#footer">Contact IT support</a></div>
