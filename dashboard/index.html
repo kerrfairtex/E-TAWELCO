@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dashboard | E-TAWELCO Tawi-Tawi</title>
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#BC1730">
+<meta name="theme-color" content="#facc15">
 <link rel="icon" type="image/png" href="/assets/tawelco-seal-transparent.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -74,7 +74,7 @@ textarea.input{padding:10px 12px;min-height:90px;resize:vertical}
 .topbar{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .topbar-in{display:flex;align-items:center;gap:16px;min-height:64px;padding:0 24px;max-width:1400px;margin:0 auto}
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--brand);font-family:var(--font-head);font-weight:800;font-size:1.1rem;letter-spacing:-.04em;margin-right:auto}
-.logo img{width:36px;height:36px}
+.logo img{width:42px;height:42px;object-fit:contain;border-radius:50%;background:#000}
 .logo small{display:block;font-size:.72rem;font-weight:600;color:var(--muted);letter-spacing:0}
 .who{display:flex;align-items:center;gap:12px;font-size:.92rem}
 .who-name{font-weight:700;max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -239,7 +239,7 @@ dl.facts dd{margin:0}
 
 <header class="topbar">
   <div class="topbar-in">
-    <a class="logo" href="/"><img src="/assets/tawelco-seal-transparent.png" alt="" width="36" height="36"><span>E-TAWELCO<small>Service dashboard</small></span></a>
+    <a class="logo" href="/"><img src="/assets/tawelco-seal-transparent.png" alt="E-TAWELCO official seal" width="42" height="42"><span>E-TAWELCO<small>Service dashboard</small></span></a>
     <div class="who" id="who" hidden>
       <span class="who-name" id="whoName"></span>
       <span class="badge" id="whoRole"></span>
