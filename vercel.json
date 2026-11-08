@@ -9,12 +9,10 @@
       "maxDuration": 30
     },
     "api/paymongo/checkout.ts": {
-      "maxDuration": 60,
-      "runtime": "nodejs20.x"
+      "maxDuration": 60
     },
     "api/paymongo/webhook.ts": {
-      "maxDuration": 60,
-      "runtime": "nodejs20.x"
+      "maxDuration": 60
     }
   }
 }
