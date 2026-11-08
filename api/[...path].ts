@@ -38,17 +38,20 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
   const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
   if (!type) return fail('Type is required.')
   const full_name = text(b.full_name, 120)
-    const login_id = text(b.login_id, 20).replace(/\s/g, '')
+    const email = text(b.email, 254).trim().toLowerCase()
+    const account_no = type === 'member' && b.account_no ? text(b.account_no, 20).replace(/\s/g, '') : ''
+    const login_id = email
     const area_id = b.area_id ? text(b.area_id, 100) : null
-    const confirm_id = text(b.confirm_id, 20).replace(/\s/g, '')
-    if (!type || !full_name || full_name.length < 2 || !login_id) return fail('Type, name and login ID are required.')
-    if (type === 'member' && !/^\d{11}$/.test(login_id)) return fail('Member login ID must be 11 digits.')
-    if (type !== 'member' && !/^\d{8}$/.test(login_id)) return fail('Staff and admin login IDs must be 8 digits.')
-    if (type === 'admin' && confirm_id !== login_id) return fail('Type the ID again to confirm.')
+    const confirm_email = text(b.confirm_email, 254).trim().toLowerCase()
+    if (!type || !full_name || full_name.length < 2 || !email) return fail('Type, name and email are required.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Enter a valid email address.')
+    if (account_no && !/^\d{11}$/.test(account_no)) return fail('Account number must be 11 digits.')
+    
+    if (type === 'admin' && confirm_email !== email) return fail('Type the email again to confirm.')
     if (area_id) { const { data: area } = await client.from('service_areas').select('id').eq('id', area_id).maybeSingle(); if (!area) return fail('Unknown area.') }
-    const dup = type === 'member' ? (await client.from('profiles').select('id').eq('account_no', login_id).maybeSingle()).data : (await client.from('profiles').select('id').eq('admin_id', login_id).maybeSingle()).data
-    if (dup) return fail('That ID is already in use', 409)
-    const email = `${login_id}@${type === 'member' ? 'member' : 'admin'}.tawelco.local`
+    const dup = account_no ? (await client.from('profiles').select('id').eq('account_no', account_no).maybeSingle()).data : null
+    if (dup) return fail('That email or account number is already in use', 409)
+    
     const pool = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
     let password = ''
     const limit = 256 - (256 % pool.length)
@@ -58,13 +61,13 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
     if (createError || !userId) {
       const msg = String(createError?.message || '')
       const dupErr = msg.includes('already') || msg.includes('exists') || msg.includes('duplicate')
-      if (dupErr) return fail('That ID is already in use', 409)
+      if (dupErr) return fail('That email or account number is already in use', 409)
       console.error('[v0] createUser failed for email ' + email + ': ' + msg)
       return fail('Could not create the account', 502)
     }
     const update: Record<string, unknown> = { full_name, updated_at: new Date().toISOString() }
-    if (type === 'member') update.account_no = login_id
-    else update.admin_id = login_id
+    if (account_no) update.account_no = account_no
+    
     if (area_id) update.area_id = area_id
     else update.area_id = null
     const { error: updateError } = await client.from('profiles').update(update).eq('id', userId)
@@ -74,7 +77,7 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
       return fail('Could not create the account', 500)
     }
     // If the trigger-created profile wasn't found (0 rows affected), upsert instead
-    const upserted = await client.from('profiles').upsert({ id: userId, email: `${login_id}@${type === 'member' ? 'member' : 'admin'}.tawelco.local`, ...update }, { onConflict: 'id' })
+    const upserted = await client.from('profiles').upsert({ id: userId, email, ...update }, { onConflict: 'id' })
     if (upserted.error) {
       try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
       console.error('[v0] profile upsert failed for user ' + userId + ': ' + String(upserted.error.message))
@@ -89,12 +92,12 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
   }
   }
     const { data: profile, error: readError } = await client.from('profiles').select('id, full_name, role, account_no, admin_id, area_id').eq('id', userId).maybeSingle()
-    if (readError || !profile || profile.role !== type || profile.full_name !== full_name || (type === 'member' && profile.account_no !== login_id) || (type !== 'member' && profile.admin_id !== login_id) || (area_id && profile.area_id !== area_id) || (!area_id && profile.area_id !== null)) {
+    if (readError || !profile || profile.role !== type || profile.full_name !== full_name || (account_no && profile.account_no !== account_no) || false || (area_id && profile.area_id !== area_id) || (!area_id && profile.area_id !== null)) {
       try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
       console.error('[v0] profile verification failed for user ' + userId + ': ' + String(readError?.message || 'profile data mismatch'))
       return fail('Could not create the account', 500)
     }
-    await audit(client, s, 'user.create', 'profile', userId, { role: type, id_masked: '****' + login_id.slice(-4) })
+    await audit(client, s, 'user.create', 'profile', userId, { role: type, id_masked: email.replace(/^(.).*(@.*)$/, '$1***$2') })
     return json({ ok: true, id: userId, role: type, login_id, password }, 201)
   }
   if (!id) return fail('User ID is required', 400)

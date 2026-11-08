@@ -733,11 +733,12 @@ async function openAddUserDialog(view) {
   const body = openDialog('Add user', `<form id="addUserForm" novalidate>
     <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option>${isAdmin() ? '<option value="staff">Staff</option><option value="admin">Admin</option>' : ''}</select></div>
     <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
-    <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
-    <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
+    <div class="field"><label for="uId">Email</label><input class="input" id="uId" type="email" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" required></div>
+    <p class="small muted" id="uIdHint">The person signs in with this email. A one-time password is shown after you create the account.</p>
+    <div class="field" id="uAcctWrap" hidden><label for="uAcct">Account number <span class="muted small">(optional, used for billing)</span></label><input class="input" id="uAcct" inputmode="numeric" maxlength="11" autocomplete="off"></div>
     <div class="field"><label for="uArea">Island area (optional)</label><select class="input" id="uArea">${areaOptions('', 'No area')}</select></div>
     <p class="small muted" id="uAreaError" hidden>Areas could not be loaded. You can still create the account and assign an area later.</p>
-    <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the ID again to confirm</label><input class="input" id="uConfirm" inputmode="numeric" autocomplete="off" required></div>
+    <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the email again to confirm</label><input class="input" id="uConfirm" type="email" autocomplete="off" autocapitalize="none" required></div>
     <button class="btn btn-primary" type="submit">Create account</button>
     <p class="msg" aria-live="polite"></p>
   </form>`)
@@ -746,9 +747,9 @@ async function openAddUserDialog(view) {
   const idInput = $('#uId', body)
   const hint = $('#uIdHint', body)
   const confirmWrap = $('#uConfirmWrap', body)
-  const updateHint = () => { hint.textContent = typeSelect.value === 'member' ? 'Member account number must be 11 digits.' : 'Staff and admin IDs must be 8 digits.'; confirmWrap.hidden = typeSelect.value !== 'admin' }
+  const updateHint = () => { $('#uAcctWrap', body).hidden = typeSelect.value !== 'member'; confirmWrap.hidden = typeSelect.value !== 'admin' }
   typeSelect.addEventListener('change', updateHint)
-  idInput.addEventListener('input', () => { const v = idInput.value.replace(/\s/g, ''); idInput.setCustomValidity(typeSelect.value === 'member' ? (/^\d{11}$/.test(v) ? '' : 'Must be 11 digits') : (/^\d{8}$/.test(v) ? '' : 'Must be 8 digits')); })
+  idInput.addEventListener('input', () => idInput.setCustomValidity(''))
   typeSelect.addEventListener('change', () => idInput.dispatchEvent(new Event('input')))
   updateHint()
   body.addEventListener('submit', (e) => {
@@ -756,18 +757,20 @@ async function openAddUserDialog(view) {
     const msg = $('.msg', body)
     const type = typeSelect.value
     const full_name = $('#uName', body).value.trim()
-    const login_id = idInput.value.replace(/\s/g, '')
+    const email = idInput.value.trim().toLowerCase()
     const area_id = $('#uArea', body).value || null
-    const confirm_id = $('#uConfirm', body)?.value.replace(/\s/g, '') ?? ''
-    if (!type || !full_name || full_name.length < 2 || !login_id) return setMsg(msg, 'Type, name and login ID are required.')
-    if (type === 'member' && !/^\d{11}$/.test(login_id)) return setMsg(msg, 'Member login ID must be 11 digits.')
-    if (type !== 'member' && !/^\d{8}$/.test(login_id)) return setMsg(msg, 'Staff and admin login IDs must be 8 digits.')
-    if (type === 'admin' && confirm_id !== login_id) return setMsg(msg, 'Type the ID again to confirm.')
+    const confirm_email = ($('#uConfirm', body)?.value ?? '').trim().toLowerCase()
+    const account_no = type === 'member' ? ($('#uAcct', body)?.value ?? '').replace(/\s/g, '') : ''
+    if (!type || !full_name || full_name.length < 2 || !email) return setMsg(msg, 'Type, name and email are required.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setMsg(msg, 'Enter a valid email, like name@gmail.com.')
+    if (account_no && !/^\d{11}$/.test(account_no)) return setMsg(msg, 'Account number must be 11 digits.')
+    
+    if (type === 'admin' && confirm_email !== email) return setMsg(msg, 'Type the email again to confirm.')
     busy($('button[type=submit]', body), async () => {
       try {
-        const result = await api('/api/users', { method: 'POST', body: { type, full_name, login_id, area_id, confirm_id } })
+        const result = await api('/api/users', { method: 'POST', body: { type, full_name, email, account_no, area_id, confirm_email } })
         body.innerHTML = `<div class="card"><h2>Account created</h2>
-          <p><strong>Login ID:</strong> <code>${esc(result.login_id)}</code></p>
+          <p><strong>Email:</strong> <code>${esc(result.login_id ?? email)}</code></p>
           <p><strong>One-time password:</strong></p>
           <div style="display:flex;gap:8px;align-items:center">
             <input type="text" id="newUserPw" value="${esc(result.password)}" readonly style="font-family:monospace" readonly onclick="this.select()">
