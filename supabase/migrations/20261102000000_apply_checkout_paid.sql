@@ -1,3 +1,8 @@
+alter table public.payments
+  add column if not exists account_id uuid,
+  add column if not exists currency text not null default 'PHP',
+  add column if not exists raw_event_id text;
+
 create or replace function public.apply_checkout_paid(
   p_event_id text,
   p_event_type text,
@@ -47,7 +52,7 @@ begin
   where id = v_attempt.bill_id
   for update;
 
-  if exists (select 1 from public.payments where paymongo_reference = p_payment_id) then
+  if exists (select 1 from public.payments where provider_payment_id = p_payment_id) then
     v_result := 'duplicate';
   elsif v_bill.status = 'paid'
      or exists (select 1 from public.payments where bill_id = v_bill.id and status = 'paid') then
@@ -59,9 +64,9 @@ begin
     v_result := 'amount_mismatch';
   else
     insert into public.payments
-      (bill_id, paymongo_reference, amount, method, status, paid_at, account_id, currency, raw_event_id)
+      (bill_id, provider_payment_id, amount_centavos, method, status, paid_at, account_id, currency, raw_event_id)
     values
-      (v_bill.id, p_payment_id, (p_amount_centavos / 100.0)::numeric(12,2),
+      (v_bill.id, p_payment_id, p_amount_centavos,
        coalesce(p_method, 'unknown'), 'paid', coalesce(p_paid_at, now()),
        v_attempt.user_id, 'PHP', p_event_id);
 

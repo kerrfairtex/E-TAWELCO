@@ -40,8 +40,9 @@ export function getWebhookSecret() {
 
 export function isLiveAvailable() {
   return Boolean(
-    process.env.PAYMONGO_SECRET_KEY &&
-      process.env.PAYMONGO_PUBLIC_KEY &&
+    process.env.PAYMONGO_MODE === 'live' &&
+      process.env.PAYMONGO_SECRET_KEY?.startsWith('sk_live_') &&
+      process.env.PAYMONGO_PUBLIC_KEY?.startsWith('pk_live_') &&
       process.env.PAYMONGO_WEBHOOK_SECRET,
   )
 }
@@ -56,7 +57,7 @@ export function createSupabaseServerClient(): SupabaseClient {
   })
 }
 
-export async function createCheckoutSession(payload: Record<string, unknown>) {
+export async function createCheckoutSession(payload: Record<string, unknown>, idempotencyKey?: string) {
   const secretKey = getPayMongoSecret()
   if (!secretKey) throw new Error('PayMongo server configuration is missing')
 
@@ -66,7 +67,10 @@ export async function createCheckoutSession(payload: Record<string, unknown>) {
   try {
     response = await fetch(`${PAYMONGO_API_BASE}/checkout_sessions`, {
       method: 'POST',
-      headers: paymongoHeaders(secretKey),
+      headers: {
+        ...paymongoHeaders(secretKey),
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+      },
       body: JSON.stringify(payload),
       signal: controller.signal,
     })

@@ -1,5 +1,4 @@
 import crypto from 'node:crypto'
-import type { Config } from '@netlify/functions'
 import { fail, json } from '../_lib/core.ts'
 import { createSupabaseServerClient, getWebhookSecret } from '../_lib/paymongo.ts'
 
@@ -24,12 +23,47 @@ export function verifyPayMongoSignature(rawBody: string, header: string, secret:
   const timestampSeconds = Number(timestamp)
   if (!timestamp || !Number.isFinite(timestampSeconds)) return false
   if (Math.abs(now - timestampSeconds * 1000) > 5 * 60 * 1000) return false
-
   const expected = crypto.createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex')
   const received = mode === 'test' ? testSignature : liveSignature
   if (!/^[a-f0-9]+$/i.test(received) || received.length !== expected.length) return false
-
   return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(received, 'hex'))
+}
+
+export type ParsedPaidCheckout = {
+  eventId: string
+  eventType: string
+  livemode: boolean
+  checkoutSessionId: string
+  paymentId: string
+  amountCentavos: number
+  currency: string
+  method: string
+  paidAt: string
+}
+
+export function parsePaidCheckoutEvent(event: any): ParsedPaidCheckout | null {
+  const eventAttributes = event?.data?.attributes ?? {}
+  const session = eventAttributes.data ?? {}
+  const sessionAttributes = session.attributes ?? {}
+  const payments = Array.isArray(sessionAttributes.payments) ? sessionAttributes.payments : []
+  const paidPayment = payments.find((payment: any) => payment?.attributes?.status === 'paid')
+  if (!paidPayment) return null
+  const paymentAttributes = paidPayment.attributes ?? {}
+  const method = paymentAttributes.source?.type
+    || paymentAttributes.payment_method_details?.type
+    || paymentAttributes.payment_method?.type
+    || 'unknown'
+  return {
+    eventId: String(event?.data?.id || ''),
+    eventType: String(eventAttributes.type || ''),
+    livemode: Boolean(eventAttributes.livemode),
+    checkoutSessionId: String(session?.id || ''),
+    paymentId: String(paidPayment.id || ''),
+    amountCentavos: Number(paymentAttributes.amount),
+    currency: String(paymentAttributes.currency || '').toUpperCase(),
+    method: String(method),
+    paidAt: String(paymentAttributes.paid_at || eventAttributes.created_at || new Date().toISOString()),
+  }
 }
 
 function errorCode(error: unknown) {
@@ -37,100 +71,62 @@ function errorCode(error: unknown) {
 }
 
 function auditPayload(eventId: string, eventType: string, details: Record<string, unknown>) {
-  return { action: `paymongo.${eventType}`, entity_type: 'payment_event', entity_id: eventId, details }
+  return { actor_id: null, actor_email: null, action: `paymongo.${eventType}`, entity: 'payment_event', entity_id: eventId, details }
 }
 
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
-
   try {
     const rawBody = await req.text()
-    const signatureHeader = req.headers.get('paymongo-signature') || req.headers.get('Paymongo-Signature') || ''
     const mode = process.env.PAYMONGO_MODE === 'live' ? 'live' : 'test'
     const secret = getWebhookSecret()
+    const signatureHeader = req.headers.get('paymongo-signature') || req.headers.get('Paymongo-Signature') || ''
     if (!secret) return fail('Webhook is not configured', 503)
     if (!signatureHeader || !verifyPayMongoSignature(rawBody, signatureHeader, secret, mode)) return fail('Invalid webhook signature', 401)
 
     let event: any
     try { event = JSON.parse(rawBody) } catch { return fail('Invalid webhook body', 400) }
-
-    const eventId = String(event?.data?.id || event?.id || '')
-    const eventType = String(event?.data?.attributes?.type || event?.type || '')
-    if (!eventId || !eventType || !ALLOWED_EVENTS.has(eventType)) return json({ ok: true, ignored: true }, 200)
+    const eventId = String(event?.data?.id || '')
+    const attributes = event?.data?.attributes ?? {}
+    const eventType = String(attributes.type || '')
+    if (!eventId || !ALLOWED_EVENTS.has(eventType)) return json({ ok: true, ignored: true }, 200)
+    if (Boolean(attributes.livemode) !== (mode === 'live')) return fail('Webhook environment mismatch', 400)
 
     const client = createSupabaseServerClient()
-    const livemode = Boolean(event?.data?.attributes?.livemode ?? event?.livemode ?? mode === 'live')
-    const { error: eventError } = await client.from('payment_events').insert({
-      provider_event_id: eventId,
-      type: eventType,
-      raw_payload: event,
-      livemode,
-    })
-    if (eventError) {
-      if (errorCode(eventError) === '23505') return json({ ok: true, replay: true }, 200)
-      throw eventError
-    }
-
-    const attributes = event?.data?.attributes || {}
-    const checkoutSessionId = String(attributes.checkout_session_id || attributes.checkout_session?.id || attributes.metadata?.checkout_session_id || '')
-    const paymentId = String(attributes.payment_id || attributes.payment?.id || event?.data?.id || '')
-    const amountCentavos = Number(attributes.amount ?? attributes.payment?.amount ?? 0)
-    const currency = String(attributes.currency || attributes.payment?.currency || 'PHP').toUpperCase()
-    const method = String(attributes.payment_method_type || attributes.method || 'unknown')
-    const paidAt = attributes.paid_at || attributes.updated_at || new Date().toISOString()
-
-    const { data: attempt, error: attemptError } = await client
-      .from('payment_attempts')
-      .select('id,bill_id,provider_checkout_session_id,amount_centavos,currency')
-      .eq('provider_checkout_session_id', checkoutSessionId)
-      .maybeSingle()
-    if (attemptError) throw attemptError
-    if (!attempt) {
-      const { error: auditError } = await client.from('audit_log').insert(auditPayload(eventId, eventType, { reason: 'attempt_not_found' }))
-      if (auditError) throw auditError
-      return json({ ok: true, ignored: true }, 200)
-    }
-
-    const { data: bill, error: billError } = await client.from('bills').select('id,amount_centavos,amount,status').eq('id', attempt.bill_id).single()
-    if (billError) throw billError
-
-    if (eventType.endsWith('.paid')) {
-      const expectedAmount = Number(bill.amount_centavos)
-      if (amountCentavos !== expectedAmount || currency !== 'PHP' || currency !== String(attempt.currency).toUpperCase()) {
-        const { error: auditError } = await client.from('audit_log').insert(auditPayload(eventId, eventType, { reason: 'amount_or_currency_mismatch', attempt_id: attempt.id, expected_amount_centavos: expectedAmount, received_amount_centavos: amountCentavos, received_currency: currency }))
-        if (auditError) throw auditError
-        return json({ ok: true, flagged: true }, 200)
+    if (eventType === 'checkout_session.payment.paid') {
+      const parsed = parsePaidCheckoutEvent(event)
+      if (!parsed || parsed.eventId !== eventId || !parsed.checkoutSessionId || !parsed.paymentId || !Number.isSafeInteger(parsed.amountCentavos) || parsed.amountCentavos <= 0 || parsed.currency !== 'PHP') {
+        await client.from('audit_log').insert(auditPayload(eventId, eventType, { reason: 'invalid_paid_payload' }))
+        return fail('Invalid payment event payload', 400)
       }
-
-      const { error: rpcError } = await client.rpc('apply_checkout_paid', {
-        p_event_id: eventId,
-        p_event_type: eventType,
-        p_livemode: livemode,
+      const { data: result, error } = await client.rpc('apply_checkout_paid', {
+        p_event_id: parsed.eventId,
+        p_event_type: parsed.eventType,
+        p_livemode: parsed.livemode,
         p_payload: event,
-        p_checkout_session_id: checkoutSessionId,
-        p_payment_id: paymentId,
-        p_amount_centavos: amountCentavos,
-        p_method: method,
-        p_paid_at: paidAt,
-        p_channel: 'paymongo',
+        p_checkout_session_id: parsed.checkoutSessionId,
+        p_payment_id: parsed.paymentId,
+        p_amount_centavos: parsed.amountCentavos,
+        p_method: parsed.method,
+        p_paid_at: parsed.paidAt,
+        p_channel: parsed.method === 'gcash' || parsed.method === 'paymaya' || parsed.method === 'qrph' || parsed.method === 'grab_pay' ? 'mobile_wallet' : 'bank',
       })
-      if (rpcError) throw rpcError
-    } else {
-      const nextStatus = eventType.endsWith('failed') ? 'failed' : 'expired'
-      const { error: updateError } = await client.from('payment_attempts').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', attempt.id)
-      if (updateError) throw updateError
+      if (error) throw error
+      if (result === 'unknown_session') return json({ ok: true, retryable: true, result }, 202)
+      return json({ ok: true, processed: true, result }, 200)
     }
 
-    const { error: processedError } = await client.from('payment_events').update({ processed_at: new Date().toISOString() }).eq('provider_event_id', eventId)
-    if (processedError) throw processedError
-    const { error: auditError } = await client.from('audit_log').insert(auditPayload(eventId, eventType, { attempt_id: attempt.id, payment_id: paymentId }))
-    if (auditError) throw auditError
-
+    const { error: insertError } = await client.from('payment_events').insert({ provider_event_id: eventId, type: eventType, raw_payload: event, livemode: Boolean(attributes.livemode) })
+    if (insertError && errorCode(insertError) !== '23505') throw insertError
+    if (insertError && errorCode(insertError) === '23505') return json({ ok: true, replay: true }, 200)
+    const nestedSessionId = String(attributes.data?.id || attributes.checkout_session_id || '')
+    if (nestedSessionId) {
+      await client.from('payment_attempts').update({ status: eventType === 'payment.failed' ? 'failed' : 'expired', updated_at: new Date().toISOString() }).eq('provider_checkout_session_id', nestedSessionId).eq('status', 'pending')
+    }
+    await client.from('payment_events').update({ processed_at: new Date().toISOString() }).eq('provider_event_id', eventId)
     return json({ ok: true, processed: true }, 200)
   } catch (error) {
     console.error('[paymongo-webhook]', error)
     return fail('Unable to process webhook', 500)
   }
 }
-
-export const config: Config = { path: '/api/paymongo/webhook', method: 'POST' }
