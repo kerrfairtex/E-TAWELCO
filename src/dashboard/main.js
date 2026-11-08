@@ -731,7 +731,7 @@ const ensureAreas = async () => {
 async function openAddUserDialog(view) {
   await ensureAreas()
   const body = openDialog('Add user', `<form id="addUserForm" novalidate>
-    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option>${isMasterAdmin() ? '<option value="staff">Staff</option><option value="admin">Admin</option>' : ''}</select></div>
+    <div class="field"><label for="uType">Type</label><select class="input" id="uType" required><option value="">Choose one</option><option value="member">Member</option>${isAdmin() ? '<option value="staff">Staff</option><option value="admin">Admin</option>' : ''}</select></div>
     <div class="field"><label for="uName">Full name</label><input class="input" id="uName" maxlength="120" required></div>
     <div class="field"><label for="uId">Login ID</label><input class="input" id="uId" inputmode="numeric" autocomplete="off" required></div>
     <p class="small muted" id="uIdHint">Member account number must be 11 digits. Staff and admin IDs must be 8 digits.</p>
@@ -789,6 +789,39 @@ async function openAddUserDialog(view) {
   })
 }
 
+async function openEditUserDialog(view, user) {
+  await ensureAreas()
+  const canChangeRole = user.role !== 'master_admin' || isMasterAdmin()
+  const body = openDialog('Edit person', `<form id="editUserForm" novalidate>
+    <div class="field"><label for="editName">Full name</label><input class="input" id="editName" maxlength="120" value="${esc(user.full_name || '')}" required></div>
+    <div class="field"><label for="editRole">Role</label><select class="input" id="editRole" ${canChangeRole ? '' : 'disabled'}>${['member', 'staff', 'admin'].map((role) => `<option value="${role}"${role === user.role ? ' selected' : ''}>${ROLE_LABEL[role]}</option>`).join('')}${user.role === 'master_admin' ? '<option value="master_admin" selected>Master admin</option>' : ''}</select></div>
+    <div class="field"><label for="editArea">Island area</label><select class="input" id="editArea">${areaOptions(user.area_id, 'No area')}</select></div>
+    <button class="btn btn-primary" type="submit">Save changes</button>
+    <p class="msg" aria-live="polite"></p>
+  </form>`)
+  body.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const msg = $('.msg', body)
+    const full_name = $('#editName', body).value.trim()
+    if (full_name.length < 2) return setMsg(msg, 'Full name must be at least 2 characters.')
+    busy($('button[type=submit]', body), async () => {
+      try {
+        await api(`/api/users/${encodeURIComponent(user.id)}`, { method: 'PATCH', body: { full_name, role: $('#editRole', body).value, area_id: $('#editArea', body).value || null } })
+        dlg.close()
+        people(view)
+      } catch (err) { setMsg(msg, err.message) }
+    })
+  })
+}
+
+async function deleteUser(view, user) {
+  if (!window.confirm(`Delete ${user.full_name || user.email}? This permanently removes the account.`)) return
+  try {
+    await api(`/api/users/${encodeURIComponent(user.id)}`, { method: 'DELETE' })
+    people(view)
+  } catch (err) { window.alert(err.message) }
+}
+
 async function people(view) {
   await ensureAreas()
   const { users } = await api('/api/users')
@@ -807,12 +840,13 @@ async function people(view) {
       <td class="num">${fmtNum(u.reports)}</td>
       <td class="small muted" title="${esc(u.last_seen_at ? fmtDate(u.last_seen_at) : 'Not seen yet')}">${esc(u.last_seen_at ? ago(u.last_seen_at) : 'Never')}</td>
       <td>${u.id === state.session.id ? badge(u.role, ROLE_LABEL) + ' <span class="small muted">(you)</span>'
-        : isMasterAdmin() ? `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
+        : isAdmin() && u.role !== 'master_admin' ? `<label class="visually-hidden" for="role-${esc(u.id)}">Role for ${esc(u.email)}</label>
            <select class="input role-select" id="role-${esc(u.id)}" data-user="${esc(u.id)}" data-was="${esc(u.role)}">
-             ${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}"${k === u.role ? ' selected' : ''}>${v}</option>`).join('')}
+             ${['member', 'staff', 'admin'].map((k) => `<option value="${k}"${k === u.role ? ' selected' : ''}>${ROLE_LABEL[k]}</option>`).join('')}
            </select>` : badge(u.role, ROLE_LABEL)}
         <span class="small" data-role-msg="${esc(u.id)}" aria-live="polite"></span></td>
-    </tr>`).join('') : '<tr><td colspan="5" class="empty">No people match these filters.</td></tr>'
+      <td>${u.id !== state.session.id && isAdmin() && u.role !== 'master_admin' ? `<button class="btn btn-secondary btn-small" type="button" data-edit-user="${esc(u.id)}">Edit</button> <button class="btn btn-secondary btn-small" type="button" data-delete-user="${esc(u.id)}">Delete</button>` : '<span class="small muted">Protected</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">No people match these filters.</td></tr>'
     $$('[data-user]', view).forEach((sel) => sel.addEventListener('change', async () => {
       const out = $(`[data-role-msg="${CSS.escape(sel.dataset.user)}"]`, view)
       sel.disabled = true
@@ -828,6 +862,14 @@ async function people(view) {
         out.textContent = err.message; out.style.color = 'var(--err)'
       } finally { sel.disabled = false }
     }))
+    $$('[data-edit-user]', view).forEach((button) => button.addEventListener('click', () => {
+      const user = items.find((item) => item.id === button.dataset.editUser)
+      if (user) openEditUserDialog(view, user)
+    }))
+    $$('[data-delete-user]', view).forEach((button) => button.addEventListener('click', () => {
+      const user = items.find((item) => item.id === button.dataset.deleteUser)
+      if (user) deleteUser(view, user)
+    }))
   }
   view.innerHTML = `${head('People', 'Manage access for members, outage staff and administrators.', '<button class="btn btn-secondary" type="button" id="peopleRefresh">Refresh</button>' + (isAdmin() ? ' <button class="btn btn-primary" type="button" id="addUserBtn">Add user</button>' : ''))}
     <div class="tiles admin-tiles" style="margin-bottom:20px">
@@ -836,7 +878,7 @@ async function people(view) {
     <section class="card admin-people-card">
       <div class="card-head"><div><h2>Directory</h2><p class="small muted" style="margin:4px 0 0">Role changes apply when the person's session refreshes.</p></div><span class="small muted" id="peopleCount"></span></div>
       <div class="filters" id="peopleFilters"><div class="field"><label for="peopleSearch">Search people</label><input class="input" id="peopleSearch" type="search" placeholder="Name, email or area"></div><div class="field"><label for="peopleRole">Role</label><select class="input" id="peopleRole"><option value="all">All roles</option>${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Area</th><th class="num">Reports</th><th>Last seen</th><th>Access</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Area</th><th class="num">Reports</th><th>Last seen</th><th>Access</th><th>Actions</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
     </section>`
   $('#peopleSearch', view).addEventListener('input', () => render(users))
   $('#peopleRole', view).addEventListener('change', () => render(users))
