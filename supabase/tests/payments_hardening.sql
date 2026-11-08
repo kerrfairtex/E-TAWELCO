@@ -73,7 +73,7 @@ BEGIN
 
   SELECT id INTO v_payment_b_id
   FROM public.payments
-  WHERE paymongo_reference = v_payment_paid;
+  WHERE provider_payment_id = v_payment_paid;
   IF v_payment_b_id IS NULL THEN RAISE EXCEPTION 'paid fixture payment was not created'; END IF;
 
   SELECT public.apply_checkout_paid(

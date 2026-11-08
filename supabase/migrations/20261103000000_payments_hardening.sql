@@ -8,8 +8,10 @@ REVOKE ALL ON TABLE public.payments, public.payment_attempts, public.payment_eve
 GRANT SELECT ON TABLE public.payments, public.payment_attempts, public.refunds TO authenticated;
 -- No grants on payment_events.
 
--- This duplicate index name was identified in the requested staging schema review.
-DROP INDEX IF EXISTS public.payment_attempts_one_pending_per_bill_idx;
+-- Prevent concurrent checkout attempts for the same bill while allowing retries after failure.
+CREATE UNIQUE INDEX IF NOT EXISTS payment_attempts_one_pending_per_bill_idx
+  ON public.payment_attempts (bill_id)
+  WHERE status = 'pending';
 
 -- Add without validating existing data. The separate validation step is documented below.
 ALTER TABLE public.bills
@@ -27,8 +29,10 @@ ALTER TABLE public.payment_events
   ADD COLUMN result text;
 
 ALTER TABLE public.payments
-  ADD COLUMN livemode boolean NOT NULL DEFAULT false,
-  ADD COLUMN attempt_id bigint;
+  ADD COLUMN IF NOT EXISTS raw_event_id text,
+  ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'PHP',
+  ADD COLUMN IF NOT EXISTS livemode boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS attempt_id bigint;
 
 ALTER TABLE public.payments
   ADD CONSTRAINT payments_attempt_id_fkey
@@ -108,7 +112,7 @@ BEGIN
   FOR UPDATE;
 
   IF EXISTS (
-    SELECT 1 FROM public.payments WHERE paymongo_reference = p_payment_id
+    SELECT 1 FROM public.payments WHERE provider_payment_id = p_payment_id
   ) THEN
     v_result := 'duplicate';
   ELSIF v_bill.status = 'paid'
@@ -125,8 +129,8 @@ BEGIN
   ELSE
     INSERT INTO public.payments (
       bill_id,
-      paymongo_reference,
-      amount,
+      provider_payment_id,
+      amount_centavos,
       method,
       status,
       paid_at,
@@ -139,7 +143,8 @@ BEGIN
     VALUES (
       v_bill.id,
       p_payment_id,
-      (p_amount_centavos / 100.0)::numeric(12,2),
+        p_amount_centavos,
+
       COALESCE(p_method, 'unknown'),
       'paid',
       COALESCE(p_paid_at, now()),

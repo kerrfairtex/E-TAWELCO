@@ -7,6 +7,14 @@
     },
     "api/health.ts": {
       "maxDuration": 30
+    },
+    "api/paymongo/checkout.ts": {
+      "maxDuration": 60,
+      "runtime": "nodejs20.x"
+    },
+    "api/paymongo/webhook.ts": {
+      "maxDuration": 60,
+      "runtime": "nodejs20.x"
     }
   }
 }

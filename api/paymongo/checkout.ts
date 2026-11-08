@@ -1,11 +1,12 @@
 import crypto from 'node:crypto'
-import type { Config } from '@netlify/functions'
 import { fail, json } from '../_lib/core.ts'
 import {
   createCheckoutSession,
   createSupabaseServerClient,
   isLiveAvailable,
 } from '../_lib/paymongo.ts'
+
+export const PAYMENT_METHOD_TYPES = ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'] as const
 
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
@@ -52,7 +53,19 @@ export default async function handler(req: Request) {
       throw new Error('Bill amount is invalid')
     }
 
-    const idempotencyKey = crypto.randomUUID()
+    const now = new Date().toISOString()
+    const { data: existingAttempt, error: existingAttemptError } = await client
+      .from('payment_attempts')
+      .select('id,status,provider_checkout_session_id,expires_at')
+      .eq('bill_id', bill.id)
+      .eq('user_id', auth.user.id)
+      .eq('status', 'pending')
+      .gt('expires_at', now)
+      .maybeSingle()
+    if (existingAttemptError) throw existingAttemptError
+    if (existingAttempt) return fail('A payment session is already in progress for this bill. Please finish it or try again shortly.', 409)
+
+    const idempotencyKey = `bill-${bill.id}-${auth.user.id}-${crypto.randomUUID()}`
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
     const { data: attempt, error: attemptError } = await client
       .from('payment_attempts')
@@ -69,6 +82,9 @@ export default async function handler(req: Request) {
       .single()
     if (attemptError) throw attemptError
 
+    const siteUrl = String(process.env.SITE_URL || '').replace(/\/$/, '')
+    if (!/^https:\/\//i.test(siteUrl)) return fail('Payment return URL is not configured', 503)
+
     const sessionPayload = {
       data: {
         attributes: {
@@ -78,9 +94,9 @@ export default async function handler(req: Request) {
             currency: 'PHP',
             quantity: 1,
           }],
-          payment_method_types: ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'],
-          success_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=success`,
-          cancel_url: `${process.env.SITE_URL || 'http://localhost:3000'}/dashboard/#my-bills?pay=cancelled`,
+          payment_method_types: PAYMENT_METHOD_TYPES,
+          success_url: `${siteUrl}/dashboard/#my-bills?pay=success`,
+          cancel_url: `${siteUrl}/dashboard/#my-bills?pay=cancelled`,
           reference_number: `BILL-${bill.id}-${bill.period}`,
           send_email_receipt: false,
           metadata: {
@@ -93,10 +109,20 @@ export default async function handler(req: Request) {
       },
     }
 
-    const data = await createCheckoutSession(sessionPayload)
+    let data: any
+    try {
+      data = await createCheckoutSession(sessionPayload, idempotencyKey)
+    } catch (error) {
+      await client.from('payment_attempts').update({ status: 'failed', updated_at: new Date().toISOString() }).eq('id', attempt.id)
+      await client.from('audit_log').insert({ actor_id: auth.user.id, actor_email: profile.email ?? null, action: 'payment.checkout_failed', entity: 'payment_attempt', entity_id: String(attempt.id), details: { bill_id: bill.id, reason: 'provider_rejection' } })
+      throw error
+    }
     const checkoutUrl = data?.data?.attributes?.checkout_url || data?.checkout_url || data?.data?.attributes?.url || null
     const checkoutId = data?.data?.id || data?.id || null
-    if (!checkoutUrl || !checkoutId) throw new Error('PayMongo response did not include checkout details')
+    if (!checkoutUrl || !checkoutId) {
+      await client.from('payment_attempts').update({ status: 'failed', updated_at: new Date().toISOString() }).eq('id', attempt.id)
+      throw new Error('PayMongo response did not include checkout details')
+    }
 
     const { error: attemptUpdateError } = await client
       .from('payment_attempts')
@@ -118,5 +144,3 @@ export default async function handler(req: Request) {
     return fail('Unable to create checkout session', 500)
   }
 }
-
-export const config: Config = { path: '/api/paymongo/checkout', method: 'POST' }
