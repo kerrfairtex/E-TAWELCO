@@ -32,11 +32,11 @@ async function me(req: Request, client: ReturnType<typeof supabase>) {
 
 async function team(req: Request, client: ReturnType<typeof supabase>) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; const { data, error } = await client.from('profiles').select('id,email,full_name,role').in('role', ['staff', 'admin']).order('full_name'); if (error) throw error; return json({ team: data ?? [] }) }
 
-async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, req.method === 'PATCH' ? ['master_admin'] : ['admin']); if (s instanceof Response) return s; if (req.method === 'GET') { const { data: profiles, error: profileError } = await client.from('profiles').select('id,email,full_name,role,area_id,is_active,created_at,last_seen_at').order('role').limit(500); if (profileError) { console.error('[v0] People users query failed', profileError); return fail('Could not load people', 500) } let areaMap = new Map<string, string | null>(); const { data: areas, error: areaError } = await client.from('service_areas').select('id,name'); if (areaError) { console.error('[v0] People areas query failed', areaError) } else { areaMap = new Map((areas ?? []).map((a: any) => [a.id, a.name])) }; const users = (profiles ?? []).map((u: any) => ({ ...u, area_name: areaMap.get(u.area_id) ?? null })); return json({ users }) }
+async function users(req: Request, client: ReturnType<typeof supabase>, id?: string) { const s = await authorize(req, ['admin']); if (s instanceof Response) return s; if (s.role !== 'admin' && s.role !== 'master_admin') return fail('You do not have access to this', 403); if (req.method === 'GET') { const { data: profiles, error: profileError } = await client.from('profiles').select('id,email,full_name,role,area_id,is_active,created_at,last_seen_at').order('role').limit(500); if (profileError) { console.error('[v0] People users query failed', profileError); return fail('Could not load people', 500) } let areaMap = new Map<string, string | null>(); const { data: areas, error: areaError } = await client.from('service_areas').select('id,name'); if (areaError) { console.error('[v0] People areas query failed', areaError) } else { areaMap = new Map((areas ?? []).map((a: any) => [a.id, a.name])) }; const users = (profiles ?? []).map((u: any) => ({ ...u, area_name: areaMap.get(u.area_id) ?? null })); return json({ users }) }
   if (req.method === 'POST') {
   const b = await body(req)
   const type = oneOf(b.type, ['member', 'staff', 'admin'] as const)
-  if (type && type !== 'member' && s.role !== 'master_admin') return fail('Only a master admin can create staff or admin accounts', 403)
+  if (!type) return fail('Type is required.')
   const full_name = text(b.full_name, 120)
     const login_id = text(b.login_id, 20).replace(/\s/g, '')
     const area_id = b.area_id ? text(b.area_id, 100) : null
@@ -81,11 +81,10 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
       return fail('Could not create the account', 500)
     }
   if (type !== 'member') {
-  const caller = supabaseAuth(req)
-  const { error: roleError } = await caller.rpc('set_user_role', { target_user_id: userId, new_role: type })
+  const { error: roleError } = await client.from('profiles').update({ role: type, updated_at: new Date().toISOString() }).eq('id', userId)
   if (roleError) {
   try { await (client as any).auth.admin.deleteUser(userId) } catch { /* best-effort cleanup */ }
-  console.error('[v0] set_user_role failed for user ' + userId, roleError)
+  console.error('[v0] profile role update failed for user ' + userId, roleError)
   return fail('Could not create the account', 500)
   }
   }
@@ -98,7 +97,39 @@ async function users(req: Request, client: ReturnType<typeof supabase>, id?: str
     await audit(client, s, 'user.create', 'profile', userId, { role: type, id_masked: '****' + login_id.slice(-4) })
     return json({ ok: true, id: userId, role: type, login_id, password }, 201)
   }
-  if (req.method !== 'PATCH' || !id) return fail('Method not allowed', 405); if (id === s.id) return fail('You cannot change your own role'); const role = oneOf((await body(req)).role, ['member', 'staff', 'admin'] as const); if (!role) return fail('Role must be member, staff or admin'); const { data: profile } = await client.from('profiles').select('role').eq('id', id).maybeSingle(); if (!profile) return fail('User not found', 404); const caller = supabaseAuth(req); const { error } = await caller.rpc('set_user_role', { target_user_id: id, new_role: role }); if (error) { console.error('[v0] set_user_role failed', error); return fail('Could not change role', 500) } await audit(client, s, 'user.role', 'profile', id, { from: profile.role, to: role }); return json({ ok: true, role }) }
+  if (!id) return fail('User ID is required', 400)
+  if (id === s.id) return fail('You cannot change or delete your own account', 400)
+  const { data: profile } = await client.from('profiles').select('id,full_name,role,area_id,is_active').eq('id', id).maybeSingle()
+  if (!profile) return fail('User not found', 404)
+  if (profile.role === 'master_admin' && s.role !== 'master_admin') return fail('Only a master admin can manage a master admin', 403)
+
+  if (req.method === 'PATCH') {
+    const b = await body(req)
+    const role = b.role === undefined ? profile.role : oneOf(b.role, ['member', 'staff', 'admin'] as const)
+    const full_name = b.full_name === undefined ? profile.full_name : text(b.full_name, 120)
+    const area_id = b.area_id === undefined ? profile.area_id : (b.area_id ? text(b.area_id, 100) : null)
+    if (!role) return fail('Role must be member, staff or admin')
+    if (!full_name || full_name.length < 2) return fail('Full name must be at least 2 characters', 400)
+    if (area_id) { const { data: area } = await client.from('service_areas').select('id').eq('id', area_id).maybeSingle(); if (!area) return fail('Unknown area', 400) }
+    const patch = { full_name, area_id, updated_at: new Date().toISOString() }
+    const { error: profileError } = await client.from('profiles').update(patch).eq('id', id)
+    if (profileError) return fail('Could not update person', 500)
+    if (role !== profile.role) {
+      const { error } = await client.from('profiles').update({ role, updated_at: new Date().toISOString() }).eq('id', id)
+      if (error) { console.error('[v0] profile role update failed', error); return fail('Could not change role', 500) }
+    }
+    await audit(client, s, 'user.update', 'profile', id, { from: { role: profile.role, full_name: profile.full_name, area_id: profile.area_id }, to: { role, full_name, area_id } })
+    return json({ ok: true, user: { id, role, full_name, area_id } })
+  }
+
+  if (req.method === 'DELETE') {
+    await audit(client, s, 'user.delete', 'profile', id, { role: profile.role })
+    const { error } = await (client as any).auth.admin.deleteUser(id)
+    if (error) { console.error('[v0] deleteUser failed', error); return fail('Could not delete person', 500) }
+    return json({ ok: true, id })
+  }
+  return fail('Method not allowed', 405)
+}
 
 async function stats(req: Request, client: ReturnType<typeof supabase>) {
   const s = await authorize(req)
@@ -219,6 +250,7 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
   }
 
   const s = await authorize(req, ['admin']); if (s instanceof Response) return s
+  if (s.role !== 'admin' && s.role !== 'master_admin') return fail('You do not have access to this', 403)
 
   if (req.method === 'GET' && !id) {
     const status = text(url.searchParams.get('status'), 10)
