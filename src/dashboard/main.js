@@ -348,8 +348,8 @@ function wireTips(root, tipFor) {
       const now = new Date()
       const body = openDialog('Add bill', `<form id="billForm" novalidate>
         <div class="grid-2">
-          <div class="field"><label for="nAcct">Account number</label><input class="input" id="nAcct" inputmode="numeric" maxlength="11" autocomplete="off" required></div>
-          <div class="field"><label for="nName">Account holder</label><input class="input" id="nName" maxlength="120" required></div>
+          <div class="field"><label for="nAcct">Member email</label><input class="input" id="nAcct" type="email" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" required></div>
+          <div class="field"><label for="nName">Account holder <span class="muted small">(optional, uses the member name)</span></label><input class="input" id="nName" maxlength="120"></div>
           <div class="field"><label for="nArea">Island area</label><select class="input" id="nArea">${areaOptions('', 'No area')}</select></div>
           <div class="field"><label for="nPeriod">Billing month</label><input class="input" id="nPeriod" type="month" value="${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}" required></div>
           <div class="field"><label for="nKwh">kWh used</label><input class="input" id="nKwh" type="number" min="0" step="0.01" value="0"></div>
@@ -361,9 +361,9 @@ function wireTips(root, tipFor) {
       form.addEventListener('submit', (e) => {
         e.preventDefault()
         const msg = $('.msg', form)
-        const payload = { account_no: $('#nAcct', form).value.trim(), account_name: $('#nName', form).value.trim(), area_id: $('#nArea', form).value, period: $('#nPeriod', form).value, kwh: $('#nKwh', form).value, amount: $('#nAmount', form).value, due_date: $('#nDue', form).value }
-        if (!/^\d{11}$/.test(payload.account_no)) return setMsg(msg, 'Account number must be 11 digits.')
-        if (!payload.account_name || !payload.period || !payload.amount || !payload.due_date) return setMsg(msg, 'Fill in the name, month, amount and due date.')
+        const payload = { email: $('#nAcct', form).value.trim().toLowerCase(), account_name: $('#nName', form).value.trim(), area_id: $('#nArea', form).value, period: $('#nPeriod', form).value, kwh: $('#nKwh', form).value, amount: $('#nAmount', form).value, due_date: $('#nDue', form).value }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return setMsg(msg, 'Enter the member email, like name@gmail.com.')
+        if (!payload.period || !payload.amount || !payload.due_date) return setMsg(msg, 'Fill in the month, amount and due date.')
         busy($('button[type=submit]', form), async () => {
           try { await api('/api/bills', { method: 'POST', body: payload }); dlg.close(); await load() } catch (err) { setMsg(msg, err.message) }
         })
