@@ -1,4 +1,5 @@
 import { supabase } from './browser-supabase.js'
+import './public-pay.js'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
