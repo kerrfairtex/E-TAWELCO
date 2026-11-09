@@ -83,3 +83,73 @@ function bind(formId, emailId, passwordId, messageId, role, emailErrId, pwErrId)
 
 bind('adminLoginForm', 'adminId', 'adminPw', 'adminLoginMsg', 'admin', 'adminIdErr', 'adminPwErr')
 bind('loginForm', 'acct', 'pw', 'loginMsg', 'member', 'acctErr', 'pwErr')
+
+function bindOutage() {
+  const form = document.getElementById('outageForm')
+  if (!form) return
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  let busy = false
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    if (busy) return
+    const msg = document.getElementById('outageMsg')
+    const brgyEl = document.getElementById('oBrgy')
+    const brgyErr = document.getElementById('oBrgyErr')
+    const emailEl = document.getElementById('oEmail')
+    const button = form.querySelector('button[type="submit"]')
+    const area_id = document.getElementById('oIsland').value
+    const barangay = (brgyEl.value || '').trim()
+    const observation = (form.querySelector('input[name="what"]:checked') || {}).value || ''
+    const landmark = document.getElementById('oLandmark').value.trim()
+    const email = emailEl.value.trim()
+    const website = (document.getElementById('oWebsite') || {}).value || ''
+    brgyErr.textContent = ''
+    brgyEl.removeAttribute('aria-invalid')
+    msg.textContent = ''
+    if (!barangay) {
+      brgyErr.textContent = 'Choose or enter a barangay.'
+      brgyEl.setAttribute('aria-invalid', 'true')
+      brgyEl.focus()
+      return
+    }
+    if (email && !EMAIL_RE.test(email)) {
+      msg.textContent = 'Enter a valid email, like name@gmail.com.'
+      emailEl.focus()
+      return
+    }
+    busy = true
+    button.disabled = true
+    button.setAttribute('aria-busy', 'true')
+    const label = button.textContent
+    button.textContent = 'Sending…'
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+      const { data } = supabase ? await supabase.auth.getSession() : { data: null }
+      const token = data && data.session ? data.session.access_token : null
+      if (token) headers.Authorization = `Bearer ${token}`
+      const response = await fetch('/api/outages', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ area_id, barangay, observation, landmark, email, website }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        msg.textContent = response.status === 400 && result.error ? result.error : 'We could not send your report right now. Please try again.'
+        return
+      }
+      const ticket = result.report && result.report.ticket_no ? result.report.ticket_no : null
+      form.reset()
+      msg.textContent = `Report sent.${ticket ? ` Your ticket number is ${ticket}.` : ''} For urgent hazards, keep away from fallen lines and contact an authorized emergency service.`
+    } catch {
+      msg.textContent = 'We could not send your report right now. Please try again.'
+    } finally {
+      busy = false
+      button.disabled = false
+      button.removeAttribute('aria-busy')
+      button.textContent = label
+    }
+  }, true)
+}
+
+bindOutage()
