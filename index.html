@@ -1179,7 +1179,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     <button class="icon-btn" id="outageClose" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
   </div>
   <form class="modal-body" id="outageForm" novalidate>
-    <p class="small muted">Demo only: this creates a draft on screen, not a utility report. No details are sent or saved. For urgent hazards, keep away from fallen lines and contact an authorized utility or emergency service using a verified number.</p>
+    <p class="small muted">This sends your report to the cooperative’s outage desk. It is not an emergency line. For urgent hazards, keep away from fallen lines and contact an authorized utility or emergency service using a verified number.</p>
     <div class="field">
       <label for="oIsland">Municipality / island area</label>
       <select class="input" id="oIsland"></select>
@@ -1193,7 +1193,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     <div class="field">
       <label for="oLandmark">Sitio, purok or nearby landmark <span class="sample">(optional)</span></label>
       <input class="input" id="oLandmark" autocomplete="off">
-      <span class="hint">Use a familiar place description. Do not include precise GPS or account details in this demonstration.</span>
+      <span class="hint">Use a familiar place description. Do not include precise GPS or account numbers.</span>
     </div>
     <fieldset>
       <legend class="legend">What do you see?</legend>
@@ -1203,11 +1203,11 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       <label class="radio"><input type="radio" name="what" value="Flickering"> Flickering</label>
     </fieldset>
     <div class="field">
-      <label for="oPhone">Phone <span class="sample">(optional)</span></label>
-      <input class="input" id="oPhone" type="tel" inputmode="tel" autocomplete="tel">
-      <span class="hint">Optional callback detail for your draft. Nothing is submitted to a crew.</span>
+      <label for="oEmail">Email <span class="sample">(optional)</span></label>
+      <input class="input" id="oEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com"><input type="text" id="oWebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <span class="hint">So the cooperative can reach you about this report. It is not used to sign you in.</span>
     </div>
-    <button class="btn btn-primary" type="submit">Prepare draft</button>
+    <button class="btn btn-primary" type="submit">Send report</button>
     <div class="form-msg" id="outageMsg" aria-live="polite"></div>
   </form>
 </dialog>
