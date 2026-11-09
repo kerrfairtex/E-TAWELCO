@@ -994,17 +994,12 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       <div class="two-col">
         <div>
           <ol class="steps">
-            <li>Enter your account number</li>
+            <li>Sign in with your email</li>
             <li>Check the amount</li>
             <li>Choose how to pay</li>
           </ol>
           <form id="payForm" novalidate>
-            <div class="field">
-              <label for="payAcct">Account number</label>
-              <input class="input" id="payAcct" inputmode="numeric" autocomplete="off" maxlength="14" aria-describedby="payHint payErr">
-              <span class="hint" id="payHint">Account number is on the top right of your bill.</span>
-              <span class="error" id="payErr" aria-live="polite"></span>
-            </div>
+            <p class="hint" id="payHint">Sign in with your email to see your own bills. Bills are never shown from an account number alone.</p>
             <button class="btn btn-secondary" type="submit" id="payBtn">Check the amount</button>
             <p class="form-msg" id="payMsg" aria-live="polite"></p>
           </form>
