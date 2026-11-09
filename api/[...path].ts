@@ -284,11 +284,23 @@ async function bills(req: Request, client: ReturnType<typeof supabase>, id?: str
 
   if (req.method === 'POST' && !id) {
     const b = await body(req)
-    const accountNo = text(b.account_no, 20).replace(/\s/g, '')
-    const accountName = text(b.account_name, 120)
+    const email = text(b.email, 254).trim().toLowerCase()
+    let accountNo = text(b.account_no, 20).replace(/\s/g, '')
+    let accountName = text(b.account_name, 120)
     const period = text(b.period, 7)
     const dueDate = text(b.due_date, 10)
-    const areaId = text(b.area_id, 40) || null
+    let areaId = text(b.area_id, 40) || null
+    if (email) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Enter a valid member email address')
+      const { data: emailMember, error: emailError } = await client.from('profiles').select('full_name,account_no,area_id').eq('email', email).eq('role', 'member').maybeSingle()
+      if (emailError) throw emailError
+      if (!emailMember) return fail('No member account has this email', 404)
+      const linkedNo = typeof emailMember.account_no === 'string' ? emailMember.account_no.replace(/\s/g, '') : ''
+      if (!linkedNo) return fail('This member has no account number yet. Add one to their profile first.', 409)
+      accountNo = linkedNo
+      accountName = accountName || String(emailMember.full_name ?? '')
+      areaId = areaId || emailMember.area_id || null
+    }
     const amount = Number(b.amount), kwh = b.kwh === undefined || b.kwh === '' ? 0 : Number(b.kwh)
     if (!/^\d{11}$/.test(accountNo)) return fail('Account number must be 11 digits')
     if (!accountName) return fail('Enter the account holder name')
