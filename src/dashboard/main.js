@@ -956,8 +956,17 @@ async function myBillsView(view) {
   const summary = data.summary ?? {}
   const bills = Array.isArray(data.bills) ? data.bills : []
   const account = data.account ?? {}
+  const returnStatus = new URLSearchParams(location.search).get('pay')
+  const returnBillId = new URLSearchParams(location.search).get('bill_id')
+  const returnBill = bills.find((bill) => String(bill.id) === returnBillId)
+  const paymentNotice = returnStatus === 'success'
+    ? `<section class="card" role="status"><h2>${returnBill?.status === 'paid' ? 'Payment confirmed' : 'Payment confirmation pending'}</h2><p class="muted">${returnBill?.status === 'paid' ? 'Your payment is recorded. The bill status is updated below.' : 'PayMongo returned you from checkout. We are waiting for the payment confirmation before marking this bill paid.'}</p>${returnBill?.status !== 'paid' ? '<button class="btn btn-secondary" type="button" data-refresh-bills>Refresh bill status</button>' : ''}</section>`
+    : returnStatus === 'cancelled'
+      ? '<section class="card" role="status"><h2>Payment not completed</h2><p class="muted">Your bill remains unpaid. You can try again whenever you are ready.</p></section>'
+      : ''
   view.innerHTML = `${head('My bills', 'Your current bill, due dates and payment history.')}
     <div class="stack">
+      ${paymentNotice}
       <section class="card">
         <div class="card-head"><h2>Account</h2><span class="small muted mono">${esc(account.masked_no ?? '')}</span></div>
         <p class="muted">${account.name ? esc(account.name) : 'No name on the latest bill.'}</p>
@@ -988,6 +997,8 @@ async function myBillsView(view) {
     if (!view._payListenerAttached) {
       view._payListenerAttached = true
       view.addEventListener('click', (e) => {
+        const refresh = e.target.closest('[data-refresh-bills]')
+        if (refresh) { refresh.disabled = true; refresh.textContent = 'Refreshing…'; return route() }
         const button = e.target.closest('[data-pay-bill]')
         if (!button) return
         const bill = (view._billsData?.bills || []).find((b) => String(b.id) === button.dataset.payBill)
