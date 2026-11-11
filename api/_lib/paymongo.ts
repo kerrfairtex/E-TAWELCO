@@ -20,7 +20,7 @@ export function verifyPaymongoSignature(rawBody: string, header: string | null, 
 
 export type PayMongoCheckoutStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
 
-export const PAYMONGO_API_BASE = 'https://api.paymongo.com/v1'
+export const PAYMONGO_API_BASE = 'https://api.paymongo.com/v2'
 
 export function paymongoHeaders(secretKey: string) {
   return {
