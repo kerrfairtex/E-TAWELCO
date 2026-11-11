@@ -82,21 +82,23 @@ async function handler(req: Request) {
     const secret = getWebhookSecret()
     const signatureHeader = req.headers.get('paymongo-signature') || req.headers.get('Paymongo-Signature') || ''
     if (!secret) return fail('Webhook is not configured', 503)
-    if (!signatureHeader || !verifyPayMongoSignature(rawBody, signatureHeader, secret, mode)) return fail('Invalid webhook signature', 401)
+    if (!signatureHeader || !verifyPayMongoSignature(rawBody, signatureHeader, secret, mode)) { console.error('[paymongo-webhook] invalid signature', { hasHeader: Boolean(signatureHeader), mode }); return fail('Invalid webhook signature', 401) }
 
     let event: any
     try { event = JSON.parse(rawBody) } catch { return fail('Invalid webhook body', 400) }
     const eventId = String(event?.data?.id || '')
     const attributes = event?.data?.attributes ?? {}
     const eventType = String(attributes.type || '')
+    console.log('[paymongo-webhook] received', { eventId, eventType })
     if (!eventId || !ALLOWED_EVENTS.has(eventType)) return json({ ok: true, ignored: true }, 200)
-    if (Boolean(attributes.livemode) !== (mode === 'live')) return fail('Webhook environment mismatch', 400)
+    if (Boolean(attributes.livemode) !== (mode === 'live')) { console.error('[paymongo-webhook] livemode mismatch', { eventId, eventLivemode: attributes.livemode, mode }); return fail('Webhook environment mismatch', 400) }
 
     const client = createSupabaseServerClient()
     if (eventType === 'checkout_session.payment.paid') {
       const parsed = parsePaidCheckoutEvent(event)
       if (!parsed || parsed.eventId !== eventId || !parsed.checkoutSessionId || !parsed.paymentId || !Number.isSafeInteger(parsed.amountCentavos) || parsed.amountCentavos <= 0 || parsed.currency !== 'PHP') {
         await client.from('audit_log').insert(auditPayload(eventId, eventType, { reason: 'invalid_paid_payload' }))
+        console.error('[paymongo-webhook] invalid paid payload', { eventId, eventType })
         return fail('Invalid payment event payload', 400)
       }
       const { data: result, error } = await client.rpc('apply_checkout_paid', {
@@ -111,7 +113,9 @@ async function handler(req: Request) {
         p_paid_at: parsed.paidAt,
         p_channel: parsed.method === 'gcash' || parsed.method === 'paymaya' || parsed.method === 'qrph' || parsed.method === 'grab_pay' ? 'mobile_wallet' : 'bank',
       })
+      console.log('[paymongo-webhook] apply_checkout_paid', { eventId, result, error: error ? { message: (error as any).message, code: (error as any).code } : null })
       if (error) throw error
+      if (result === 'unknown_session') console.error('[paymongo-webhook] unknown_session', { eventId })
       if (result === 'unknown_session') return json({ ok: true, retryable: true, result }, 202)
       return json({ ok: true, processed: true, result }, 200)
     }
