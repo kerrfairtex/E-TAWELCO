@@ -39,11 +39,13 @@ export function getWebhookSecret() {
 }
 
 export function isLiveAvailable() {
+  const mode = process.env.PAYMONGO_MODE
+  const sk = process.env.PAYMONGO_SECRET_KEY || ''
+  const pk = process.env.PAYMONGO_PUBLIC_KEY || ''
+  const match = (p: 'live' | 'test') => sk.startsWith(`sk_${p}_`) && pk.startsWith(`pk_${p}_`)
   return Boolean(
-    process.env.PAYMONGO_MODE === 'live' &&
-      process.env.PAYMONGO_SECRET_KEY?.startsWith('sk_live_') &&
-      process.env.PAYMONGO_PUBLIC_KEY?.startsWith('pk_live_') &&
-      process.env.PAYMONGO_WEBHOOK_SECRET,
+    process.env.PAYMONGO_WEBHOOK_SECRET &&
+      ((mode === 'live' && match('live')) || (mode === 'test' && match('test'))),
   )
 }
 
