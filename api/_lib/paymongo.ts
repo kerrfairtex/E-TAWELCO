@@ -20,7 +20,7 @@ export function verifyPaymongoSignature(rawBody: string, header: string | null, 
 
 export type PayMongoCheckoutStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
 
-export const PAYMONGO_API_BASE = 'https://api.paymongo.com/v2'
+export const PAYMONGO_API_BASE = 'https://api.paymongo.com/v1'
 
 export function paymongoHeaders(secretKey: string) {
   return {
@@ -31,16 +31,16 @@ export function paymongoHeaders(secretKey: string) {
 }
 
 export function getPayMongoSecret() {
-  return process.env.PAYMONGO_SECRET_KEY || ''
+  return (process.env.PAYMONGO_SECRET_KEY || '').trim()
 }
 
 export function getWebhookSecret() {
-  return process.env.PAYMONGO_WEBHOOK_SECRET || ''
+  return (process.env.PAYMONGO_WEBHOOK_SECRET || '').trim()
 }
 
 export function isLiveAvailable() {
   const mode = process.env.PAYMONGO_MODE
-  const sk = process.env.PAYMONGO_SECRET_KEY || ''
+  const sk = (process.env.PAYMONGO_SECRET_KEY || '').trim()
   const pk = process.env.PAYMONGO_PUBLIC_KEY || ''
   const match = (p: 'live' | 'test') => sk.startsWith(`sk_${p}_`) && pk.startsWith(`pk_${p}_`)
   return Boolean(
