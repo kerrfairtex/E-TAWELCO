@@ -8,7 +8,7 @@ import {
 
 export const PAYMENT_METHOD_TYPES = ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'] as const
 
-export default async function handler(req: Request) {
+async function handler(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   if (!isLiveAvailable()) return fail('PayMongo is not configured', 503)
 
@@ -144,3 +144,5 @@ export default async function handler(req: Request) {
     return fail('Unable to create checkout session', 500)
   }
 }
+
+export default { fetch: handler }

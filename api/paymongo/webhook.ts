@@ -74,7 +74,7 @@ function auditPayload(eventId: string, eventType: string, details: Record<string
   return { actor_id: null, actor_email: null, action: `paymongo.${eventType}`, entity: 'payment_event', entity_id: eventId, details }
 }
 
-export default async function handler(req: Request) {
+async function handler(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   try {
     const rawBody = await req.text()
@@ -130,3 +130,5 @@ export default async function handler(req: Request) {
     return fail('Unable to process webhook', 500)
   }
 }
+
+export default { fetch: handler }
