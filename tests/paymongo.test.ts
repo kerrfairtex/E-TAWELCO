@@ -45,7 +45,7 @@ describe('parsePaidCheckoutEvent', () => {
       amountCentavos: 10000,
       currency: 'PHP',
       method: 'gcash',
-      paidAt: '2026-11-08T00:00:00Z',
+      paidAt: '2026-11-08T00:00:00.000Z',
     })
   })
 
@@ -84,5 +84,40 @@ describe('verifyPaymongoSignature', () => {
   })
   it('rejects an empty secret', () => {
     expect(check(`t=${now},te=${sign(now)},li=`, body, '')).toBe(false)
+  })
+})
+
+describe('parsePaidCheckoutEvent paid_at normalization', () => {
+  const build = (paidAt: unknown, createdAt: unknown = 1760000000) => ({
+    data: {
+      id: 'evt_epoch',
+      attributes: {
+        type: 'checkout_session.payment.paid',
+        livemode: false,
+        created_at: createdAt,
+        data: {
+          id: 'cs_epoch',
+          attributes: {
+            payments: [{ id: 'pay_epoch', attributes: { status: 'paid', amount: 10000, currency: 'PHP', source: { type: 'gcash' }, paid_at: paidAt } }],
+          },
+        },
+      },
+    },
+  })
+
+  it('converts epoch seconds (number) to ISO', () => {
+    expect(parsePaidCheckoutEvent(build(1794414256))?.paidAt).toBe('2026-11-11T16:24:16.000Z')
+  })
+
+  it('converts epoch seconds (numeric string) to ISO', () => {
+    expect(parsePaidCheckoutEvent(build('1794414256'))?.paidAt).toBe('2026-11-11T16:24:16.000Z')
+  })
+
+  it('falls back to created_at (epoch) when paid_at is missing', () => {
+    expect(parsePaidCheckoutEvent(build(undefined))?.paidAt).toBe(new Date(1760000000 * 1000).toISOString())
+  })
+
+  it('never returns a bare numeric string', () => {
+    expect(parsePaidCheckoutEvent(build(1794414256))?.paidAt).not.toMatch(/^\d+$/)
   })
 })

@@ -41,6 +41,19 @@ export type ParsedPaidCheckout = {
   paidAt: string
 }
 
+function toIso(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const d = new Date(value * 1000)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  }
+  if (typeof value === 'string') {
+    const text = value.trim()
+    const d = /^\d+(\.\d+)?$/.test(text) ? new Date(Number(text) * 1000) : new Date(text)
+    if (!Number.isNaN(d.getTime())) return d.toISOString()
+  }
+  return null
+}
+
 export function parsePaidCheckoutEvent(event: any): ParsedPaidCheckout | null {
   const eventAttributes = event?.data?.attributes ?? {}
   const session = eventAttributes.data ?? {}
@@ -62,7 +75,7 @@ export function parsePaidCheckoutEvent(event: any): ParsedPaidCheckout | null {
     amountCentavos: Number(paymentAttributes.amount),
     currency: String(paymentAttributes.currency || '').toUpperCase(),
     method: String(method),
-    paidAt: String(paymentAttributes.paid_at || eventAttributes.created_at || new Date().toISOString()),
+    paidAt: toIso(paymentAttributes.paid_at) ?? toIso(eventAttributes.created_at) ?? new Date().toISOString(),
   }
 }
 
