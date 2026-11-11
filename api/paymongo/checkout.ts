@@ -95,8 +95,8 @@ async function handler(req: Request) {
             quantity: 1,
           }],
           payment_method_types: PAYMENT_METHOD_TYPES,
-          success_url: `${siteUrl}/dashboard/#my-bills?pay=success`,
-          cancel_url: `${siteUrl}/dashboard/#my-bills?pay=cancelled`,
+          success_url: `${siteUrl}/dashboard/?pay=success&bill_id=${bill.id}#my-bills`,
+          cancel_url: `${siteUrl}/dashboard/?pay=cancelled&bill_id=${bill.id}#my-bills`,
           reference_number: `BILL-${bill.id}-${bill.period}`,
           send_email_receipt: false,
           metadata: {
