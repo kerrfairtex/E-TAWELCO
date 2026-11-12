@@ -1005,6 +1005,22 @@ async function myBillsView(view) {
         if (bill) startPayment(bill)
       })
     }
+    // After PayMongo redirects back with ?pay=success the webhook may not have landed
+    // yet. The view re-renders on route(), so poll the bill status until it is paid.
+    if (returnStatus === 'success' && returnBill?.status !== 'paid' && !view._payPoll) {
+      view._payPoll = 0
+      const poll = async () => {
+        if (view._payPoll === null) return
+        view._payPoll += 1
+        try {
+          const fresh = await api('/api/bills?scope=mine')
+          const paid = (fresh.bills || []).some((b) => String(b.id) === returnBillId && b.status === 'paid')
+          if (paid) { view._payPoll = null; return route() }
+        } catch { /* keep polling; the member can still use Refresh bill status */ }
+        if (view._payPoll < 6) setTimeout(poll, 4000)
+      }
+      setTimeout(poll, 4000)
+    }
   }
 
 function paymentSamples(enabled) {
