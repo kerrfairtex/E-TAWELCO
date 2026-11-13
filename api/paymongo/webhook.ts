@@ -9,6 +9,10 @@ export const ALLOWED_EVENTS = new Set([
   'payment.expired',
 ])
 
+export function shouldIgnorePayMongoEvent(eventType: string, livemode: boolean, mode: 'test' | 'live') {
+  return !ALLOWED_EVENTS.has(eventType) || livemode !== (mode === 'live')
+}
+
 export function parseSignatureHeader(value: string) {
   const parts = new Map<string, string>()
   for (const part of value.split(',')) {
@@ -59,27 +63,44 @@ export function parsePaidCheckoutEvent(event: any): ParsedPaidCheckout | null {
   const session = eventAttributes.data ?? {}
   const sessionAttributes = session.attributes ?? {}
   const payments = Array.isArray(sessionAttributes.payments) ? sessionAttributes.payments : []
-  const paidPayment = payments.find((payment: any) => payment?.attributes?.status === 'paid')
+  const paidPayment = payments.find((payment: any) => String(payment?.attributes?.status || '').trim().toLowerCase() === 'paid')
   if (!paidPayment) return null
+
   const paymentAttributes = paidPayment.attributes ?? {}
+  const lineItems = Array.isArray(sessionAttributes.line_items) ? sessionAttributes.line_items : []
+  const validLineItems = lineItems.length > 0 && lineItems.every((item: any) => {
+    const amount = Number(item?.amount)
+    const quantity = Number(item?.quantity ?? 1)
+    return Number.isSafeInteger(amount) && amount > 0 && Number.isSafeInteger(quantity) && quantity > 0
+  })
+  const lineItemTotal = validLineItems
+    ? lineItems.reduce((total: number, item: any) => total + Number(item.amount) * Number(item.quantity ?? 1), 0)
+    : Number.NaN
+  const lineItemCurrencies = new Set(lineItems.map((item: any) => String(item?.currency || '').trim().toUpperCase()).filter(Boolean))
+  const fallbackAmount = Number.isSafeInteger(lineItemTotal) ? lineItemTotal : Number.NaN
+  const amountValue = paymentAttributes.amount ?? sessionAttributes.amount
+  const amountCentavos = amountValue == null ? fallbackAmount : Number(amountValue)
+  const currencyValue = paymentAttributes.currency ?? sessionAttributes.currency
+  const everyLineItemHasCurrency = lineItems.every((item: any) => String(item?.currency || '').trim().length > 0)
+  const fallbackCurrency = lineItemCurrencies.size === 1 && everyLineItemHasCurrency ? [...lineItemCurrencies][0] : ''
+  const currency = String(currencyValue ?? fallbackCurrency).trim().toUpperCase()
   const method = paymentAttributes.source?.type
     || paymentAttributes.payment_method_details?.type
     || paymentAttributes.payment_method?.type
+    || sessionAttributes.payment_method_used
     || 'unknown'
-  const paidAt = paymentAttributes.paid_at == null
-    ? toIso(eventAttributes.created_at)
-    : toIso(paymentAttributes.paid_at)
+  const paidAt = toIso(paymentAttributes.paid_at ?? sessionAttributes.paid_at ?? eventAttributes.created_at)
   if (!paidAt) return null
 
   return {
-    eventId: String(event?.data?.id || ''),
-    eventType: String(eventAttributes.type || ''),
+    eventId: String(event?.data?.id || '').trim(),
+    eventType: String(eventAttributes.type || '').trim(),
     livemode: Boolean(eventAttributes.livemode),
-    checkoutSessionId: String(session?.id || ''),
-    paymentId: String(paidPayment.id || ''),
-    amountCentavos: Number(paymentAttributes.amount),
-    currency: String(paymentAttributes.currency || '').toUpperCase(),
-    method: String(method),
+    checkoutSessionId: String(session?.id || '').trim(),
+    paymentId: String(paidPayment.id || '').trim(),
+    amountCentavos,
+    currency,
+    method: String(method).trim().toLowerCase(),
     paidAt,
   }
 }
@@ -108,20 +129,28 @@ async function handler(req: Request) {
   if (req.method !== 'POST') return fail('Method not allowed', 405)
   try {
     const rawBody = await req.text()
+    let event: any
+    try { event = JSON.parse(rawBody) } catch { return fail('Invalid webhook body', 400) }
+
     const mode = process.env.PAYMONGO_MODE === 'live' ? 'live' : 'test'
+    const eventId = String(event?.data?.id || '').trim()
+    const attributes = event?.data?.attributes ?? {}
+    const eventType = String(attributes.type || '').trim()
+    const livemode = Boolean(attributes.livemode)
+    console.log('[paymongo-webhook] received', { eventId, eventType, livemode })
+
+    if (!eventId || shouldIgnorePayMongoEvent(eventType, livemode, mode)) {
+      console.log('[paymongo-webhook] acknowledged unrelated event', { eventId, eventType, livemode, mode })
+      return json({ ok: true, ignored: true }, 200)
+    }
+
     const secret = getWebhookSecret()
     const signatureHeader = req.headers.get('paymongo-signature') || req.headers.get('Paymongo-Signature') || ''
     if (!secret) return fail('Webhook is not configured', 503)
-    if (!signatureHeader || !verifyPayMongoSignature(rawBody, signatureHeader, secret, mode)) { console.error('[paymongo-webhook] invalid signature', { hasHeader: Boolean(signatureHeader), mode }); return fail('Invalid webhook signature', 401) }
-
-    let event: any
-    try { event = JSON.parse(rawBody) } catch { return fail('Invalid webhook body', 400) }
-    const eventId = String(event?.data?.id || '')
-    const attributes = event?.data?.attributes ?? {}
-    const eventType = String(attributes.type || '')
-    console.log('[paymongo-webhook] received', { eventId, eventType })
-    if (!eventId || !ALLOWED_EVENTS.has(eventType)) return json({ ok: true, ignored: true }, 200)
-    if (Boolean(attributes.livemode) !== (mode === 'live')) { console.error('[paymongo-webhook] livemode mismatch', { eventId, eventLivemode: attributes.livemode, mode }); return fail('Webhook environment mismatch', 400) }
+    if (!signatureHeader || !verifyPayMongoSignature(rawBody, signatureHeader, secret, mode)) {
+      console.error('[paymongo-webhook] invalid signature', { hasHeader: Boolean(signatureHeader), mode })
+      return fail('Invalid webhook signature', 401)
+    }
 
     const client = createSupabaseServerClient()
     if (eventType === 'checkout_session.payment.paid') {
@@ -155,6 +184,8 @@ async function handler(req: Request) {
         .from('payment_attempts')
         .select('bill_id,status')
         .eq('provider_checkout_session_id', parsed.checkoutSessionId)
+        .eq('status', 'pending')
+        .limit(1)
         .maybeSingle()
       if (attemptError) throw attemptError
 
