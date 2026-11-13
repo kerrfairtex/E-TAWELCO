@@ -120,4 +120,8 @@ describe('parsePaidCheckoutEvent paid_at normalization', () => {
   it('never returns a bare numeric string', () => {
     expect(parsePaidCheckoutEvent(build(1794414256))?.paidAt).not.toMatch(/^\d+$/)
   })
+
+  it('rejects malformed paid_at instead of substituting the current time', () => {
+    expect(parsePaidCheckoutEvent(build('not-a-timestamp'))).toBeNull()
+  })
 })
