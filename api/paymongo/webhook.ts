@@ -66,6 +66,11 @@ export function parsePaidCheckoutEvent(event: any): ParsedPaidCheckout | null {
     || paymentAttributes.payment_method_details?.type
     || paymentAttributes.payment_method?.type
     || 'unknown'
+  const paidAt = paymentAttributes.paid_at == null
+    ? toIso(eventAttributes.created_at)
+    : toIso(paymentAttributes.paid_at)
+  if (!paidAt) return null
+
   return {
     eventId: String(event?.data?.id || ''),
     eventType: String(eventAttributes.type || ''),
@@ -75,12 +80,24 @@ export function parsePaidCheckoutEvent(event: any): ParsedPaidCheckout | null {
     amountCentavos: Number(paymentAttributes.amount),
     currency: String(paymentAttributes.currency || '').toUpperCase(),
     method: String(method),
-    paidAt: toIso(paymentAttributes.paid_at) ?? toIso(eventAttributes.created_at) ?? new Date().toISOString(),
+    paidAt,
   }
 }
 
 function errorCode(error: unknown) {
   return typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+}
+
+export function shouldReconcileDuplicate(
+  result: unknown,
+  attemptStatus: unknown,
+  billStatus: unknown,
+  paymentExists: boolean,
+) {
+  return result === 'duplicate'
+    && attemptStatus === 'pending'
+    && (billStatus === 'unpaid' || billStatus === 'overdue')
+    && !paymentExists
 }
 
 function auditPayload(eventId: string, eventType: string, details: Record<string, unknown>) {
@@ -114,23 +131,60 @@ async function handler(req: Request) {
         console.error('[paymongo-webhook] invalid paid payload', { eventId, eventType })
         return fail('Invalid payment event payload', 400)
       }
-      const { data: result, error } = await client.rpc('apply_checkout_paid', {
-        p_event_id: parsed.eventId,
-        p_event_type: parsed.eventType,
-        p_livemode: parsed.livemode,
-        p_payload: event,
-        p_checkout_session_id: parsed.checkoutSessionId,
-        p_payment_id: parsed.paymentId,
-        p_amount_centavos: parsed.amountCentavos,
-        p_method: parsed.method,
-        p_paid_at: parsed.paidAt,
-        p_channel: parsed.method === 'gcash' || parsed.method === 'paymaya' || parsed.method === 'qrph' || parsed.method === 'grab_pay' ? 'mobile_wallet' : 'bank',
-      })
-      console.log('[paymongo-webhook] apply_checkout_paid', { eventId, result, error: error ? { message: (error as any).message, code: (error as any).code } : null })
-      if (error) throw error
-      if (result === 'unknown_session') console.error('[paymongo-webhook] unknown_session', { eventId })
-      if (result === 'unknown_session') return json({ ok: true, retryable: true, result }, 202)
-      return json({ ok: true, processed: true, result }, 200)
+    const paymentArgs = {
+      p_event_type: parsed.eventType,
+      p_livemode: parsed.livemode,
+      p_payload: event,
+      p_checkout_session_id: parsed.checkoutSessionId,
+      p_payment_id: parsed.paymentId,
+      p_amount_centavos: parsed.amountCentavos,
+      p_method: parsed.method,
+      p_paid_at: parsed.paidAt,
+      p_channel: parsed.method === 'gcash' || parsed.method === 'paymaya' || parsed.method === 'qrph' || parsed.method === 'grab_pay' ? 'mobile_wallet' : 'bank',
+    }
+    const { data: result, error } = await client.rpc('apply_checkout_paid', {
+      p_event_id: parsed.eventId,
+      ...paymentArgs,
+    })
+    console.log('[paymongo-webhook] apply_checkout_paid', { eventId, result, error: error ? { message: (error as any).message, code: (error as any).code } : null })
+    if (error) throw error
+
+    let finalResult = result
+    if (result === 'duplicate') {
+      const { data: attempt, error: attemptError } = await client
+        .from('payment_attempts')
+        .select('bill_id,status')
+        .eq('provider_checkout_session_id', parsed.checkoutSessionId)
+        .maybeSingle()
+      if (attemptError) throw attemptError
+
+      if (attempt?.status === 'pending') {
+        const [{ data: bill, error: billError }, { data: payment, error: paymentError }] = await Promise.all([
+          client.from('bills').select('status').eq('id', attempt.bill_id).maybeSingle(),
+          client.from('payments').select('id').eq('paymongo_reference', parsed.paymentId).maybeSingle(),
+        ])
+        if (billError) throw billError
+        if (paymentError) throw paymentError
+
+        if (shouldReconcileDuplicate(result, attempt.status, bill?.status, Boolean(payment))) {
+          const { data: recoveredResult, error: recoveryError } = await client.rpc('apply_checkout_paid', {
+            p_event_id: `reconcile-${parsed.eventId}`,
+            ...paymentArgs,
+          })
+          console.log('[paymongo-webhook] reconciled previously acknowledged event', {
+            eventId,
+            result: recoveredResult,
+            error: recoveryError ? { message: (recoveryError as any).message, code: (recoveryError as any).code } : null,
+          })
+          if (recoveryError) throw recoveryError
+          finalResult = recoveredResult
+        }
+      }
+    }
+
+    if (finalResult === 'unknown_session') console.error('[paymongo-webhook] unknown_session', { eventId })
+    if (finalResult === 'unknown_session') return json({ ok: true, retryable: true, result: finalResult }, 202)
+    return json({ ok: true, processed: true, result: finalResult }, 200)
     }
 
     const { error: insertError } = await client.from('payment_events').insert({ provider_event_id: eventId, type: eventType, raw_payload: event, livemode: Boolean(attributes.livemode) })

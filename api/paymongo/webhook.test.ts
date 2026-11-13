@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import crypto from 'node:crypto'
-import { ALLOWED_EVENTS, parseSignatureHeader, verifyPayMongoSignature } from './webhook.ts'
+import { ALLOWED_EVENTS, parseSignatureHeader, shouldReconcileDuplicate, verifyPayMongoSignature } from './webhook.ts'
 
 const secret = 'test-webhook-secret'
 const body = JSON.stringify({ data: { id: 'evt_123' } })
@@ -42,6 +42,15 @@ describe('PayMongo webhook verification', () => {
       'payment.expired',
     ])
     expect(ALLOWED_EVENTS.has('payment.refunded')).toBe(false)
+  })
+
+  it('only reconciles a duplicate when its attempt and bill are still unpaid', () => {
+    expect(shouldReconcileDuplicate('duplicate', 'pending', 'unpaid', false)).toBe(true)
+    expect(shouldReconcileDuplicate('duplicate', 'pending', 'overdue', false)).toBe(true)
+    expect(shouldReconcileDuplicate('duplicate', 'paid', 'unpaid', false)).toBe(false)
+    expect(shouldReconcileDuplicate('duplicate', 'pending', 'paid', false)).toBe(false)
+    expect(shouldReconcileDuplicate('duplicate', 'pending', 'unpaid', true)).toBe(false)
+    expect(shouldReconcileDuplicate('paid', 'pending', 'unpaid', false)).toBe(false)
   })
 
   it('rejects a replayed event at the database boundary', () => {
