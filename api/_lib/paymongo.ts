@@ -59,7 +59,7 @@ export function createSupabaseServerClient(): SupabaseClient {
   })
 }
 
-export async function createCheckoutSession(payload: Record<string, unknown>, idempotencyKey?: string) {
+async function paymongoRequest(path: string, init: RequestInit = {}) {
   const secretKey = getPayMongoSecret()
   if (!secretKey) throw new Error('PayMongo server configuration is missing')
 
@@ -67,17 +67,13 @@ export async function createCheckoutSession(payload: Record<string, unknown>, id
   const timeout = setTimeout(() => controller.abort(), 30000)
   let response: Response
   try {
-    response = await fetch(`${PAYMONGO_API_BASE}/checkout_sessions`, {
-      method: 'POST',
-      headers: {
-        ...paymongoHeaders(secretKey),
-        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-      },
-      body: JSON.stringify(payload),
+    response = await fetch(`${PAYMONGO_API_BASE}${path}`, {
+      ...init,
+      headers: { ...paymongoHeaders(secretKey), ...init.headers },
       signal: controller.signal,
     })
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') throw new Error('PayMongo checkout timed out')
+    if (error instanceof Error && error.name === 'AbortError') throw new Error('PayMongo request timed out')
     throw error
   } finally {
     clearTimeout(timeout)
@@ -85,11 +81,14 @@ export async function createCheckoutSession(payload: Record<string, unknown>, id
 
   const text = await response.text()
   if (!response.ok) {
-    console.error('[paymongo] checkout request failed', {
+    console.error('[paymongo] request failed', {
+      path,
       status: response.status,
       response: text.slice(0, 500),
     })
-    throw new Error('PayMongo checkout request failed')
+    const error = new Error('PayMongo request failed') as Error & { status?: number }
+    error.status = response.status
+    throw error
   }
 
   try {
@@ -97,4 +96,16 @@ export async function createCheckoutSession(payload: Record<string, unknown>, id
   } catch {
     throw new Error('PayMongo returned an invalid response')
   }
+}
+
+export async function createCheckoutSession(payload: Record<string, unknown>, idempotencyKey?: string) {
+  return paymongoRequest('/checkout_sessions', {
+    method: 'POST',
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function retrieveCheckoutSession(checkoutSessionId: string) {
+  return paymongoRequest(`/checkout_sessions/${encodeURIComponent(checkoutSessionId)}`, { method: 'GET' })
 }

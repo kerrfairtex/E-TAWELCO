@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { describe, it, expect } from 'vitest'
 import { verifyPaymongoSignature } from '../api/_lib/paymongo.ts'
 import { parsePaidCheckoutEvent } from '../api/paymongo/webhook.ts'
-import { PAYMENT_METHOD_TYPES } from '../api/paymongo/checkout.ts'
+import { PAYMENT_METHOD_TYPES, parseCheckoutSession } from '../api/paymongo/checkout.ts'
 
 const secret = 'whsk_test_secret'
 const body = '{"data":{"type":"checkout_session.payment.paid"}}'
@@ -15,6 +15,23 @@ const check = (hdr: string | null, b = body, s = secret) =>
 describe('checkout payment methods', () => {
   it('passes the requested live payment methods to PayMongo', () => {
     expect(PAYMENT_METHOD_TYPES).toEqual(['card', 'gcash', 'paymaya', 'grab_pay', 'qrph'])
+  })
+
+  it('extracts a reusable hosted checkout session', () => {
+    expect(parseCheckoutSession({
+      data: {
+        id: 'cs_test_123',
+        attributes: { status: 'active', checkout_url: 'https://checkout.paymongo.com/cs_test_123' },
+      },
+    })).toEqual({
+      id: 'cs_test_123',
+      url: 'https://checkout.paymongo.com/cs_test_123',
+      status: 'active',
+    })
+  })
+
+  it('recognizes expired provider sessions', () => {
+    expect(parseCheckoutSession({ data: { id: 'cs_test_old', attributes: { status: 'expired' } } }).status).toBe('expired')
   })
 })
 
