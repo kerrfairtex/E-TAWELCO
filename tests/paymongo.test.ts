@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { describe, it, expect } from 'vitest'
 import { verifyPaymongoSignature } from '../api/_lib/paymongo.ts'
-import { parsePaidCheckoutEvent } from '../api/paymongo/webhook.ts'
+import { parsePaidCheckoutEvent, shouldIgnorePayMongoEvent } from '../api/paymongo/webhook.ts'
 import { PAYMENT_METHOD_TYPES, parseCheckoutSession } from '../api/paymongo/checkout.ts'
 
 const secret = 'whsk_test_secret'
@@ -66,9 +66,51 @@ describe('parsePaidCheckoutEvent', () => {
     })
   })
 
+  it('parses the test checkout event when amount and method are on the session', () => {
+    const parsed = parsePaidCheckoutEvent({
+      data: {
+        id: 'evt_test_123',
+        attributes: {
+          type: 'checkout_session.payment.paid',
+          livemode: false,
+          created_at: 1735660800,
+          data: {
+            id: 'cs_test_123',
+            attributes: {
+              line_items: [{ amount: 10000, currency: 'PHP', quantity: 1 }],
+              payment_method_used: 'gcash',
+              paid_at: 1735660800,
+              payments: [{ id: 'pay_test_123', attributes: { fee: 300, foreign_fee: 0, status: 'paid' } }],
+            },
+          },
+        },
+      },
+    })
+
+    expect(parsed).toEqual({
+      eventId: 'evt_test_123',
+      eventType: 'checkout_session.payment.paid',
+      livemode: false,
+      checkoutSessionId: 'cs_test_123',
+      paymentId: 'pay_test_123',
+      amountCentavos: 10000,
+      currency: 'PHP',
+      method: 'gcash',
+      paidAt: new Date(1735660800 * 1000).toISOString(),
+    })
+  })
+
   it('does not treat the event id as the payment id', () => {
     const parsed = parsePaidCheckoutEvent({ data: { id: 'evt_1', attributes: { type: 'checkout_session.payment.paid', data: { id: 'cs_1', attributes: { payments: [] } } } } })
     expect(parsed).toBeNull()
+  })
+})
+
+describe('webhook event filtering', () => {
+  it('acknowledges unrelated QR events and events from the other PayMongo mode', () => {
+    expect(shouldIgnorePayMongoEvent('qr.expired', true, 'test')).toBe(true)
+    expect(shouldIgnorePayMongoEvent('checkout_session.payment.paid', true, 'test')).toBe(true)
+    expect(shouldIgnorePayMongoEvent('checkout_session.payment.paid', false, 'test')).toBe(false)
   })
 })
 
