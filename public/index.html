@@ -610,8 +610,12 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   .hero-photo img{animation:hero-settle .8s ease-out both}
   @keyframes hero-settle{from{opacity:.55;transform:scale(1.035)}to{opacity:1;transform:scale(1)}}
   @media(max-width:640px){.municipality-list li{align-items:flex-start;flex-direction:column;gap:2px}.municipality-list span{max-width:none;text-align:left}.region-directory{padding:18px}}
-  .hero-seal{position:absolute;z-index:0;top:50%;right:5%;width:clamp(240px,39vw,430px);aspect-ratio:1;border-radius:9999px;overflow:hidden;transform:translateY(-50%);box-shadow:0 16px 32px rgba(0,0,0,.38);pointer-events:none}
-  .hero-seal-image{display:block;width:100%;height:100%;object-fit:cover;transform:scale(1.1)}
+  .hero-seal{position:absolute;z-index:0;top:50%;right:5%;width:min(340px,32vw);aspect-ratio:1;transform:translateY(-50%);filter:drop-shadow(0 12px 18px rgba(0,0,0,.38));pointer-events:none}
+  .hero-seal-clip-defs{position:absolute;width:0;height:0;overflow:hidden}
+  .hero-seal-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .hero-seal-gear{clip-path:url(#heroGearClip);transform-origin:50% 50%;animation:hero-seal-turn 24s linear infinite;will-change:transform;backface-visibility:hidden}
+  .hero-seal-center{clip-path:circle(40% at 50% 50%)}
+  @keyframes hero-seal-turn{to{transform:rotate(360deg)}}
   @media(max-width:860px){
     .hero{display:block;min-height:440px}
     .hero-photo{position:absolute;inset:0 0 0 40%;height:auto;z-index:-1}
@@ -622,7 +626,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     .hero h1{font-size:clamp(2.2rem,7vw,3rem);line-height:1.03;max-width:360px;margin-bottom:18px}
     .hero p{font-size:.95rem;line-height:1.45}
     .hero .hotline{font-size:.7rem}
-    .hero-seal{z-index:0;top:43%;right:2%;width:clamp(190px,45vw,310px)}
+    .hero-seal{z-index:0;top:43%;right:24px;width:min(62vw,280px)}
     .hero-caption{right:14px;bottom:14px}
   }
   @media(max-width:420px){
@@ -631,11 +635,11 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     .hero-copy{width:62%;padding:30px 8px 30px 12px}
     .hero-copy::before{inset:0 -30px 0 -12px}
     .hero h1{font-size:2.4rem}
-    .hero-seal{width:54vw;right:-1%;top:40%}
+    .hero-seal{width:min(62vw,280px);right:24px;top:40%}
     .hero-actions{gap:12px}
     .hero-actions .btn{padding-inline:14px}
   }
-  @media(prefers-reduced-motion:reduce){.hero-photo img{animation:none}.municipality-list li{transition:none}}
+  @media(prefers-reduced-motion:reduce){.hero-photo img{animation:none}.hero-seal-gear{animation:none;will-change:auto}.municipality-list li{transition:none}}
 </style>
   <style>.pw-wrap{position:relative}.pw-wrap .input{padding-right:4.75rem;width:100%}.pw-toggle{position:absolute;right:.25rem;top:50%;transform:translateY(-50%);min-width:44px;min-height:44px;padding:0 .6rem;background:none;border:0;color:inherit;font:inherit;font-size:.85em;font-weight:600;cursor:pointer;border-radius:8px}.pw-toggle:focus-visible{outline:2px solid currentColor;outline-offset:-2px}button[aria-busy="true"]{opacity:.7;cursor:progress}</style>
   <style>
@@ -839,8 +843,16 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   <section class="hero-wrap" aria-labelledby="heroTitle">
     <div class="hero">
       <div class="hero-photo deco" aria-hidden="true"><img data-photo="hero" alt="" width="1440" height="1080" fetchpriority="high" decoding="async"></div>
-      <div class="hero-seal" aria-hidden="true">
-        <img class="hero-seal-image" src="/assets/tawelco-seal-transparent.png" alt="" width="640" height="640">
+      <div class="hero-seal" role="img" aria-label="Tawi-Tawi Electric Cooperative seal">
+        <svg class="hero-seal-clip-defs" aria-hidden="true" focusable="false">
+          <defs>
+            <clipPath id="heroGearClip" clipPathUnits="objectBoundingBox">
+              <polygon points="0.4312,0.0654 0.4564,0.0019 0.5436,0.0019 0.5688,0.0654 0.5688,0.0654 0.6125,0.0128 0.6954,0.0397 0.6998,0.1080 0.6998,0.1080 0.7575,0.0714 0.8280,0.1226 0.8111,0.1889 0.8111,0.1889 0.8774,0.1720 0.9286,0.2425 0.8920,0.3002 0.8920,0.3002 0.9603,0.3046 0.9872,0.3875 0.9346,0.4312 0.9346,0.4312 0.9981,0.4564 0.9981,0.5436 0.9346,0.5688 0.9346,0.5688 0.9872,0.6125 0.9603,0.6954 0.8920,0.6998 0.8920,0.6998 0.9286,0.7575 0.8774,0.8280 0.8111,0.8111 0.8111,0.8111 0.8280,0.8774 0.7575,0.9286 0.6998,0.8920 0.6998,0.8920 0.6954,0.9603 0.6125,0.9872 0.5688,0.9346 0.5688,0.9346 0.5436,0.9981 0.4564,0.9981 0.4312,0.9346 0.4312,0.9346 0.3875,0.9872 0.3046,0.9603 0.3002,0.8920 0.3002,0.8920 0.2425,0.9286 0.1720,0.8774 0.1889,0.8111 0.1889,0.8111 0.1226,0.8280 0.0714,0.7575 0.1080,0.6998 0.1080,0.6998 0.0397,0.6954 0.0128,0.6125 0.0654,0.5688 0.0654,0.5688 0.0019,0.5436 0.0019,0.4564 0.0654,0.4312 0.0654,0.4312 0.0128,0.3875 0.0397,0.3046 0.1080,0.3002 0.1080,0.3002 0.0714,0.2425 0.1226,0.1720 0.1889,0.1889 0.1889,0.1889 0.1720,0.1226 0.2425,0.0714 0.3002,0.1080 0.3002,0.1080 0.3046,0.0397 0.3875,0.0128 0.4312,0.0654" />
+            </clipPath>
+          </defs>
+        </svg>
+        <img class="hero-seal-layer hero-seal-gear" src="/assets/tawelco-seal-transparent.png" alt="" aria-hidden="true" width="640" height="640">
+        <img class="hero-seal-layer hero-seal-center" src="/assets/tawelco-seal-transparent.png" alt="" aria-hidden="true" width="640" height="640">
       </div>
       <div class="hero-grid">
         <div class="hero-copy">
