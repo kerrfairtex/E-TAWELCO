@@ -610,7 +610,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   .hero-photo img{animation:hero-settle .8s ease-out both}
   @keyframes hero-settle{from{opacity:.55;transform:scale(1.035)}to{opacity:1;transform:scale(1)}}
   @media(max-width:640px){.municipality-list li{align-items:flex-start;flex-direction:column;gap:2px}.municipality-list span{max-width:none;text-align:left}.region-directory{padding:18px}}
-  .hero-seal{position:absolute;z-index:0;top:50%;right:5%;width:clamp(240px,39vw,430px);aspect-ratio:1;object-fit:contain;transform:translateY(-50%);filter:drop-shadow(0 8px 18px rgba(0,0,0,.32));pointer-events:none}
+  .hero-seal{position:absolute;z-index:0;top:50%;right:5%;width:clamp(240px,39vw,430px);aspect-ratio:1;border-radius:9999px;overflow:hidden;transform:translateY(-50%);box-shadow:0 16px 32px rgba(0,0,0,.38);pointer-events:none}
+  .hero-seal-image{display:block;width:100%;height:100%;object-fit:cover;transform:scale(1.1)}
   @media(max-width:860px){
     .hero{display:block;min-height:440px}
     .hero-photo{position:absolute;inset:0 0 0 40%;height:auto;z-index:-1}
@@ -838,7 +839,9 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   <section class="hero-wrap" aria-labelledby="heroTitle">
     <div class="hero">
       <div class="hero-photo deco" aria-hidden="true"><img data-photo="hero" alt="" width="1440" height="1080" fetchpriority="high" decoding="async"></div>
-      <img class="hero-seal" src="/assets/tawelco-seal-transparent.png" alt="" aria-hidden="true" width="640" height="640">
+      <div class="hero-seal" aria-hidden="true">
+        <img class="hero-seal-image" src="/assets/tawelco-seal-transparent.png" alt="" width="640" height="640">
+      </div>
       <div class="hero-grid">
         <div class="hero-copy">
           <p class="hero-kicker" data-i18n="hero.kicker">Tawi-Tawi electric service · customer support</p>
