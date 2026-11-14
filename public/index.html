@@ -612,7 +612,31 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   @media(max-width:640px){.municipality-list li{align-items:flex-start;flex-direction:column;gap:2px}.municipality-list span{max-width:none;text-align:left}.region-directory{padding:18px}}
   @media(prefers-reduced-motion:reduce){.hero-photo img{animation:none}.municipality-list li{transition:none}}
 </style>
-<style>.pw-wrap{position:relative}.pw-wrap .input{padding-right:4.75rem;width:100%}.pw-toggle{position:absolute;right:.25rem;top:50%;transform:translateY(-50%);min-width:44px;min-height:44px;padding:0 .6rem;background:none;border:0;color:inherit;font:inherit;font-size:.85em;font-weight:600;cursor:pointer;border-radius:8px}.pw-toggle:focus-visible{outline:2px solid currentColor;outline-offset:-2px}button[aria-busy="true"]{opacity:.7;cursor:progress}</style>
+  <style>.pw-wrap{position:relative}.pw-wrap .input{padding-right:4.75rem;width:100%}.pw-toggle{position:absolute;right:.25rem;top:50%;transform:translateY(-50%);min-width:44px;min-height:44px;padding:0 .6rem;background:none;border:0;color:inherit;font:inherit;font-size:.85em;font-weight:600;cursor:pointer;border-radius:8px}.pw-toggle:focus-visible{outline:2px solid currentColor;outline-offset:-2px}button[aria-busy="true"]{opacity:.7;cursor:progress}</style>
+  <style>
+    .pay,.pay .container,.pay .two-col,.pay .two-col>div{min-width:0;max-width:100%}
+    .pay .channels li,.pay .channels li>div{min-width:0}
+    .pay .channels li>div{overflow-wrap:anywhere}
+    @media(max-width:760px){.pay .two-col{grid-template-columns:minmax(0,1fr);gap:28px}.pay .channels{width:100%}.pay .channels li{width:100%}}
+    @media print{
+      @page{size:auto;margin:18mm}
+      html,body{background:#fff!important;color:#111!important;color-scheme:light!important;font:10.5pt/1.5 Arial,sans-serif!important}
+      body *{visibility:hidden!important}
+      #connect,#connect *{visibility:visible!important}
+      #connect{position:absolute!important;inset:0 auto auto 0!important;width:100%!important;padding:0!important;margin:0!important;background:#fff!important;color:#111!important}
+      #connect .container{max-width:none!important;padding:0!important;margin:0!important}
+      #connect h2{font-size:22pt!important;color:#111!important;border-bottom:2px solid #222;padding-bottom:8pt;margin-bottom:8pt}
+      #connect h2:after{content:"Tawi-Tawi · Service planning checklist";display:block;font-size:10pt;font-weight:400;letter-spacing:0;margin-top:5pt;color:#555}
+      #connect p{color:#333!important;max-width:none!important}
+      #connect .connect-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12pt!important;margin-top:16pt}
+      #connect .card{background:#fff!important;border:1px solid #777!important;border-radius:0!important;box-shadow:none!important;padding:12pt!important;break-inside:avoid}
+      #connect .card:before{display:none!important}
+      #connect h3{font-size:13pt!important;color:#111!important;margin-bottom:8pt}
+      #connect li{color:#222!important;margin:5pt 0!important}
+      #connect .btn,#connect .small.muted{display:none!important}
+      #connect a{color:#111!important;text-decoration:none!important}
+    }
+  </style>
 </head>
 <body>
 <a class="skip" href="#main" data-i18n="skip">Skip to main content</a>
@@ -1025,8 +1049,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
             <li>Choose how to pay</li>
           </ol>
           <form id="payForm" novalidate>
-            <p class="hint" id="payHint">Sign in with your email to see your own bills. Bills are never shown from an account number alone.</p>
-            <button class="btn btn-secondary" type="submit" id="payBtn">Check the amount</button>
+            <p class="hint" id="payHint">For your privacy, bill details are available only after you sign in to your member account. An account number alone cannot unlock a bill.</p>
+            <button class="btn btn-secondary" type="submit" id="payBtn">Sign in to check your bill</button>
             <p class="form-msg" id="payMsg" aria-live="polite"></p>
           </form>
           <div class="bill-result" id="payResult" hidden aria-live="polite"></div>
@@ -1048,29 +1072,29 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   <!-- Get connected (printable) -->
   <section class="section" id="connect" aria-labelledby="connectTitle">
     <div class="container">
-      <h2 id="connectTitle" data-i18n="connect.title">Get connected</h2>
-      <p>Bring these to your nearest cooperative office. Steps and documents are sample content until the cooperative confirms them.</p>
+      <h2 id="connectTitle" data-i18n="connect.title">New service connection guide</h2>
+      <p>Use this planning checklist when contacting your electricity provider. Requirements, fees and processing times vary by service area; confirm current details directly with the cooperative before submitting documents or making payments.</p>
       <div class="connect-grid">
         <div class="card">
-          <h3>Steps <span class="sample">(sample)</span></h3>
+          <h3>Application steps</h3>
           <ol>
-            <li>Attend the pre-membership seminar at the office or with your island collector.</li>
-            <li>Fill in the membership and connection application form.</li>
-            <li>Have a licensed electrician wire your house and get it inspected.</li>
-            <li>Pay the membership fee and meter deposit.</li>
-            <li>Wait for the line crew to install your meter, usually within 2 weeks.</li>
+            <li>Confirm which electric cooperative serves your address.</li>
+            <li>Request the current membership and new-connection application forms.</li>
+            <li>Ask the cooperative for its document checklist, inspection requirements and applicable fees.</li>
+            <li>Submit the completed application and supporting documents to an authorized office.</li>
+            <li>Keep your acknowledgment receipt and follow the cooperative’s official instructions for inspection, payment and installation.</li>
           </ol>
         </div>
         <div class="card">
-          <h3>Required documents <span class="sample">(sample)</span></h3>
+          <h3>Documents to ask about</h3>
           <ul>
-            <li>One valid ID</li>
-            <li>Proof of house ownership or a letter from the owner</li>
-            <li>Barangay certificate</li>
-            <li>Electrical wiring inspection certificate</li>
-            <li>Two 1x1 photos</li>
+            <li>Valid government-issued identification</li>
+            <li>Proof of occupancy or authorization from the property owner</li>
+            <li>Barangay certification, if required</li>
+            <li>Electrical wiring or inspection documents, if required</li>
+            <li>Any additional forms or photographs specified by the cooperative</li>
           </ul>
-          <p class="small muted" style="margin-top:16px">Print this page to bring it with you.</p>
+          <p class="small muted" style="margin-top:16px">This is a preparation guide, not an official application or confirmed list of requirements.</p>
           <button class="btn btn-secondary" type="button" id="printBtn">Print this checklist</button>
         </div>
       </div>
@@ -1785,20 +1809,28 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   /* ---------- Delegated links ---------- */
   var modal = $('#outageModal'), lastOpener = null;
   var oIsland = $('#oIsland');
+  var BARANGAYS_BY_MUNICIPALITY = Object.create(null);
+  var barangayDirectoryReady = fetch('/assets/tawi_tawi_barangays.csv').then(function(response){ if (!response.ok) throw new Error('Barangay directory unavailable'); return response.text(); }).then(function(csv){
+    csv.split(/\r?\n/).slice(1).forEach(function(line){ var fields = line.split(','); if (!fields[0] || !fields[1]) return; var key = fields[0].trim().toLowerCase(); (BARANGAYS_BY_MUNICIPALITY[key] || (BARANGAYS_BY_MUNICIPALITY[key] = [])).push(fields[1].trim()); });
+    if (modal.open) updateBarangayField($('#oBrgy').value);
+  }).catch(function(){});
   ISLANDS.forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name; oIsland.appendChild(o); });
   function updateBarangayField(preselected){
     var previous = $('#oBrgy');
-    var isBongao = oIsland.value === 'bongao';
-    var field = document.createElement(isBongao ? 'select' : 'input');
+    var municipality = ISLANDS.filter(function(i){ return i.id === oIsland.value; })[0];
+    var key = municipality ? municipality.name.toLowerCase() : '';
+    var barangays = BARANGAYS_BY_MUNICIPALITY[key] || [];
+    var field = document.createElement(barangays.length ? 'select' : 'input');
     field.id = 'oBrgy'; field.className = 'input'; field.required = true;
     field.setAttribute('aria-describedby', 'oBrgyHint oBrgyErr');
     field.setAttribute('autocomplete', 'address-level3');
-    if (isBongao) {
-      Array.prototype.forEach.call(bongaoDirectory.options, function(option){ field.appendChild(option.cloneNode(true)); });
+    if (barangays.length) {
+      var placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Choose a barangay'; field.appendChild(placeholder);
+      barangays.forEach(function(name){ var option = document.createElement('option'); option.value = name; option.textContent = name; field.appendChild(option); });
     }
     field.value = preselected || '';
     previous.replaceWith(field);
-    $('#oBrgyHint').textContent = isBongao ? 'Official PSA barangay choices for Bongao municipality; not a service coverage list.' : 'Enter the barangay in this area. The verified Bongao list does not apply to other municipalities.';
+    $('#oBrgyHint').textContent = barangays.length ? 'Select the barangay for this municipality. Directory names are for address guidance and do not confirm utility coverage.' : 'Enter the barangay in this area. You can also add a sitio, purok or nearby landmark.';
     $('#oBrgyErr').textContent = '';
     $('#outageMsg').textContent = '';
   }
@@ -1894,13 +1926,10 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   });
   $('#payForm').addEventListener('submit', function(e){
     e.preventDefault();
-    var v = $('#payAcct').value.replace(/\s/g,'');
-    var ok = /^\d{11}$/.test(v);
-    $('#payErr').textContent = ok ? '' : 'Enter your 11-digit account number.';
-    $('#payAcct').setAttribute('aria-invalid', String(!ok));
-    $('#payMsg').textContent = '';
-    if (!ok) { setAnimatedVisibility(payResult, false); $('#payAcct').focus(); return; }
-    $('#payMsg').innerHTML = 'Log in to view your bill. <a href="/dashboard/?login=member">Log in</a>';
+    var signIn = document.createElement('a');
+    signIn.href = '/dashboard/?login=member';
+    signIn.textContent = 'Sign in to your member account';
+    $('#payMsg').replaceChildren(document.createTextNode('Your bill amount is protected. Sign in to see bills linked to your profile. '), signIn);
     setAnimatedVisibility(payResult, false);
   });
   $('#printBtn').addEventListener('click', function(){ window.print(); });

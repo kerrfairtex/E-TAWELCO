@@ -50,7 +50,28 @@ const ago = (d) => {
   return `${Math.round(h / 24)} days ago`
 }
 
-const state = { session: null, profile: null, areas: [], team: null }
+const state = { session: null, profile: null, areas: [], team: null, barangaysByMunicipality: null }
+let barangayDirectoryPromise
+
+async function loadBarangayDirectory() {
+  if (!barangayDirectoryPromise) {
+    barangayDirectoryPromise = fetch('/assets/tawi_tawi_barangays.csv')
+      .then((response) => { if (!response.ok) throw new Error('Barangay directory unavailable'); return response.text() })
+      .then((csv) => {
+        const directory = new Map()
+        for (const line of csv.split(/\r?\n/).slice(1)) {
+          const [municipality, barangay] = line.split(',')
+          if (!municipality || !barangay) continue
+          const key = municipality.trim().toLowerCase()
+          if (!directory.has(key)) directory.set(key, new Set())
+          directory.get(key).add(barangay.trim())
+        }
+        state.barangaysByMunicipality = directory
+        return directory
+      })
+  }
+  return barangayDirectoryPromise
+}
 const isStaff = () => state.session && state.session.role !== 'member'
   const isAdmin = () => state.session?.role === 'admin' || state.session?.role === 'master_admin'
   const isMasterAdmin = () => state.session?.role === 'master_admin'
@@ -539,7 +560,7 @@ function bindReportRows(root, onChange) {
 
 async function outages(view) {
   const staff = isStaff()
-  view.innerHTML = `${head('Outage reports', staff ? 'Triage, assign and resolve reports from every island.' : 'Report an outage and follow its progress.')}
+  view.innerHTML = `${head('Outage reports', staff ? 'Triage, assign and resolve reports from every island.' : 'Report an outage and follow its progress.', '<button class="btn btn-secondary" id="reportsRefresh" type="button">Refresh reports</button>')}
     <div class="stack">
       ${staff ? '' : `<section class="card" aria-labelledby="newTitle"><div class="card-head"><div><h2 id="newTitle">Report an outage</h2><p class="small muted">Usually takes less than a minute. You can follow the ticket after sending it.</p></div></div>${reportForm()}</section>`}
       <section aria-labelledby="listTitle">
@@ -565,6 +586,7 @@ async function outages(view) {
     bindReportRows(list, load)
   }
   $$('#filters select, #filters input').forEach((el) => el.addEventListener('change', load))
+  $('#reportsRefresh').addEventListener('click', load)
   if (!staff) bindReportForm(view, load)
   await load()
 }
@@ -579,7 +601,8 @@ function reportForm() {
       <div class="field"><label for="rObs">What do you see?</label><select class="input" id="rObs" required><option value="">Choose one</option>${OBSERVATIONS.map((o) => `<option>${esc(o)}</option>`).join('')}</select></div>
       <div class="field"><label for="rPhone">Phone for follow-up <span class="muted small">(optional)</span></label><input class="input" id="rPhone" inputmode="tel" autocomplete="tel" value="${esc(state.profile?.phone ?? '')}"></div>
     </div>
-    <div class="field"><label for="rLandmark">Nearby landmark <span class="muted small">(optional)</span></label><input class="input" id="rLandmark" maxlength="200"></div>
+    <div class="field"><label for="rLandmark">Sitio, purok or nearby landmark <span class="muted small">(optional)</span></label><input class="input" id="rLandmark" maxlength="200" autocomplete="address-line2"><span class="small muted">Use a familiar place name. Precise location is shared only if you choose the button below.</span></div>
+    <div class="field"><button class="btn btn-secondary" id="shareLocation" type="button">Share my current location</button><p class="small muted" id="locationStatus" role="status">Your device location is not accessed unless you choose to share it.</p></div>
     <button class="btn btn-primary" type="submit">Send report</button>
     <p class="msg" aria-live="polite"></p>
   </form>`
@@ -587,14 +610,36 @@ function reportForm() {
 
 function bindReportForm(root, onDone) {
   const form = $('#reportForm', root)
+  const barangaysForArea = (area) => {
+    if (!area) return []
+    const name = area.id === 'taganak' || /turtle|taganak/i.test(`${area.id} ${area.name}`) ? 'turtle islands' : area.name.toLowerCase()
+    const fromDirectory = state.barangaysByMunicipality?.get(name) ?? []
+    return [...new Set([...(area.barangays ?? []), ...fromDirectory])].sort((a, b) => a.localeCompare(b))
+  }
   const renderBrgy = () => {
     const area = state.areas.find((a) => a.id === $('#rArea').value)
-    $('#rBrgyWrap').innerHTML = area?.barangays?.length
-      ? `<select class="input" id="rBrgy" required><option value="">Choose a barangay</option>${area.barangays.map((b) => `<option>${esc(b)}</option>`).join('')}</select>`
-      : '<input class="input" id="rBrgy" maxlength="80" required>'
+    const selected = $('#rBrgy')?.value ?? ''
+    const barangays = barangaysForArea(area)
+    $('#rBrgyWrap').innerHTML = barangays.length
+      ? `<select class="input" id="rBrgy" required><option value="">Choose a barangay</option>${barangays.map((b) => `<option${b === selected ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>`
+      : '<input class="input" id="rBrgy" maxlength="80" required autocomplete="address-level3">'
   }
   $('#rArea').addEventListener('change', renderBrgy)
   renderBrgy()
+  loadBarangayDirectory().then(renderBrgy).catch(() => {})
+
+  $('#shareLocation').addEventListener('click', () => {
+    const status = $('#locationStatus')
+    if (!navigator.geolocation) { status.textContent = 'Location sharing is not available on this device. Enter a landmark instead.'; return }
+    status.textContent = 'Requesting your permission to share this location…'
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const pin = `Shared location: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
+      const landmark = $('#rLandmark')
+      const description = landmark.value.replace(/\s*\|\s*Shared location:.*$/i, '').trim()
+      landmark.value = [description.slice(0, Math.max(0, 197 - pin.length)), pin].filter(Boolean).join(' | ')
+      status.textContent = 'Location added to this report. It will be visible to authorized staff handling the report.'
+    }, () => { status.textContent = 'Location was not shared. You can enter a nearby landmark instead.' }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 })
+  })
   form.addEventListener('submit', (e) => {
     e.preventDefault()
     const msg = $('.msg', form)
@@ -633,10 +678,12 @@ async function openReport(id, onChange) {
     staff ? (state.team ? Promise.resolve(state.team) : api('/api/team').then((d) => (state.team = d.team))) : Promise.resolve([]),
   ]).catch((err) => { $('#dlgBody').innerHTML = `<p class="msg err">${esc(err.message)}</p>`; throw err })
 
+  const sharedLocation = report.landmark?.match(/Shared location:\s*(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/i)
+  const mapLink = sharedLocation ? `<br><a href="https://maps.google.com/?q=${encodeURIComponent(`${sharedLocation[1]},${sharedLocation[2]}`)}" target="_blank" rel="noopener noreferrer">Open shared map pin</a>` : ''
   const body = openDialog(`Report ${report.ticket_no}`, `
     <dl class="facts">
       <dt>Status</dt><dd>${badge(report.status, REPORT_STATUS)}</dd>
-      <dt>Where</dt><dd>${esc(report.barangay)}, ${esc(report.area_name)}${report.landmark ? `<br><span class="small muted">Near ${esc(report.landmark)}</span>` : ''}</dd>
+      <dt>Where</dt><dd>${esc(report.barangay)}, ${esc(report.area_name)}${report.landmark ? `<br><span class="small muted">${esc(report.landmark)}</span>${mapLink}` : ''}</dd>
       <dt>What</dt><dd>${esc(report.observation)}</dd>
       ${staff ? `<dt>Reporter</dt><dd>${esc(report.reporter_email || 'Not signed in')}${report.phone ? ` · <a href="tel:${esc(report.phone)}">${esc(report.phone)}</a>` : ''}</dd>` : ''}
       <dt>Reported</dt><dd>${esc(fmtDate(report.created_at))}</dd>
