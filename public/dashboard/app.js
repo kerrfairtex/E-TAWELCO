@@ -163,7 +163,7 @@ Option 2: Install and provide the "ws" package:
     </div>`;let t=async()=>{let r=new URLSearchParams;e||r.set("scope","mine"),d("#fStatus").value&&r.set("status",d("#fStatus").value),e&&d("#fArea").value&&r.set("area",d("#fArea").value),e&&d("#fMine").checked&&r.set("assigned","me");let{reports:a}=await A(`/api/outages?${r}`),n=d("#list");n.innerHTML=a.length?Zr(a,e):'<div class="card empty">No reports match these filters.</div>',ea(n,t)};L("#filters select, #filters input").forEach(r=>r.addEventListener("change",t)),e||ri(s,t),await t()}function si(){let s=w.profile?.area_id??"";return`<form id="reportForm" novalidate>
     <p class="small muted">Keep away from fallen lines. Your report goes to the cooperative's outage desk.</p>
     <div class="grid-2">
-      <div class="field"><label for="rArea">Island area</label><select class="input" id="rArea" required>${Me(s)}</select></div>
+      <div class="field"><label for="rArea">Municipality / service area</label><select class="input" id="rArea" required>${Me(s)}</select></div>
       <div class="field"><label for="rBrgy">Barangay</label><span id="rBrgyWrap"></span></div>
       <div class="field"><label for="rObs">What do you see?</label><select class="input" id="rObs" required><option value="">Choose one</option>${Hn.map(e=>`<option>${p(e)}</option>`).join("")}</select></div>
       <div class="field"><label for="rPhone">Phone for follow-up <span class="muted small">(optional)</span></label><input class="input" id="rPhone" inputmode="tel" autocomplete="tel" value="${p(w.profile?.phone??"")}"></div>
@@ -190,7 +190,7 @@ Option 2: Install and provide the "ws" package:
       <p class="msg" aria-live="polite"></p>
     </form>`:""}
     <h3 style="margin-bottom:12px">Timeline</h3>
-    <ol class="timeline">${a.map(o=>`<li><div>${M(o.status,ye)} <span class="small muted">${p(te(o.created_at))}${o.author_name&&o.author_role!=="member"?` \xB7 ${p(o.author_name)}`:""}</span></div>${o.note?`<p style="margin:6px 0 0">${p(o.note)}</p>`:""}</li>`).join("")}</ol>`);t&&d("#updForm",i).addEventListener("submit",o=>{o.preventDefault();let l=d(".msg",o.target),c={status:d("#uStatus").value,note:d("#uNote").value.trim()};(d("#uAssign").value||null)!==(r.assigned_to||null)&&(c.assigned_to=d("#uAssign").value),N(d("button[type=submit]",o.target),async()=>{try{await A(`/api/outages/${s}`,{method:"PATCH",body:c}),await ta(s,e),e?.()}catch(u){E(l,u.message)}})})}async function ai(s){let{areas:e}=await A("/api/areas");w.areas=e,s.innerHTML=`${Y("Service areas","Status, hours and notices shown to members for each island.")}
+    <ol class="timeline">${a.map(o=>`<li><div>${M(o.status,ye)} <span class="small muted">${p(te(o.created_at))}${o.author_name&&o.author_role!=="member"?` \xB7 ${p(o.author_name)}`:""}</span></div>${o.note?`<p style="margin:6px 0 0">${p(o.note)}</p>`:""}</li>`).join("")}</ol>`);t&&d("#updForm",i).addEventListener("submit",o=>{o.preventDefault();let l=d(".msg",o.target),c={status:d("#uStatus").value,note:d("#uNote").value.trim()};(d("#uAssign").value||null)!==(r.assigned_to||null)&&(c.assigned_to=d("#uAssign").value),N(d("button[type=submit]",o.target),async()=>{try{await A(`/api/outages/${s}`,{method:"PATCH",body:c}),await ta(s,e),e?.()}catch(u){E(l,u.message)}})})}async function ai(s){let{areas:e}=await A("/api/areas");w.areas=e,s.innerHTML=`${Y("Service areas","Review operational status and member notices by service area. Confirm rates, hours and boundaries before publishing updates.")}
     <div class="table-wrap"><table>
       <thead><tr><th>Area</th><th>Status</th><th>Hours</th><th class="num">Rate / kWh</th><th>Notice</th><th>Updated</th><th><span class="visually-hidden">Edit</span></th></tr></thead>
       <tbody>${e.map(t=>`<tr>
@@ -218,7 +218,7 @@ Option 2: Install and provide the "ws" package:
     <div class="field"><label for="uId">Email</label><input class="input" id="uId" type="email" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" required></div>
     <p class="small muted" id="uIdHint">The person signs in with this email. A one-time password is shown after you create the account.</p>
     <div class="field" id="uAcctWrap" hidden><label for="uAcct">Account number <span class="muted small">(optional, used for billing)</span></label><input class="input" id="uAcct" inputmode="numeric" maxlength="11" autocomplete="off"></div>
-    <div class="field"><label for="uArea">Island area (optional)</label><select class="input" id="uArea">${Me("","No area")}</select></div>
+    <div class="field"><label for="uArea">Municipality / service area (optional)</label><select class="input" id="uArea">${Me("","No area")}</select></div>
     <p class="small muted" id="uAreaError" hidden>Areas could not be loaded. You can still create the account and assign an area later.</p>
     <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the email again to confirm</label><input class="input" id="uConfirm" type="email" autocomplete="off" autocapitalize="none" required></div>
     <button class="btn btn-primary" type="submit">Create account</button>
@@ -257,7 +257,7 @@ Option 2: Install and provide the "ws" package:
       <div class="card-head"><div><h2>Directory</h2><p class="small muted" style="margin:4px 0 0">Role changes apply when the person's session refreshes.</p></div><span class="small muted" id="peopleCount"></span></div>
       <div class="filters" id="peopleFilters"><div class="field"><label for="peopleSearch">Search people</label><input class="input" id="peopleSearch" type="search" placeholder="Name, email or area"></div><div class="field"><label for="peopleRole">Role</label><select class="input" id="peopleRole"><option value="all">All roles</option>${Object.entries(W).map(([a,n])=>`<option value="${a}">${n}</option>`).join("")}</select></div></div>
       <div class="table-wrap"><table><thead><tr><th>Name</th><th>Area</th><th class="num">Reports</th><th>Last seen</th><th>Access</th><th>Actions</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
-    </section>`,d("#peopleSearch",s).addEventListener("input",()=>r(e)),d("#peopleRole",s).addEventListener("change",()=>r(e)),L("[data-role-filter]",s).forEach(a=>a.addEventListener("click",()=>{d("#peopleRole",s).value=a.dataset.roleFilter,r(e)})),d("#peopleRefresh",s).addEventListener("click",()=>ft(s)),d("#addUserBtn",s).addEventListener("click",()=>ii(s)),r(e)}async function ci(s){let e=w.profile;s.innerHTML=`${Y("My profile","Used to prefill outage reports and show service news for your island.")}
+    </section>`,d("#peopleSearch",s).addEventListener("input",()=>r(e)),d("#peopleRole",s).addEventListener("change",()=>r(e)),L("[data-role-filter]",s).forEach(a=>a.addEventListener("click",()=>{d("#peopleRole",s).value=a.dataset.roleFilter,r(e)})),d("#peopleRefresh",s).addEventListener("click",()=>ft(s)),d("#addUserBtn",s).addEventListener("click",()=>ii(s)),r(e)}async function ci(s){let e=w.profile;s.innerHTML=`${Y("My profile","Keep your contact details and service area ready for account support.")}
     <section class="card" style="max-width:640px">
       <form id="profileForm" novalidate>
         <div class="field"><label>Email</label><div>${p(e.email)} ${M(e.role,W)}</div></div>
@@ -265,10 +265,11 @@ Option 2: Install and provide the "ws" package:
           <div class="field"><label for="pName">Full name</label><input class="input" id="pName" maxlength="120" autocomplete="name" value="${p(e.full_name??"")}"></div>
           <div class="field"><label for="pPhone">Phone</label><input class="input" id="pPhone" maxlength="30" inputmode="tel" autocomplete="tel" value="${p(e.phone??"")}"></div>
         </div>
-        <div class="field"><label for="pArea">Island area</label><select class="input" id="pArea">${Me(e.area_id,"Not set")}</select></div>
+        <div class="field"><label for="pArea">Municipality / service area</label><select class="input" id="pArea">${Me(e.area_id,"Not set")}</select><span class="small muted">Choose the service area linked to your account. Your provider and feeder may depend on your address.</span></div>
         <button class="btn btn-primary" type="submit">Save profile</button>
         <p class="msg" aria-live="polite"></p>
       </form>
+      <p class="small muted" style="margin:8px 0 0">Your service-area choice helps route account support. Contact the utility named on your bill if your address or provider changes.</p>
       <p class="small muted" style="margin:8px 0 0">Member since ${p(new Date(e.created_at).toLocaleDateString("en-PH",{dateStyle:"long"}))}</p>
     </section>
     <section class="card" style="max-width:640px">

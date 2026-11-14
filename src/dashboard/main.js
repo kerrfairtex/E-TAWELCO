@@ -574,7 +574,7 @@ function reportForm() {
   return `<form id="reportForm" novalidate>
     <p class="small muted">Keep away from fallen lines. Your report goes to the cooperative's outage desk.</p>
     <div class="grid-2">
-      <div class="field"><label for="rArea">Island area</label><select class="input" id="rArea" required>${areaOptions(mine)}</select></div>
+      <div class="field"><label for="rArea">Municipality / service area</label><select class="input" id="rArea" required>${areaOptions(mine)}</select></div>
       <div class="field"><label for="rBrgy">Barangay</label><span id="rBrgyWrap"></span></div>
       <div class="field"><label for="rObs">What do you see?</label><select class="input" id="rObs" required><option value="">Choose one</option>${OBSERVATIONS.map((o) => `<option>${esc(o)}</option>`).join('')}</select></div>
       <div class="field"><label for="rPhone">Phone for follow-up <span class="muted small">(optional)</span></label><input class="input" id="rPhone" inputmode="tel" autocomplete="tel" value="${esc(state.profile?.phone ?? '')}"></div>
@@ -674,7 +674,7 @@ async function openReport(id, onChange) {
 async function areasView(view) {
   const { areas } = await api('/api/areas')
   state.areas = areas
-  view.innerHTML = `${head('Service areas', 'Status, hours and notices shown to members for each island.')}
+  view.innerHTML = `${head('Service areas', 'Review operational status and member notices by service area. Confirm rates, hours and boundaries before publishing updates.')}
     <div class="table-wrap"><table>
       <thead><tr><th>Area</th><th>Status</th><th>Hours</th><th class="num">Rate / kWh</th><th>Notice</th><th>Updated</th><th><span class="visually-hidden">Edit</span></th></tr></thead>
       <tbody>${areas.map((a) => `<tr>
@@ -736,7 +736,7 @@ async function openAddUserDialog(view) {
     <div class="field"><label for="uId">Email</label><input class="input" id="uId" type="email" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" required></div>
     <p class="small muted" id="uIdHint">The person signs in with this email. A one-time password is shown after you create the account.</p>
     <div class="field" id="uAcctWrap" hidden><label for="uAcct">Account number <span class="muted small">(optional, used for billing)</span></label><input class="input" id="uAcct" inputmode="numeric" maxlength="11" autocomplete="off"></div>
-    <div class="field"><label for="uArea">Island area (optional)</label><select class="input" id="uArea">${areaOptions('', 'No area')}</select></div>
+    <div class="field"><label for="uArea">Municipality / service area (optional)</label><select class="input" id="uArea">${areaOptions('', 'No area')}</select></div>
     <p class="small muted" id="uAreaError" hidden>Areas could not be loaded. You can still create the account and assign an area later.</p>
     <div class="field" id="uConfirmWrap" hidden><label for="uConfirm">Type the email again to confirm</label><input class="input" id="uConfirm" type="email" autocomplete="off" autocapitalize="none" required></div>
     <button class="btn btn-primary" type="submit">Create account</button>
@@ -894,7 +894,7 @@ async function people(view) {
 // ---------- Profile ----------
 async function profileView(view) {
   const p = state.profile
-  view.innerHTML = `${head('My profile', 'Used to prefill outage reports and show service news for your island.')}
+  view.innerHTML = `${head('My profile', 'Keep your contact details and service area ready for account support.')}
     <section class="card" style="max-width:640px">
       <form id="profileForm" novalidate>
         <div class="field"><label>Email</label><div>${esc(p.email)} ${badge(p.role, ROLE_LABEL)}</div></div>
@@ -902,10 +902,11 @@ async function profileView(view) {
           <div class="field"><label for="pName">Full name</label><input class="input" id="pName" maxlength="120" autocomplete="name" value="${esc(p.full_name ?? '')}"></div>
           <div class="field"><label for="pPhone">Phone</label><input class="input" id="pPhone" maxlength="30" inputmode="tel" autocomplete="tel" value="${esc(p.phone ?? '')}"></div>
         </div>
-        <div class="field"><label for="pArea">Island area</label><select class="input" id="pArea">${areaOptions(p.area_id, 'Not set')}</select></div>
+        <div class="field"><label for="pArea">Municipality / service area</label><select class="input" id="pArea">${areaOptions(p.area_id, 'Not set')}</select><span class="small muted">Choose the service area linked to your account. Your provider and feeder may depend on your address.</span></div>
         <button class="btn btn-primary" type="submit">Save profile</button>
         <p class="msg" aria-live="polite"></p>
       </form>
+      <p class="small muted" style="margin:8px 0 0">Your service-area choice helps route account support. Contact the utility named on your bill if your address or provider changes.</p>
       <p class="small muted" style="margin:8px 0 0">Member since ${esc(new Date(p.created_at).toLocaleDateString('en-PH', { dateStyle: 'long' }))}</p>
     </section>
     <section class="card" style="max-width:640px">
