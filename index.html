@@ -45,7 +45,7 @@
 
 /* ---------- Base ---------- */
 *,*::before,*::after{box-sizing:border-box}
-html{font-size:var(--base);scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+html{font-size:var(--base);scroll-behavior:smooth;-webkit-text-size-adjust:100%;overflow-x:clip}
 body{margin:0;background:var(--foam);color:var(--ink);font-family:var(--font-body);font-size:1.0625rem;line-height:1.55;
   padding-bottom:env(safe-area-inset-bottom);overflow-x:hidden}
 h1,h2,h3{font-family:var(--font-head);line-height:1.12;margin:0 0 20px;font-weight:500;letter-spacing:-.035em}
@@ -115,8 +115,8 @@ main:focus{outline:none}
 
 /* ---------- Utility bar ---------- */
 .utility{background:var(--soft);color:var(--muted);padding-top:env(safe-area-inset-top,0px);position:relative;z-index:86;font-size:.8rem}
-.utility .container{display:flex;align-items:center;justify-content:flex-end;min-height:40px;gap:4px}
-.util-items{display:flex;align-items:center;gap:4px}
+.utility .container{display:flex;align-items:center;justify-content:flex-end;min-height:40px;gap:4px;min-width:0;max-width:100%;flex-wrap:wrap}
+.util-items{display:flex;align-items:center;gap:4px;min-width:0;max-width:100%;flex-wrap:wrap}
 .util-link,.util-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;color:inherit;background:none;border:0;
   border-radius:10px;text-decoration:none;cursor:pointer;font-weight:700}
 .util-link:hover,.util-btn:hover{background:var(--tint);color:var(--brand)}
@@ -128,6 +128,36 @@ main:focus{outline:none}
   .popover{opacity:0;transform:translateY(-8px) scale(.98);transition:opacity .24s ease,transform .24s ease}
   .popover.is-visible{opacity:1;transform:none}
   .popover h2{font-size:1.25rem;margin-bottom:12px}
+.login-overlay{position:fixed;inset:0;z-index:220;display:grid;place-items:center;padding:16px;opacity:0;background:rgba(0,0,0,.64);transition:opacity .18s ease}
+.login-overlay[hidden]{display:none}
+.login-overlay.is-open{opacity:1}
+.login-backdrop{position:absolute;inset:0;cursor:pointer}
+.login-dialog{position:relative;z-index:1;width:min(420px,calc(100vw - 32px));max-height:90vh;max-height:90dvh;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--ink);padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.38);transform:translateY(12px);transition:transform .18s ease}
+.login-overlay.is-open .login-dialog{transform:translateY(0)}
+.login-heading{display:flex;align-items:center;gap:14px;padding-right:44px;margin-bottom:22px}
+.login-heading h2{font-size:1.55rem;margin:0 0 4px}
+.login-heading p{margin:0;color:var(--muted);font-size:.95rem}
+.login-seal{width:48px;height:48px;flex:none;border-radius:50%;object-fit:cover;background:#fff}
+.login-close{position:absolute;top:14px;right:14px;min-width:44px;min-height:44px}
+.login-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin-bottom:20px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
+.login-tab{min-height:44px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);font-weight:700;cursor:pointer}
+.login-tab[aria-selected="true"]{border-color:var(--line);background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.login-dialog .field{gap:7px;margin-bottom:16px}
+.login-dialog .input,.login-dialog select.input{min-height:48px;font-size:16px}
+.login-dialog .input[aria-invalid="true"]{border-color:var(--err)}
+.login-dialog .form-links{justify-content:space-between;gap:12px;margin:2px 0 18px}
+.login-dialog .form-links a{color:var(--sun);font-weight:700}
+.login-dialog .btn-primary{width:100%;min-height:48px}
+.login-dialog .form-msg{margin:12px 0 0;color:var(--err);font-size:.92rem}
+.login-dialog .form-msg[hidden]{display:none}
+.login-notice{margin:0 0 16px;padding:10px 12px;border-left:3px solid var(--sun);background:var(--soft);color:var(--muted);font-size:.88rem;font-weight:700}
+.login-submit-content{display:inline-flex;align-items:center;justify-content:center;gap:9px}
+.login-spinner{display:inline-block;width:17px;height:17px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:login-spin .7s linear infinite}
+.login-spinner[hidden]{display:none}
+@keyframes login-spin{to{transform:rotate(360deg)}}
+@media(max-width:767px){.login-overlay{align-items:end;padding:16px 16px max(16px,env(safe-area-inset-bottom))}.login-dialog{width:100%;max-height:90vh;max-height:90dvh;border-radius:22px}}
+@media(max-width:420px){.login-heading{padding-right:0}.login-heading p{font-size:.82rem;white-space:nowrap}}
+@media(prefers-reduced-motion:reduce){.login-overlay,.login-dialog{transition:none}.login-spinner{animation:none}}
 .lang-list{display:grid;gap:8px}
 .lang-list button{justify-content:flex-start;width:100%}
 .switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;cursor:pointer;border:0;background:none;color:inherit;font-weight:600;border-radius:10px}
@@ -150,7 +180,7 @@ main:focus{outline:none}
 .site-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:var(--card);border-bottom:1px solid var(--line)}
 .site-header .container{display:flex;align-items:center;gap:16px;height:88px;max-width:1440px}
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--brand);font-family:var(--font-head);font-weight:800;font-size:1.15rem;white-space:nowrap;margin-right:auto;line-height:1.12;letter-spacing:-.04em}
-.logo-seal{width:56px;height:56px;flex:none;object-fit:contain}
+.logo-seal{width:56px;height:56px;flex:none;object-fit:cover;border-radius:50%}
 .logo-sub{display:block;font-size:.78rem!important;letter-spacing:0;font-weight:600;margin-top:4px}
 .main-nav>ul{display:flex;gap:2px;list-style:none;margin:0;padding:0}
 .nav-trigger{min-height:44px;padding:0 9px;border:0;background:none;border-radius:0;cursor:pointer;font-weight:var(--menu-weight);color:var(--ink);font-size:.88rem;white-space:nowrap}
@@ -466,8 +496,9 @@ fieldset{border:0;padding:0;margin:0 0 14px}
   .hero-photo{height:280px}
   .hero-caption{right:16px;bottom:16px;font-size:.8rem;padding:12px 16px}
   .site-header .container{height:76px;padding-left:20px;padding-right:20px}
+  .utility .container{padding-inline:16px}
   .util-more{display:inline-flex}
-  .util-items{display:none;position:fixed;left:0;right:0;bottom:0;z-index:85;background:var(--card);color:var(--ink);flex-direction:column;align-items:stretch;
+  .util-items{display:none;position:fixed;left:0;right:0;bottom:0;z-index:85;width:auto;max-width:100vw;max-height:80vh;overflow-x:hidden;overflow-y:auto;background:var(--card);color:var(--ink);flex-direction:column;align-items:stretch;
     padding:16px 16px calc(16px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;box-shadow:0 -18px 40px rgba(6,30,36,.35);gap:4px}
   .util-items.open{display:flex}
   .util-items .util-link,.util-items .util-btn,.util-items .switch{min-height:48px;justify-content:space-between;font-size:1rem}
@@ -709,56 +740,9 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     <div class="util-items" id="utilItems">
       <a class="util-link" href="#members" data-i18n="careers">Careers</a>
       <a class="util-link" href="#footer" data-i18n="contact">Contact</a>
-      <div class="pop-wrap">
-        <button class="util-btn" id="membersBtn" aria-expanded="false" aria-controls="membersPanel">
-          <svg class="icon"><use href="#i-user"/></svg><span data-i18n="members">Members</span><svg class="icon"><use href="#i-chev"/></svg>
-        </button>
-        <div class="popover" id="membersPanel" hidden>
-          <h2 data-i18n="login.title">Member log-in</h2>
-          <form id="loginForm" novalidate>
-            <div class="field">
-              <label for="acct">Email</label>
-              <input class="input" id="acct" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="acctErr">
-              <span class="error" id="acctErr" aria-live="polite"></span>
-            </div>
-            <div class="field">
-              <label for="pw">Password</label>
-              <div class="pw-wrap"><input class="input" id="pw" name="pw" type="password" autocomplete="current-password" aria-describedby="pwErr"><button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false" aria-controls="pw">Show</button></div>
-              <span class="error" id="pwErr" aria-live="polite"></span>
-            </div>
-            <div class="field">
-              <label for="loginIsland">Which island? <span class="sample">(optional)</span></label>
-              <select class="input" id="loginIsland"><option value="">Choose your island</option></select>
-            </div>
-            <div class="form-links"><a href="#footer">Forgot password</a><a href="#connect">Create an account</a></div>
-            <button class="btn btn-primary" type="submit" data-i18n="login.btn">Log in</button>
-            <p class="form-msg" id="loginMsg" aria-live="polite"></p>
-          </form>
-        </div>
-      </div>
-      <div class="pop-wrap">
-        <button class="util-btn" id="adminBtn" aria-expanded="false" aria-controls="adminPanel">
-          <svg class="icon"><use href="#i-user"/></svg><span>Admin</span><svg class="icon"><use href="#i-chev"/></svg>
-        </button>
-        <div class="popover" id="adminPanel" hidden>
-          <h2>Admin log-in</h2>
-          <form id="adminLoginForm" novalidate>
-            <div class="field">
-              <label for="adminId">Email</label>
-              <input class="input" id="adminId" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="adminIdErr">
-              <span class="error" id="adminIdErr" aria-live="polite"></span>
-            </div>
-            <div class="field">
-              <label for="adminPw">Password</label>
-              <div class="pw-wrap"><input class="input" id="adminPw" name="adminPw" type="password" autocomplete="current-password" aria-describedby="adminPwErr"><button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false" aria-controls="adminPw">Show</button></div>
-              <span class="error" id="adminPwErr" aria-live="polite"></span>
-            </div>
-            <div class="form-links"><a href="#footer">Need access?</a><a href="#footer">Contact IT support</a></div>
-            <button class="btn btn-primary" type="submit">Log in</button>
-            <p class="form-msg" id="adminLoginMsg" aria-live="polite"></p>
-          </form>
-        </div>
-      </div>
+      <button class="util-btn" id="loginBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="loginOverlay">
+        <svg class="icon" aria-hidden="true"><use href="#i-user"/></svg><span data-i18n="login.entry">Log in</span>
+      </button>
       <div class="pop-wrap">
         <button class="util-btn" id="langBtn" aria-expanded="false" aria-controls="langPanel">
           <svg class="icon"><use href="#i-globe"/></svg><span id="langCode">EN</span><span class="visually-hidden" data-i18n="lang.title">Choose language</span>
@@ -784,6 +768,66 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       </button>
     </div>
   </div>
+</div>
+
+<div class="login-overlay" id="loginOverlay" hidden>
+  <div class="login-backdrop" data-login-close aria-hidden="true"></div>
+  <section class="login-dialog" id="loginDialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle" tabindex="-1">
+    <button class="icon-btn login-close" id="loginClose" type="button" aria-label="Close login" data-i18n-aria-label="login.close">
+      <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+    <header class="login-heading">
+      <img class="login-seal" src="/assets/tawelco-seal-transparent.png" alt="" aria-hidden="true" width="48" height="48">
+      <div><h2 id="loginTitle" data-i18n="login.welcome">Welcome back</h2><p data-i18n="login.subtitle">Sign in to manage your account.</p></div>
+    </header>
+    <div class="login-tabs" role="tablist" aria-label="Login type" data-i18n-aria-label="login.tabs">
+      <button class="login-tab" id="loginTabMember" type="button" role="tab" aria-selected="true" aria-controls="memberPanel" tabindex="0" data-login-tab="member" data-i18n="login.member">Member</button>
+      <button class="login-tab" id="loginTabAdmin" type="button" role="tab" aria-selected="false" aria-controls="adminPanel" tabindex="-1" data-login-tab="admin" data-i18n="login.admin">Admin</button>
+    </div>
+    <div class="login-panel" id="memberPanel" role="tabpanel" aria-labelledby="loginTabMember">
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="acct" data-i18n="login.email">Email</label>
+          <input class="input" id="acct" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="loginMsg" required>
+          <span class="error visually-hidden" id="acctErr"></span>
+        </div>
+        <div class="field">
+          <label for="pw" data-i18n="login.password">Password</label>
+          <div class="pw-wrap"><input class="input" id="pw" name="pw" type="password" autocomplete="current-password" aria-describedby="loginMsg" required><button type="button" class="pw-toggle" aria-label="Show password" data-i18n-aria-label="login.show" aria-pressed="false" aria-controls="pw" data-i18n="login.show">Show</button></div>
+          <span class="error visually-hidden" id="pwErr"></span>
+        </div>
+        <div class="field">
+          <label for="loginIsland"><span data-i18n="login.island">Which island?</span> <span class="sample" data-i18n="login.optional">(optional)</span></label>
+          <select class="input" id="loginIsland"><option value="" data-i18n="login.chooseIsland">Choose your island</option></select>
+        </div>
+        <div class="form-links"><a href="#footer" data-i18n="login.forgot">Forgot password?</a><a href="#connect" data-i18n="login.create">Create an account</a></div>
+        <button class="btn btn-primary" type="submit" data-login-submit>
+          <span class="login-submit-content"><span class="login-spinner" aria-hidden="true" hidden></span><span data-login-label data-i18n="login.btn">Log in</span></span>
+        </button>
+        <p class="form-msg" id="loginMsg" role="status" aria-live="polite" hidden></p>
+      </form>
+    </div>
+    <div class="login-panel" id="adminPanel" role="tabpanel" aria-labelledby="loginTabAdmin" hidden>
+      <p class="login-notice" data-i18n="login.authorized">Authorized staff only.</p>
+      <form id="adminLoginForm" novalidate>
+        <div class="field">
+          <label for="adminId" data-i18n="login.email">Email</label>
+          <input class="input" id="adminId" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="adminLoginMsg" required>
+          <span class="error visually-hidden" id="adminIdErr"></span>
+        </div>
+        <div class="field">
+          <label for="adminPw" data-i18n="login.password">Password</label>
+          <div class="pw-wrap"><input class="input" id="adminPw" name="adminPw" type="password" autocomplete="current-password" aria-describedby="adminLoginMsg" required><button type="button" class="pw-toggle" aria-label="Show password" data-i18n-aria-label="login.show" aria-pressed="false" aria-controls="adminPw" data-i18n="login.show">Show</button></div>
+          <span class="error visually-hidden" id="adminPwErr"></span>
+        </div>
+        <div class="form-links"><a href="#footer" data-i18n="login.needAccess">Need access?</a><a href="#footer" data-i18n="login.contactIT">Contact IT support</a></div>
+        <button class="btn btn-primary" type="submit" data-login-submit>
+          <span class="login-submit-content"><span class="login-spinner" aria-hidden="true" hidden></span><span data-login-label data-i18n="login.btn">Log in</span></span>
+        </button>
+        <p class="form-msg" id="adminLoginMsg" role="status" aria-live="polite" hidden></p>
+      </form>
+    </div>
+  </section>
 </div>
 
 <!-- 3.2 Header -->
@@ -1436,7 +1480,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   var FIL = {
     'skip':'Lumaktaw sa pangunahing nilalaman','more':'Iba pa','careers':'Trabaho','contact':'Makipag-ugnayan','members':'Mga miyembro',
     'lowdata':'Tipid data','search':'Hanapin','search.label':'Hanapin sa site','lang.title':'Pumili ng wika',
-    'login.title':'Pag-log in ng miyembro','login.btn':'Mag-log in','pay':'Bayaran ang iyong bill',
+    'login.entry':'Mag-log in','login.welcome':'Maligayang pagbabalik','login.subtitle':'Mag-sign in upang pamahalaan ang iyong account.','login.tabs':'Uri ng pag-log in','login.member':'Miyembro','login.admin':'Admin','login.email':'Email','login.password':'Password','login.show':'Ipakita','login.hide':'Itago','login.island':'Aling isla?','login.optional':'(opsyonal)','login.chooseIsland':'Piliin ang iyong isla','login.forgot':'Nakalimutan ang password?','login.create':'Gumawa ng account','login.needAccess':'Kailangan ng access?','login.contactIT':'Makipag-ugnayan sa IT support','login.authorized':'Para sa awtorisadong kawani lamang.','login.btn':'Mag-log in','login.loading':'Nagsa-sign in…','login.error':'Hindi tama ang email o password.','login.close':'Isara ang pag-log in','pay':'Bayaran ang iyong bill',
     'nav.home':'Para sa iyong tahanan','nav.bills':'Bill at singil','nav.outages':'Brownout at kaligtasan','nav.islands':'Mga isla',
     'nav.help':'Tulong','nav.about':'Tungkol sa amin','nav.news':'Balita',
     'islands.title':'Piliin ang inyong munisipalidad',
@@ -1464,6 +1508,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   };
   var EN = {};
   $$('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (!(k in EN)) EN[k] = el.textContent; });
+  EN['login.tabs'] = 'Login type'; EN['login.close'] = 'Close login'; EN['login.hide'] = 'Hide';
+  EN['login.loading'] = 'Signing in…'; EN['login.error'] = 'Incorrect email or password.';
   MENU.forEach(function(m){ EN[m.key] = m.label; });
   var DIALECTS = {
     tsg: { code:'TSG', lang:'tsg', note:'Bahasa Sūg (Tausug) is available as a community-review preview. Core service and safety information remains in English until locally reviewed.' },
@@ -1476,6 +1522,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     var dict = lang === 'fil' ? FIL : EN;
     root.setAttribute('lang', currentLang);
     $$('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); el.textContent = dict[k] || EN[k] || el.textContent; });
+    $$('[data-i18n-aria-label]').forEach(function(el){ var k = el.getAttribute('data-i18n-aria-label'); el.setAttribute('aria-label', dict[k] || EN[k] || el.getAttribute('aria-label')); });
     $('#langCode').textContent = lang === 'fil' ? 'FIL' : dialect ? dialect.code : 'EN';
     $$('[data-lang]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang)); });
     var note = $('#langNote');
@@ -1555,51 +1602,137 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !openPop) closeSheet(true); });
   $$('#utilItems > a').forEach(function(a){ a.addEventListener('click', function(){ closeSheet(false); }); });
 
-  registerPop($('#membersBtn'), $('#membersPanel'));
-  registerPop($('#adminBtn'), $('#adminPanel'));
   registerPop($('#langBtn'), $('#langPanel'));
   $$('[data-lang]').forEach(function(b){
     b.addEventListener('click', function(){ setLang(b.getAttribute('data-lang'), true); closeCurrent(true); });
   });
 
-  // Members log-in
   var loginIsland = $('#loginIsland');
   ISLANDS.forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name; loginIsland.appendChild(o); });
+
+  var loginBtn = $('#loginBtn'), loginOverlay = $('#loginOverlay'), loginDialog = $('#loginDialog');
+  var loginClose = $('#loginClose'), loginTabs = $$('.login-tab'), loginPanels = {member:$('#memberPanel'), admin:$('#adminPanel')};
+  var loginPreviousBodyStyles = null, loginScrollY = 0, loginIsOpen = false, loginCloseTimer = null;
+  function loginCopy(key){ return (currentLang === 'fil' ? FIL[key] : null) || EN[key] || key; }
+  function setLoginTab(name, focusTab, remember){
+    var selected = name === 'admin' ? 'admin' : 'member';
+    loginTabs.forEach(function(tab){
+      var active = tab.getAttribute('data-login-tab') === selected;
+      tab.setAttribute('aria-selected', String(active));
+      tab.setAttribute('tabindex', active ? '0' : '-1');
+      if (active && focusTab) tab.focus();
+    });
+    loginPanels.member.hidden = selected !== 'member';
+    loginPanels.admin.hidden = selected !== 'admin';
+    if (remember) { try { window.sessionStorage.setItem('etawelco-login-tab', selected); } catch(e){} }
+  }
+  var initialLoginTab = 'member';
+  try { if (window.sessionStorage.getItem('etawelco-login-tab') === 'admin') initialLoginTab = 'admin'; } catch(e){}
+  setLoginTab(initialLoginTab, false, false);
+  function openLogin(){
+    if (loginIsOpen) return;
+    closeCurrent(false);
+    clearTimeout(loginCloseTimer);
+    loginIsOpen = true;
+    loginScrollY = window.scrollY;
+    loginPreviousBodyStyles = {position:document.body.style.position,top:document.body.style.top,left:document.body.style.left,right:document.body.style.right,width:document.body.style.width,overflow:document.body.style.overflow,paddingRight:document.body.style.paddingRight};
+    var scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.position = 'fixed';
+    document.body.style.top = '-' + loginScrollY + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) document.body.style.paddingRight = scrollbarWidth + 'px';
+    loginOverlay.hidden = false;
+    loginBtn.setAttribute('aria-expanded','true');
+    requestAnimationFrame(function(){ loginOverlay.classList.add('is-open'); });
+    loginClose.focus();
+  }
+  function closeLogin(){
+    if (!loginIsOpen) return;
+    loginIsOpen = false;
+    loginOverlay.classList.remove('is-open');
+    loginBtn.setAttribute('aria-expanded','false');
+    ['position','top','left','right','width','overflow','paddingRight'].forEach(function(property){ document.body.style[property] = loginPreviousBodyStyles[property]; });
+    window.scrollTo(0, loginScrollY);
+    var delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180;
+    loginCloseTimer = window.setTimeout(function(){ loginOverlay.hidden = true; loginBtn.focus({preventScroll:true}); }, delay);
+  }
+  loginBtn.addEventListener('click', function(e){ e.stopPropagation(); openLogin(); });
+  loginClose.addEventListener('click', closeLogin);
+  loginOverlay.addEventListener('click', function(e){
+    e.stopPropagation();
+    if (e.target === loginOverlay || e.target.hasAttribute('data-login-close')) closeLogin();
+  });
+  loginDialog.addEventListener('click', function(e){ e.stopPropagation(); });
+  loginDialog.querySelectorAll('a[href^="#"]').forEach(function(link){ link.addEventListener('click', closeLogin); });
+  loginTabs.forEach(function(tab){
+    tab.addEventListener('click', function(){ setLoginTab(tab.getAttribute('data-login-tab'), false, true); });
+  });
+  $('.login-tabs').addEventListener('keydown', function(e){
+    var activeIndex = loginTabs.indexOf(document.activeElement);
+    if (activeIndex < 0) return;
+    var nextIndex = activeIndex;
+    if (e.key === 'ArrowRight') nextIndex = (activeIndex + 1) % loginTabs.length;
+    else if (e.key === 'ArrowLeft') nextIndex = (activeIndex + loginTabs.length - 1) % loginTabs.length;
+    else if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = loginTabs.length - 1;
+    else return;
+    e.preventDefault();
+    setLoginTab(loginTabs[nextIndex].getAttribute('data-login-tab'), true, true);
+  });
+  loginDialog.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeLogin(); return; }
+    if (e.key !== 'Tab') return;
+    var focusable = Array.prototype.slice.call(loginDialog.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(function(el){ return el.getClientRects().length > 0; });
+    if (!focusable.length) { e.preventDefault(); loginDialog.focus(); return; }
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey && (document.activeElement === first || !loginDialog.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (document.activeElement === last || !loginDialog.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+  });
+  $$('.pw-toggle').forEach(function(toggle){
+    toggle.addEventListener('click', function(){
+      var input = $('#' + toggle.getAttribute('aria-controls'));
+      var showing = input.type === 'password';
+      input.type = showing ? 'text' : 'password';
+      toggle.setAttribute('aria-pressed', String(showing));
+      toggle.setAttribute('data-i18n', showing ? 'login.hide' : 'login.show');
+      toggle.setAttribute('data-i18n-aria-label', showing ? 'login.hide' : 'login.show');
+      toggle.setAttribute('aria-label', loginCopy(showing ? 'login.hide' : 'login.show'));
+      toggle.textContent = loginCopy(showing ? 'login.hide' : 'login.show');
+    });
+  });
+  function submitLogin(form, emailInput, passwordInput, status, target){
+    var legacyIdPattern = form.id === 'loginForm' ? /^\d{11}$/ : /^\d{8}$/;
+    var identifier = emailInput.value.trim();
+    var legacyIdentifier = form.id === 'loginForm' ? identifier.replace(/\s/g, '') : identifier;
+    var emailOkay = emailInput.checkValidity() || legacyIdPattern.test(legacyIdentifier);
+    var passwordOkay = passwordInput.value.length > 0;
+    var okay = emailOkay && passwordOkay;
+    emailInput.setAttribute('aria-invalid', String(!okay));
+    passwordInput.setAttribute('aria-invalid', String(!okay));
+    if (!okay) {
+      status.textContent = loginCopy('login.error');
+      status.hidden = false;
+      return;
+    }
+    status.textContent = loginCopy('login.loading');
+    status.hidden = false;
+    var button = form.querySelector('[data-login-submit]');
+    button.disabled = true;
+    button.setAttribute('aria-busy','true');
+    button.querySelector('.login-spinner').hidden = false;
+    button.querySelector('[data-login-label]').textContent = loginCopy('login.loading');
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.location.href = target; }); });
+  }
   $('#loginForm').addEventListener('submit', function(e){
     e.preventDefault();
-    var acct = $('#acct'), pw = $('#pw'), ok = true;
-    var acctOk = /^\d{11}$/.test(acct.value.replace(/\s/g,''));
-    $('#acctErr').textContent = acctOk ? '' : 'Enter your 11-digit account number.';
-    acct.setAttribute('aria-invalid', String(!acctOk)); ok = ok && acctOk;
-    var pwOk = pw.value.length > 0;
-    $('#pwErr').textContent = pwOk ? '' : 'Enter your password.';
-    pw.setAttribute('aria-invalid', String(!pwOk)); ok = ok && pwOk;
-  if (!ok) {
-  $('#loginMsg').textContent = '';
-  (acctOk ? pw : acct).focus();
-  return;
-  }
-  $('#loginMsg').textContent = 'Opening the secure member dashboard…';
-  window.location.href = '/dashboard/?login=member';
+    submitLogin(e.currentTarget, $('#acct'), $('#pw'), $('#loginMsg'), '/dashboard/?login=member');
   });
-
-  // Admin log-in
   $('#adminLoginForm').addEventListener('submit', function(e){
     e.preventDefault();
-    var adminId = $('#adminId'), adminPw = $('#adminPw'), ok = true;
-    var idOk = adminId.value.trim().length > 0;
-    $('#adminIdErr').textContent = idOk ? '' : 'Enter your admin ID.';
-    adminId.setAttribute('aria-invalid', String(!idOk)); ok = ok && idOk;
-    var pwOk = adminPw.value.length > 0;
-    $('#adminPwErr').textContent = pwOk ? '' : 'Enter your password.';
-    adminPw.setAttribute('aria-invalid', String(!pwOk)); ok = ok && pwOk;
-  if (!ok) {
-  $('#adminLoginMsg').textContent = '';
-  (idOk ? adminPw : adminId).focus();
-  return;
-  }
-  $('#adminLoginMsg').textContent = 'Opening the secure admin dashboard…';
-  window.location.href = '/dashboard/?login=admin';
+    submitLogin(e.currentTarget, $('#adminId'), $('#adminPw'), $('#adminLoginMsg'), '/dashboard/?login=admin');
   });
 
   // Low data
