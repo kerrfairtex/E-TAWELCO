@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>E-TAWELCO Tawi-Tawi | Electricity service for the islands of Tawi-Tawi</title>
-<meta name="description" content="E-TAWELCO Tawi-Tawi customer services: pay your bill, report an outage, request a connection and find practical electricity guidance for your community.">
-<meta property="og:title" content="E-TAWELCO Tawi-Tawi | Electricity service for the islands of Tawi-Tawi">
-<meta property="og:description" content="Independent concept, not an official TAWELCO website. Sample bill estimator, outage note draft and barangay directory for Bongao, Tawi-Tawi.">
-<meta name="twitter:title" content="E-TAWELCO Tawi-Tawi | Electricity service for the islands of Tawi-Tawi">
-<meta name="twitter:description" content="Independent concept, not an official TAWELCO website. Sample bill estimator, outage note draft and barangay directory for Bongao, Tawi-Tawi.">
+<title>E-TAWELCO Tawi-Tawi | Island-wide customer service</title>
+<meta name="description" content="An independent customer-service concept for Tawi-Tawi residents. Explore all 11 municipalities, prepare an outage note, estimate household usage and find account support.">
+<meta property="og:title" content="E-TAWELCO Tawi-Tawi | Island-wide customer service">
+<meta property="og:description" content="A province-wide service concept for Tawi-Tawi. Explore municipal information and customer support while confirming official coverage, rates and notices with your utility.">
+<meta name="twitter:title" content="E-TAWELCO Tawi-Tawi | Island-wide customer service">
+<meta name="twitter:description" content="A province-wide service concept for Tawi-Tawi. Explore municipal information and customer support while confirming official coverage, rates and notices with your utility.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#facc15">
@@ -71,18 +71,18 @@ main:focus{outline:none}
 .wave-divider{display:block;width:100%;height:24px;color:var(--lagoon);opacity:.7}
 .concept-notice{padding:14px 32px;background:var(--tint);border-bottom:1px solid var(--line);font-size:.88rem;text-align:center}
 .concept-notice p{max-width:none;margin:0}
-.bongao-context{background:var(--soft);border-block:1px solid var(--line)}
-.bongao-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:48px;align-items:start}
-.bongao-grid h3{font-size:1.2rem}
-.bongao-directory{padding:28px;border:1px solid var(--line);border-top:4px solid var(--brand);background:var(--card)}
-.bongao-directory .input{width:100%}
+.region-context{background:var(--soft);border-block:1px solid var(--line)}
+.region-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:48px;align-items:start}
+.region-grid h3{font-size:1.2rem}
+.region-directory{padding:28px;border:1px solid var(--line);border-top:4px solid var(--brand);background:var(--card)}
+.region-directory .input{width:100%}
 .context-topics{margin-top:28px;padding-top:24px;border-top:1px solid var(--line)}
 .context-topics p:last-child{margin-bottom:0}
 .research-sources{margin-top:32px;border-top:1px solid var(--line);padding-top:20px;font-size:.88rem}
 .research-sources summary{cursor:pointer;font-weight:700;color:var(--lagoon)}
 .research-sources li{margin:10px 0}
 .report-draft{width:100%;min-height:130px;resize:vertical}
-@media (max-width:860px){.bongao-grid{grid-template-columns:1fr;gap:28px}}
+@media (max-width:860px){.region-grid{grid-template-columns:1fr;gap:28px}}
 
 /* ---------- Buttons ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 25px;border-radius:5px;
@@ -240,7 +240,8 @@ main:focus{outline:none}
   .map-pin::after{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--sea);transition:background-color .15s}
   .map-pin.is-selected::before{background:var(--sun);border-color:#fff;box-shadow:0 0 0 3px var(--brand),0 3px 7px rgba(37,43,48,.35)}
   .map-pin.is-selected::after{background:var(--sea)}
-  .map-pin-label{position:absolute;left:22px;top:-8px;padding:3px 7px;border-radius:4px;background:var(--sea);color:#fff;font:700 12px/1 var(--font-body);white-space:nowrap;box-shadow:0 1px 3px rgba(37,43,48,.25)}
+  .map-pin-label{display:none;position:absolute;left:22px;top:-8px;padding:3px 7px;border-radius:4px;background:var(--sea);color:#fff;font:700 12px/1 var(--font-body);white-space:nowrap;box-shadow:0 1px 3px rgba(37,43,48,.25)}
+  .leaflet-marker-icon:hover .map-pin-label,.leaflet-marker-icon:focus .map-pin-label,.map-pin.is-selected .map-pin-label{display:block}
   .leaflet-marker-icon:focus .map-pin-label{background:var(--brand)}
 
 
@@ -524,7 +525,7 @@ fieldset{border:0;padding:0;margin:0 0 14px}
 .hero-actions .btn-primary{box-shadow:0 10px 22px rgba(188,23,48,.18)}
 .service-link{transition:transform .18s ease,background-color .18s ease}
 .service-link:hover{transform:translateY(-2px);background:var(--tint)}
-.card,.bongao-directory,.island-card{box-shadow:0 8px 24px rgba(37,43,48,.05)}
+.card,.region-directory,.island-card{box-shadow:0 8px 24px rgba(37,43,48,.05)}
 .section-label{text-transform:uppercase;letter-spacing:.12em;font-size:.75rem}
 @media (max-width:860px){
   .hero{min-height:650px}
@@ -574,14 +575,14 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 .site-header{background:rgba(11,11,11,.96);border-bottom:1px solid var(--line);backdrop-filter:none}
 .site-header .container{height:78px}.logo{color:var(--white);font-family:var(--font-mono);font-size:1rem;letter-spacing:0}.logo-seal{width:42px;height:42px;color:var(--gold)}.logo-sub{color:var(--cream);font:500 .68rem/1.1 var(--font-body);letter-spacing:.08em;text-transform:uppercase}
 .btn{border-radius:2px;transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .18s ease}.btn-primary{background:var(--red-dark);color:var(--white)}.btn-primary:hover{background:var(--red);color:var(--white)}.btn-secondary{border:1px solid var(--gold);color:var(--gold);background:transparent}.btn-secondary:hover{background:var(--gold);color:var(--black)}.icon-btn,.chip,.pill,.toggle,.switch,.util-btn,.util-link{border-radius:2px}.chip,.pill{background:var(--card);border-color:var(--line);color:var(--white)}.chip[aria-pressed="true"]{border-color:var(--gold);background:var(--tint);color:var(--gold)}
-.card,.bongao-directory,.island-card,.panel,.news-list li{background:var(--card);border:1px solid var(--line);border-radius:2px;box-shadow:none;position:relative}.card::before,.bongao-directory::before,.island-card::before,.panel::before,.news-list li::before{content:"";position:absolute;top:-1px;left:14px;width:28px;height:1px;background:var(--gold)}
-.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover{border-top-color:var(--gold);transform:translateY(-2px);transition:transform .18s ease,border-color .18s ease}
+.card,.region-directory,.island-card,.panel,.news-list li{background:var(--card);border:1px solid var(--line);border-radius:2px;box-shadow:none;position:relative}.card::before,.region-directory::before,.island-card::before,.panel::before,.news-list li::before{content:"";position:absolute;top:-1px;left:14px;width:28px;height:1px;background:var(--gold)}
+.card:hover,.region-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover{border-top-color:var(--gold);transform:translateY(-2px);transition:transform .18s ease,border-color .18s ease}
 .input,select.input{background:#0D0D0D;border-color:var(--line);border-radius:2px;color:var(--white)}
 .concept-notice,.warn{background:var(--cream);color:var(--black);border-left:4px solid var(--yellow);border-radius:0}.concept-notice a,.warn a{color:var(--red-dark)}
 .hero{background-color:#101010;background-image:linear-gradient(rgba(0,0,0,.52),rgba(0,0,0,.52)),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:auto,8px 8px,8px 8px}.hero-copy::before{background:rgba(8,8,8,.91);box-shadow:none}.hero h1{color:var(--white)}.hero p,.mission p,.block .text p{color:var(--muted)}.hero-caption{border:1px solid var(--line);border-radius:2px;background:rgba(0,0,0,.8)}
 .quick-services{background:var(--card);border-color:var(--line)}.quick-services .container{padding-block:18px}.service-link{border-color:var(--line);color:var(--white);transition:background-color .18s ease,transform .18s ease}.service-link .icon{color:var(--gold)}.service-link:hover{background:var(--tint);transform:translateY(-2px)}
 .mission{background:var(--foam)}
-.bongao-context,#islands{background:#0D0D0D;border-block-color:var(--line)}.bongao-directory{border-top:1px solid var(--line)}
+.region-context,#islands{background:#0D0D0D;border-block-color:var(--line)}.region-directory{border-top:1px solid var(--line)}
 .island-map{border:1px solid var(--line);border-radius:2px;filter:saturate(.8) contrast(1.05)}.map-legend{color:var(--muted);font:600 .76rem var(--font-mono)}
 .map-pin::before{background:var(--red-dark);border-color:var(--white);box-shadow:0 0 0 1px var(--red-dark),0 2px 5px rgba(0,0,0,.5)}.map-pin::after{background:var(--white)}.map-pin.is-selected::before{background:var(--gold);border-color:var(--black);box-shadow:0 0 0 3px var(--gold),0 3px 7px rgba(0,0,0,.55)}.map-pin-label{background:var(--black);color:var(--white);border:1px solid var(--gold);border-radius:2px;font-family:var(--font-mono)}
 .stats{background:var(--red-dark);padding-block:48px 32px}.stat-num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--white)}.stats .note{color:rgba(255,255,255,.72)}
@@ -591,10 +592,23 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 .badge.steady{background:rgba(46,158,63,.2);color:#8BE596}.badge.limited{background:rgba(245,209,66,.18);color:var(--yellow)}.badge.outage{background:rgba(224,32,32,.2);color:#FF8D8D}.badge{border-radius:2px;font-family:var(--font-mono);font-size:.72rem}
 .modal,.popover,dialog.modal{border-radius:2px;background:var(--card);border-color:var(--line)}.cookie{background:var(--card);border-color:var(--line);border-radius:2px}.lang-note{background:var(--yellow);color:var(--black)}
 .stat-num,.est-result,.channels strong,time,.small,dd{font-variant-numeric:tabular-nums}.site-footer a{color:var(--gold)}
-@media (max-width:760px){.container{padding-inline:18px}.section{padding-block:44px}.hero h1{font-size:2.7rem}.island-map{height:360px}.card,.bongao-directory,.island-card{padding:22px}}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card:hover,.bongao-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover,.service-link:hover{transform:none}.mega,.popover,.drawer,.search-overlay,.acc-panel,.callout-panel,.island-card .inner{transition-duration:0s!important}.drawer{transform:none}.popover,.acc-panel,.callout-panel{transform:none}}
+@media (max-width:760px){.container{padding-inline:18px}.section{padding-block:44px}.hero h1{font-size:2.7rem}.island-map{height:360px}.card,.region-directory,.island-card{padding:22px}}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card:hover,.region-directory:hover,.island-card:hover,.panel:hover,.news-list li:hover,.service-link:hover{transform:none}.mega,.popover,.drawer,.search-overlay,.acc-panel,.callout-panel,.island-card .inner{transition-duration:0s!important}.drawer{transform:none}.popover,.acc-panel,.callout-panel{transform:none}}
 .field-slide-deck{max-width:980px;margin:28px auto 0}.field-gallery-grid{position:relative;min-height:clamp(260px,48vw,560px);overflow:hidden;border-radius:18px;background:var(--art-bg)}.field-shot{display:none;width:100%;height:100%;min-height:clamp(260px,48vw,560px);padding:0;border:0;background:none;cursor:pointer}.field-shot.is-active{display:block}.field-shot img{width:100%;height:100%;object-fit:cover}.field-slide-controls{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:18px}.field-dots{display:flex;gap:8px}.field-dot{width:10px;height:10px;padding:0;border:1px solid var(--brand);border-radius:50%;background:transparent;cursor:pointer}.field-dot[aria-selected="true"]{background:var(--brand);transform:scale(1.25)}
 
+  /* Province-wide directory and official mark */
+  .logo-seal{border-radius:50%;background:#fff;border:2px solid #fff;padding:2px;object-fit:cover;box-shadow:0 0 0 1px rgba(0,0,0,.22)}
+  .badge.coverage-listed{background:rgba(242,194,48,.12);color:var(--gold)}
+  .badge.coverage-check{background:var(--soft);color:var(--muted)}
+  .municipality-list{list-style:none;padding:0;margin:16px 0;display:grid;gap:6px}
+  .municipality-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);background:var(--foam);font-size:.8rem}
+  .municipality-list strong{font-family:var(--font-head);font-size:.9rem}
+  .municipality-list span{max-width:58%;color:var(--muted);text-align:right}
+  .municipality-list li:hover{border-color:var(--gold);transform:translateX(3px);transition:transform .18s ease,border-color .18s ease}
+  .hero-photo img{animation:hero-settle .8s ease-out both}
+  @keyframes hero-settle{from{opacity:.55;transform:scale(1.035)}to{opacity:1;transform:scale(1)}}
+  @media(max-width:640px){.municipality-list li{align-items:flex-start;flex-direction:column;gap:2px}.municipality-list span{max-width:none;text-align:left}.region-directory{padding:18px}}
+  @media(prefers-reduced-motion:reduce){.hero-photo img{animation:none}.municipality-list li{transition:none}}
 </style>
 <style>.pw-wrap{position:relative}.pw-wrap .input{padding-right:4.75rem;width:100%}.pw-toggle{position:absolute;right:.25rem;top:50%;transform:translateY(-50%);min-width:44px;min-height:44px;padding:0 .6rem;background:none;border:0;color:inherit;font:inherit;font-size:.85em;font-weight:600;cursor:pointer;border-radius:8px}.pw-toggle:focus-visible{outline:2px solid currentColor;outline-offset:-2px}button[aria-busy="true"]{opacity:.7;cursor:progress}</style>
 </head>
@@ -721,7 +735,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 <header class="site-header" id="siteHeader">
   <div class="container">
     <a class="logo" href="#main" aria-label="E-TAWELCO Tawi-Tawi, home">
-<img class="logo-seal" src="assets/tawelco-seal-transparent.png" alt="" aria-hidden="true">
+<img class="logo-seal" src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Messenger_creation_1B4A1379-E658-469B-9148-C24C27E20778.png-65xwc5KYCbw9C4uD6GRpfNNSaxFXGA.jpeg" alt="" aria-hidden="true">
       <span>E-TAWELCO<span class="logo-sub">Tawi-Tawi</span></span>
     </a>
     <nav class="main-nav" aria-label="Main">
@@ -738,7 +752,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 <!-- Mobile drawer -->
 <div class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-label="Menu">
   <div class="drawer-head">
-<span class="logo" style="font-size:1.1rem"><img class="logo-seal" src="assets/tawelco-seal-transparent.png" alt="" aria-hidden="true"><span>E-TAWELCO<span class="logo-sub">Tawi-Tawi</span></span></span>
+<span class="logo" style="font-size:1.1rem"><img class="logo-seal" src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Messenger_creation_1B4A1379-E658-469B-9148-C24C27E20778.png-65xwc5KYCbw9C4uD6GRpfNNSaxFXGA.jpeg" alt="" aria-hidden="true"><span>E-TAWELCO<span class="logo-sub">Tawi-Tawi</span></span></span>
     <button class="icon-btn" id="drawerClose" aria-label="Close menu"><svg class="icon"><use href="#i-close"/></svg></button>
   </div>
   <div class="drawer-body" id="drawerBody"></div>
@@ -761,7 +775,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       <a class="pill" href="#islands">Rates for my island</a>
       <a class="pill" href="#connect">New connection</a>
       <a class="pill" href="#solar">Island grid</a>
-      <a class="pill" href="#islands">Office hours</a>
+      <a class="pill" href="#islands">Municipalities</a>
     </div>
     <p id="searchStatus" class="muted" aria-live="polite"></p>
     <ul class="results" id="searchResults"></ul>
@@ -800,9 +814,9 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   </nav>
 
   <aside class="concept-notice service-status" aria-label="Service information">
-    <div class="status-item"><span class="status-dot" aria-hidden="true"></span><strong>Service information</strong><span>Check your account for the latest bill and outage updates.</span></div>
-    <a class="text-link" href="#report">Report an outage</a>
-    <a class="text-link" href="#pay">Pay or view your bill</a>
+    <div class="status-item"><span class="status-dot" aria-hidden="true"></span><strong>Service information</strong><span>Independent concept · no live outage feed. Confirm your provider and service updates with the utility on your bill.</span></div>
+    <a class="text-link" href="#report">Prepare an outage note</a>
+    <a class="text-link" href="#pay">View your bill</a>
   </aside>
 
   <section class="mission" aria-labelledby="missionTitle">
@@ -812,70 +826,79 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     </div>
   </section>
 
-  <!-- 3.4 Your island -->
-  <section class="section bongao-context" id="bongao" aria-labelledby="bongaoTitle" lang="en">
+  <!-- 3.4 Tawi-Tawi coverage -->
+  <section class="section region-context" id="bongao" aria-labelledby="bongaoTitle" lang="en">
     <div class="container">
-      <div class="bongao-grid">
+      <div class="region-grid">
         <div>
-          <p class="section-label">Bongao, Tawi-Tawi, BARMM</p>
-          <h2 id="bongaoTitle">About Bongao</h2>
-          <p>Bongao is the capital municipality of Tawi-Tawi in the Bangsamoro Autonomous Region in Muslim Mindanao. It includes Bongao, Sanga-Sanga and Pababag islands and part of the Tawi-Tawi mainland.</p>
-          <p class="small muted">Municipal boundaries, island geography and electricity service areas are not the same. Your barangay does not determine feeder coverage, connection eligibility or current power status. Confirm these with the cooperative.</p>
-          <a class="text-link" href="#bongaoSources">View sources and census dates</a>
+          <p class="section-label">Province-wide context · Tawi-Tawi · BARMM</p>
+          <h2 id="bongaoTitle">One province. Eleven municipalities.</h2>
+          <p>Tawi-Tawi is an archipelagic province of 11 municipalities, with communities spread across islands and coastal settlements. This service concept is designed for residents across the province—not only Bongao.</p>
+          <p class="small muted">Municipal boundaries, island geography and electricity service territories are different. Public references list TAWELCO across nine municipalities; Mapun and Turtle Islands are commonly associated with CASELCO. Confirm the utility named on your latest bill before reporting an outage, requesting a connection or using account services.</p>
+          <a class="text-link" href="#tawiSources">View research sources and coverage notes</a>
           <div class="context-topics">
-            <h3>Communities</h3>
-            <p>Bongao is home to Tausug, Sama, Sama-Bajau, Christian and other communities. This site is available in English and Filipino.</p>
-            <h3>Energy at home and at work</h3>
-            <p>Fishing, seaweed-related livelihoods, farming and trade are common sources of income. Household needs such as lighting and phone charging differ from business needs such as refrigeration and equipment. The bill estimator covers households only and does not apply business rates.</p>
-            <h3>Local landmarks</h3>
-            <p>Bud Bongao, the Balobok Rock Shelter in Lakit Lakit and the Lapid Lapid mangrove eco-park are local landmarks. Photographs on this site are illustrative and do not show these locations.</p>
+            <h3>Communities and livelihoods</h3>
+            <p>Tawi-Tawi is home to diverse Sama, Tausug, Sama-Bajau and other communities. Fishing, seaweed cultivation, farming, trade and public services shape local energy needs. Household usage examples on this site are illustrative and are not business tariffs.</p>
+            <h3>Access across the islands</h3>
+            <p>Low-data mode hides photographs and the map while keeping written guidance available. For urgent electrical hazards, keep away from fallen lines and contact the utility or emergency service using a verified number.</p>
           </div>
         </div>
-        <div class="bongao-directory">
-          <p class="section-label">Barangay directory</p>
-          <h3>The 35 barangays of Bongao</h3>
-          <p>Use the official PSA spelling of your barangay when preparing an address. You may add a sitio, purok or nearby landmark. Exact GPS coordinates are not needed.</p>
-          <div class="field">
-            <label for="bongaoBarangay">Barangay</label>
-            <select class="input" id="bongaoBarangay" aria-describedby="bongaoBarangayNote">
-              <option value="">Select your barangay</option>
-              <option>Ipil</option><option>Kamagong</option><option>Karungdong</option><option>Lakit Lakit</option><option>Lamion</option><option>Lapid Lapid</option><option>Lato Lato</option><option>Luuk Pandan</option><option>Luuk Tulay</option><option>Malassa</option><option>Mandulan</option><option>Masantong</option><option>Montay Montay</option><option>Pababag</option><option>Pagasinan</option><option>Pahut</option><option>Pakias</option><option>Paniongan</option><option>Pasiagan</option><option>Bongao Poblacion</option><option>Sanga-sanga</option><option>Silubog</option><option>Simandagit</option><option>Sumangat</option><option>Tarawakan</option><option>Tongsinah</option><option>Tubig Basag</option><option>Ungus-ungus</option><option>Lagasan</option><option>Nalil</option><option>Pagatpat</option><option>Pag-asa</option><option>Tubig Tanah</option><option>Tubig-Boh</option><option>Tubig-Mampallam</option>
-            </select>
-            <p class="hint" id="bongaoBarangayNote" aria-live="polite">Source: PSA municipal directory, barangay list as of July 31, 2025.</p>
-          </div>
-          <button class="btn btn-secondary" id="bongaoDraft" type="button">Prepare an outage note</button>
-          <p class="small muted" style="margin-top:16px">This tool creates a draft on your screen. Nothing is sent or saved. To report an outage, use the contact number on your bill or contact an authorized cooperative office. The draft works offline after the page has loaded.</p>
+        <div class="region-directory">
+          <p class="section-label">Municipal coverage guide</p>
+          <h3>Find your municipality</h3>
+          <ul class="municipality-list">
+            <li><strong>Bongao</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Languyan</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Mapun</strong><span>Confirm provider · often listed with CASELCO</span></li>
+            <li><strong>Panglima Sugala</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Sapa-Sapa</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Sibutu</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Simunul</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Sitangkai</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>South Ubian</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Tandubas</strong><span>TAWELCO area · verify account</span></li>
+            <li><strong>Turtle Islands</strong><span>Confirm provider · often listed with CASELCO</span></li>
+          </ul>
+          <a class="btn btn-secondary" href="#islands">Explore the municipality map</a>
           <div class="context-topics">
-            <h3>Low-data mode</h3>
-            <p>Low-data mode hides photographs and the map. The barangay directory and written guidance remain available. For assisted, telephone or in-person service, contact an authorized cooperative office using the contact number on your bill.</p>
+            <h3>Bongao barangay address helper</h3>
+            <p>The official PSA spelling list below is specific to Bongao; other municipalities should use their own local barangay names.</p>
+            <div class="field">
+              <label for="bongaoBarangay">Bongao barangay</label>
+              <select class="input" id="bongaoBarangay" aria-describedby="bongaoBarangayNote">
+                <option value="">Select a Bongao barangay</option>
+                <option>Ipil</option><option>Kamagong</option><option>Karungdong</option><option>Lakit Lakit</option><option>Lamion</option><option>Lapid Lapid</option><option>Lato Lato</option><option>Luuk Pandan</option><option>Luuk Tulay</option><option>Malassa</option><option>Mandulan</option><option>Masantong</option><option>Montay Montay</option><option>Pababag</option><option>Pagasinan</option><option>Pahut</option><option>Pakias</option><option>Paniongan</option><option>Pasiagan</option><option>Bongao Poblacion</option><option>Sanga-sanga</option><option>Silubog</option><option>Simandagit</option><option>Sumangat</option><option>Tarawakan</option><option>Tongsinah</option><option>Tubig Basag</option><option>Ungus-ungus</option><option>Lagasan</option><option>Nalil</option><option>Pagatpat</option><option>Pag-asa</option><option>Tubig Tanah</option><option>Tubig-Boh</option><option>Tubig-Mampallam</option>
+              </select>
+              <p class="hint" id="bongaoBarangayNote" aria-live="polite">Source: PSA municipal directory, barangay list as of July 31, 2025.</p>
+            </div>
+            <button class="btn btn-secondary" id="bongaoDraft" type="button">Prepare an outage note</button>
+            <p class="small muted" style="margin-top:16px">This tool creates a draft on your screen. Nothing is sent or saved. Use a verified contact from your bill to submit a real report.</p>
           </div>
         </div>
       </div>
-      <details class="research-sources" id="bongaoSources">
+      <details class="research-sources" id="tawiSources">
         <summary>Sources, reference dates and limits</summary>
-        <p style="margin-top:16px">Local context was drawn from research reviewed October 11, 2026. Census figures describe their stated census dates, not today's population or registered E-TAWELCO users.</p>
+        <p style="margin-top:16px">Municipal and service-area facts are provided as orientation, not proof of a particular account, feeder, connection eligibility or live outage. Research reviewed November 15, 2026.</p>
         <ul>
-          <li><a href="https://psa.gov.ph/classification/psgc/barangays/1907002000">PSA: Bongao municipality and 35 barangays</a> — municipal code 1907002000; barangay list dated July 31, 2025.</li>
-          <li><a href="https://psa.gov.ph/system/files/phcd/2024%20POPCEN%20Press%20Release_BARMM_ONS-signed.pdf">PSA: 2024 BARMM population census</a> — Bongao population of 131,887 as of July 1, 2024; release signed August 1, 2025.</li>
-          <li><a href="https://rssobarmm.psa.gov.ph/system/files/publication/2023%20RSSO%20BARMM%20RSET.pdf">PSA BARMM: 2023 regional statistical yearbook, Table 1.20</a> — 19,589 households and average household size of 5.9 persons, both from the 2020 census.</li>
-          <li><a href="https://minda.gov.ph/resources/2025/Discover_Bongao_Tawi-Tawi_The_Heart_of_the_South.pdf">MinDA: Discover Bongao, March 2025</a> — municipal geography and multicultural community context.</li>
-          <li><a href="https://tawi-tawi.gov.ph/bongao/">Provincial Government of Tawi-Tawi: Bongao profile</a> — local livelihoods and landmarks; undated profile, not a current operational service directory.</li>
-          <li><a href="https://bcpch.bangsamoro.gov.ph/bcpch-digital-gazette/">Bangsamoro cultural commission: Digital Gazette</a> — local-language heritage context, not approved interface translations.</li>
-          <li><a href="https://bangsamoro.gov.ph/news/latest-news/farthest-turtle-islands-to-get-p25-m-town-hall-from-barmm-govt/">Bangsamoro Information Office: Turtle Islands municipal context, 2023</a> — Taganak is part of Turtle Islands municipality, not a separate municipality.</li>
+          <li><a href="https://psa.gov.ph/classification/psgc">Philippine Statistics Authority: Philippine Standard Geographic Code</a> — official municipality and barangay classification reference.</li>
+          <li><a href="https://psa.gov.ph/system/files/phcd/2024%20POPCEN%20Press%20Release_BARMM_ONS-signed.pdf">PSA: 2024 BARMM population census</a> — provincial census reference; population figures describe the stated census date.</li>
+          <li><a href="https://nea.gov.ph/">National Electrification Administration</a> — cooperative directory and sector reference; check current franchise/service information directly.</li>
+          <li><a href="https://tawi-tawi.gov.ph/">Provincial Government of Tawi-Tawi</a> — provincial context and municipal information.</li>
+          <li><a href="https://bangsamoro.gov.ph/news/latest-news/farthest-turtle-islands-to-get-p25-m-town-hall-from-barmm-govt/">Bangsamoro Information Office: Turtle Islands municipal context, 2023</a> — Taganak is an island within Turtle Islands municipality.</li>
         </ul>
-        <p>Households, families, meters, billed accounts and cooperative customers are not interchangeable. The dated PSA household count is used rather than an undated conflicting count. No newer Bongao household total, current residential tariff, live outage feed, authorized payment channels or verified utility hotline was established.</p>
+        <p>Public references commonly list TAWELCO for Bongao, Languyan, Panglima Sugala, Sapa-Sapa, Sibutu, Simunul, Sitangkai, South Ubian and Tandubas, with Mapun and Turtle Islands associated with CASELCO. This independent concept is not an official TAWELCO service and does not verify current utility boundaries, rates, payments, contacts or outages.</p>
       </details>
     </div>
   </section>
 
   <section class="section" id="islands" aria-labelledby="islandsTitle">
     <div class="container">
-      <h2 id="islandsTitle" data-i18n="islands.title">Your island</h2>
-      <p data-i18n="islands.intro">Explore island and municipal areas. Geography does not establish electricity coverage. All service statuses, rates and hours below are samples, not live utility information.</p>
+      <h2 id="islandsTitle" data-i18n="islands.title">Choose your municipality</h2>
+      <p data-i18n="islands.intro">Explore all 11 municipalities. Map points are approximate geographic references only; they do not show a live outage, account, rate or electricity-service boundary.</p>
       <div id="islandMap" class="island-map" role="region" aria-label="Geographic map of Tawi-Tawi municipality and island reference points"></div>
-      <p class="map-legend" role="note">Geographic reference only · service availability not shown.</p>
+      <p class="map-legend" role="note">Approximate municipal reference points · not a service boundary, live outage map or account lookup.</p>
       <div class="island-layout">
-        <div class="chips" id="chips" role="group" aria-label="Choose your island"></div>
+        <div class="chips" id="chips" role="group" aria-label="Choose your municipality"></div>
         <div class="card island-card" aria-live="polite">
           <div class="inner" id="islandCard"></div>
         </div>
@@ -931,7 +954,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <label class="est-label" for="kwh"><span id="kwhLabel">80 kWh per month</span><span class="muted" id="estIsland">Bongao</span></label>
           <input type="range" id="kwh" min="10" max="400" step="5" value="80" aria-describedby="estNote">
           <p class="est-result" id="estResult" aria-live="polite">₱1,080</p>
-          <p class="small muted" id="estNote">Sample rate of ₱13.50/kWh for the selected island. Excludes fees and taxes. Not an official bill.</p>
+          <p class="small muted" id="estNote">Illustrative rate of ₱13.50/kWh for planning only. Actual rates vary by utility and billing period; check your bill.</p>
           <div class="presets" role="group" aria-label="Quick presets">
             <button class="pill" data-kwh="40">Fan and lights (40 kWh)</button>
             <button class="pill" data-kwh="120">Fridge added (120 kWh)</button>
@@ -976,14 +999,14 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   <!-- 3.7 Stats -->
   <section class="stats" aria-labelledby="statsTitle" lang="en">
     <div class="container">
-      <h2 id="statsTitle" class="visually-hidden">Bongao census context</h2>
+      <h2 id="statsTitle" class="visually-hidden">Tawi-Tawi province-wide context</h2>
       <ul id="stats">
-        <li><span class="stat-num">131,887</span>people in Bongao · July 1, 2024</li>
-        <li><span class="stat-num">19,589</span>households · 2020 census</li>
-        <li><span class="stat-num">35</span>barangays · PSA list, July 2025</li>
-        <li><span class="stat-num">5.9</span>persons per household · 2020</li>
+        <li><span class="stat-num">11</span>municipalities across the province</li>
+        <li><span class="stat-num">9</span>municipalities commonly listed in TAWELCO references</li>
+        <li><span class="stat-num">2</span>municipalities where residents should verify their utility provider</li>
+        <li><span class="stat-num">35</span>barangays in Bongao · PSA list, July 2025</li>
       </ul>
-      <p class="note">Municipal census context, not electricity connections or customers. <a href="#bongaoSources" style="color:inherit">Sources and reference dates</a>.</p>
+      <p class="note">Geographic context only—not customers, accounts or live service status. <a href="#tawiSources" style="color:inherit">Sources and coverage notes</a>.</p>
     </div>
   </section>
 
@@ -1161,7 +1184,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       <button class="toggle" id="boldMenu" aria-pressed="false">Bold menu</button>
     </div>
     <div class="legal">
-      <p>E-TAWELCO is an independent concept for improving electricity service communication and is not the official website or a verified digital service of Tawi-Tawi Electric Cooperative, Inc. (TAWELCO). Information about Bongao and local energy needs is provided for planning and illustration, with sources and reference dates where available. Service availability, rates, payment procedures, outage updates and account details shown on this site are examples only. This website does not process payments, submit service requests, or represent a confirmed utility account. Images are illustrative and do not depict verified Tawi-Tawi locations, facilities or cooperative installations.</p>
+      <p>E-TAWELCO is an independent customer-service concept, not the official website or a verified digital service of Tawi-Tawi Electric Cooperative, Inc. (TAWELCO). It is designed for residents across all 11 municipalities, but does not establish utility territory or account eligibility. Rates, payment channels, outage updates and contacts shown on the public page are not independently verified. The public estimator and outage-note tool are illustrative; the outage-note tool does not submit a report. Signed-in account services are available only when enabled for an authenticated account. Confirm your utility and service with the provider named on your latest bill. Images are illustrative and may not depict verified Tawi-Tawi facilities.</p>
       <nav aria-label="Legal"><a href="#cookie" data-open-cookie>Privacy policy</a><a href="#footer">Terms</a><a href="#footer">Accessibility</a><a href="#cookie" data-open-cookie>Cookie preferences</a></nav>
     </div>
   </div>
@@ -1174,7 +1197,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     <button class="icon-btn" id="outageClose" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
   </div>
   <form class="modal-body" id="outageForm" novalidate>
-    <p class="small muted">This sends your report to the cooperative’s outage desk. It is not an emergency line. For urgent hazards, keep away from fallen lines and contact an authorized utility or emergency service using a verified number.</p>
+    <p class="small muted">This prepares an outage-note draft on your screen; it does not send or save a report. It is not an emergency line. For urgent hazards, keep away from fallen lines and contact an authorized utility or emergency service using a verified number.</p>
     <div class="field">
       <label for="oIsland">Municipality / island area</label>
       <select class="input" id="oIsland"></select>
@@ -1249,16 +1272,19 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 
   /* ---------- Data ---------- */
   var ISLANDS = [
-{id:'bongao', name:'Bongao', status:'steady', source:'Diesel power plant serving the main town', rate:13.50, hours:'24 hours', office:'Main office, Bongao town', coords:[5.0292,119.7731]},
-  {id:'simunul', name:'Simunul', status:'limited', source:'Island diesel set', rate:15.20, hours:'Evening hours, 6 pm to 6 am', office:'Simunul satellite office', coords:[4.8961,120.0065]},
-  {id:'sibutu', name:'Sibutu', status:'steady', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sibutu collection office', coords:[4.8584,119.4686]},
-  {id:'sitangkai', name:'Sitangkai', status:'outage', source:'Solar-diesel hybrid plant', rate:14.10, hours:'Most of the day', office:'Sitangkai collection office', coords:[4.6748,119.3553]},
-  {id:'taganak', name:'Turtle Islands (Taganak)', markerName:'Taganak', status:'limited', source:'Small island system', rate:16.00, hours:'Evening hours', office:'To be confirmed', coords:[6.0733,118.3128]}
+    {id:'bongao', name:'Bongao', tawelcoListed:true, coords:[5.033,119.767]},
+    {id:'languyan', name:'Languyan', tawelcoListed:true, coords:[5.267,120.083]},
+    {id:'mapun', name:'Mapun', tawelcoListed:false, coords:[6.975,118.514]},
+    {id:'panglima-sugala', name:'Panglima Sugala', tawelcoListed:true, coords:[5.073,119.885]},
+    {id:'sapa-sapa', name:'Sapa-Sapa', tawelcoListed:true, coords:[5.075,120.175]},
+    {id:'sibutu', name:'Sibutu', tawelcoListed:true, coords:[4.683,119.467]},
+    {id:'simunul', name:'Simunul', tawelcoListed:true, coords:[4.918,119.789]},
+    {id:'sitangkai', name:'Sitangkai', tawelcoListed:true, coords:[4.667,119.4]},
+    {id:'south-ubian', name:'South Ubian', tawelcoListed:true, coords:[5.183,120.483]},
+    {id:'tandubas', name:'Tandubas', tawelcoListed:true, coords:[5.25,120.283]},
+    {id:'turtle-islands', name:'Turtle Islands', tawelcoListed:false, coords:[6.073,118.312]}
   ];
-  ['Mapun','Languyan','Sapa-Sapa','South Ubian','Tandubas','Panglima Sugala'].forEach(function(n){
-    ISLANDS.push({id:n.toLowerCase().replace(/[^a-z]+/g,'-'), name:n, extra:true, status:'limited', source:'To be confirmed', rate:15.00, hours:'To be confirmed', office:'To be confirmed'});
-  });
-  var STATUS = {steady:'Steady', limited:'Limited hours', outage:'Outage reported'};
+  var SAMPLE_ESTIMATOR_RATE = 13.50;
   var bongaoDirectory = $('#bongaoBarangay');
   var BONGAO_BARANGAYS = Array.prototype.slice.call(bongaoDirectory.options, 1).map(function(option){ return option.value; });
   var BONGAO_URBAN = ['Bongao Poblacion','Simandagit','Lamion','Tubig-Boh','Nalil','Pag-asa','Tubig-Mampallam','Tubig Tanah'];
@@ -1284,34 +1310,36 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       {t:'Stay safe', l:['Fallen lines','Generators and fuel','Flooding and storms']}],
       f:{text:'Prepare a draft, then contact the cooperative using a verified number from your bill or an authorized office.', btn:'Prepare an outage note', href:'#report'}},
     {id:'islands', key:'nav.islands', label:'Islands', cols:[
-      {t:'Areas', l:['Bongao','Simunul','Sibutu','Sitangkai','Turtle Islands (Taganak)','More islands']},
-      {t:'How each island is powered', l:['Diesel','Solar-diesel hybrid','Small island systems']},
-      {t:'Projects', l:['Solar-diesel hybrid plants','Line upgrades','Meter clustering']}],
-      f:{text:'Island geography and electricity service boundaries are different. Explore sample area information.', btn:'Choose my area', href:'#islands'}},
+      {t:'Municipalities', l:['Bongao','Languyan','Mapun','Panglima Sugala','Sapa-Sapa','Sibutu','Simunul','Sitangkai','South Ubian','Tandubas','Turtle Islands']},
+      {t:'Service information', l:['TAWELCO coverage','Confirm my provider','Geographic reference map']},
+      {t:'Local support', l:['Barangay directory','Outage note','Low-data access']}],
+      f:{text:'Explore every municipality, then confirm your utility and account coverage from a current bill.', btn:'Choose my municipality', href:'#islands'}},
     {id:'help', key:'nav.help', label:'Help', cols:[
       {t:'Get help', l:['FAQs','Contact us','Complaints and concerns']},
       {t:'Find', l:['Forms and downloads','Office locations']},
       {t:'Your data', l:['Data privacy']}],
       f:{text:'Use your barangay and a familiar landmark to prepare a draft. No report is sent here.', btn:'Prepare an outage note', href:'#report'}},
     {id:'about', key:'nav.about', label:'About us', cols:[
-      {t:'Local context', l:['Bongao community','Research sources','Our cooperative','Mission and vision']},
+      {t:'Province-wide context', l:['Tawi-Tawi communities','Municipal coverage','Research sources','Our cooperative','Mission and vision']},
       {t:'People', l:['Board and management','Careers']},
       {t:'Working with', l:['Regulators and partners']}],
-      f:{text:'Owned by the households we serve.', btn:'Join as a member', href:'#members'}},
+      f:{text:'Built for residents across the islands of Tawi-Tawi.', btn:'Explore customer services', href:'#bongao'}},
     {id:'news', key:'nav.news', label:'News', cols:[
       {t:'Updates', l:['Announcements','Planned interruptions']},
       {t:'Media', l:['Press releases','Photo gallery']},
       {t:'Stay in touch', l:['Newsletter']}],
-      f:{text:'Planned line work in Bongao on Saturday. (sample)', btn:'Read the latest', href:'#news'}}
+      f:{text:'Look for verified service notices for your municipality once published.', btn:'Browse updates', href:'#news'}}
   ];
 
   function hrefFor(name){
     var n = name.toLowerCase();
     var isl = ISLANDS.filter(function(i){ return i.name.toLowerCase() === n; })[0];
-    if (isl || n === 'more islands') return '#islands';
+    if (isl) return '#islands';
     var rules = [
-      [/bongao community/, '#bongao'],
-      [/research sources/, '#bongaoSources'],
+      [/research sources/, '#tawiSources'],
+      [/tawi-tawi communities|coverage|provider|municipal coverage/, '#bongao'],
+      [/geographic reference|municipalities/, '#islands'],
+      [/barangay directory/, '#bongao']
       [/report|outage map|restoration/, '#report'],
       [/estimator|read your bill|rates|why rates|usage/, '#bills'],
       [/pay|payment|top up|amnesty|prepaid/, '#pay'],
@@ -1331,7 +1359,6 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     var href = hrefFor(name), extra = '';
     var isl = ISLANDS.filter(function(i){ return i.name === name; })[0];
     if (isl) extra = ' data-island="' + isl.id + '"';
-    if (name === 'More islands') extra = ' data-more-islands';
     if (href === '#cookie') extra += ' data-open-cookie';
     return 'href="' + href + '"' + extra;
   }
@@ -1343,6 +1370,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     'login.title':'Pag-log in ng miyembro','login.btn':'Mag-log in','pay':'Bayaran ang iyong bill',
     'nav.home':'Para sa iyong tahanan','nav.bills':'Bill at singil','nav.outages':'Brownout at kaligtasan','nav.islands':'Mga isla',
     'nav.help':'Tulong','nav.about':'Tungkol sa amin','nav.news':'Balita',
+    'islands.title':'Piliin ang inyong munisipalidad',
     'hero.title':'Serbisyo ng kuryente para sa mga isla ng Tawi-Tawi.',
     'hero.kicker':'Independiyenteng konsepto · Impormasyon sa serbisyo sa Tawi-Tawi', 'hero.discover':'Hanapin ang iyong isla',
     'quick.pay':'Bayaran ang bill', 'quick.pay.note':'Mga simpleng paraan ng pagbabayad',
@@ -1358,8 +1386,8 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     'hero.lead':'Subukan ang mga sample tool upang tantiyain ang bill, maghanda ng outage note, at suriin ang checklist para sa bagong koneksyon. Kasama ang impormasyon batay sa census para sa Bongao at ang 35 barangay nito.',
     'hero.report':'Mag-ulat ng brownout sa text','hero.apply':'Mag-apply para sa bagong koneksyon',
     'hero.hotline':'Pagtantiya ng bill, ulat sa brownout at checklist sa koneksyon.',
-    'islands.title':'Ang iyong isla',
-    'islands.intro':'Tuklasin ang mga isla at munisipalidad. Hindi patunay ng saklaw ng serbisyo ang heograpiya. Sample lamang ang lahat ng status, singil at oras sa ibaba; hindi ito live na impormasyon ng utility.',
+  'islands.title':'Piliin ang inyong munisipalidad',
+  'islands.intro':'Tuklasin ang lahat ng 11 munisipalidad. Tinatayang lokasyon lamang ang mga marka sa mapa; hindi ito nagpapakita ng outage, account, singil o hangganan ng serbisyo.',
     'explore':'Tingnan','bills.title':'Bill at singil','est.title':'Tantyahin ang iyong bill','read.title':'Paano basahin ang iyong bill',
     'hero.caption':'Paano gumagana ang grid ng mga isla',
     'connect.title':'Magpakabit ng kuryente','join.title':'Sumali bilang miyembro','work.title':'Magtrabaho sa amin',
@@ -1607,9 +1635,9 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   var overlay = $('#searchOverlay'), sInput = $('#searchInput'), sResults = $('#searchResults'), sStatus = $('#searchStatus'), searchBtn = $('#searchBtn');
   var INDEX = [];
   MENU.forEach(function(m){ m.cols.forEach(function(c){ c.l.forEach(function(l){ INDEX.push({name:l, where:m.label + ', ' + c.t, attrs:linkAttrs(l)}); }); }); });
-  ISLANDS.filter(function(i){ return i.extra; }).forEach(function(i){ INDEX.push({name:i.name, where:'Islands', attrs:'href="#islands" data-island="' + i.id + '"'}); });
+  ISLANDS.forEach(function(i){ INDEX.push({name:i.name, where:'Tawi-Tawi municipalities · geographic reference', attrs:'href="#islands" data-island="' + i.id + '"'}); });
   BONGAO_BARANGAYS.forEach(function(barangay){ INDEX.push({name:barangay, where:'Bongao barangay directory', attrs:'href="#bongao" data-barangay="' + barangay + '"'}); });
-  INDEX.push({name:'Bongao population and households', where:'Dated census facts and research sources', attrs:'href="#stats"'});
+  INDEX.push({name:'Tawi-Tawi municipality and utility guide', where:'Province-wide coverage notes and sources', attrs:'href="#bongao"'});
   [['Office hours','Islands','#islands'],['Outage','Outages and safety','#report'],['Bill estimator','Bills and rates','#bills'],['Members log-in','Members','#members']].forEach(function(x){ INDEX.push({name:x[0], where:x[1], attrs:'href="' + x[2] + '"'}); });
   function openSearch(){
     closeCurrent(false); closeSheet(false);
@@ -1639,23 +1667,14 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
 
   /* ---------- Islands ---------- */
   var chipsBox = $('#chips'), card = $('#islandCard');
-  var map = L.map('islandMap', {scrollWheelZoom:false, zoomControl:true}).setView([5.15,119.55], 8);
+  var map = L.map('islandMap', {scrollWheelZoom:false, zoomControl:true}).fitBounds(ISLANDS.map(function(i){ return i.coords; }), {padding:[24,24], maxZoom:8});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
   var selected = ISLANDS[0];
   var islandMarkers = {};
-  var moreList;
   function chipHTML(i){ return '<button class="chip" data-chip="' + i.id + '" aria-pressed="false">' + i.name + '</button>'; }
-  chipsBox.innerHTML = ISLANDS.filter(function(i){ return !i.extra; }).map(chipHTML).join('') +
-    '<button class="chip" id="moreIslands" aria-expanded="false" aria-controls="moreList">More islands</button>' +
-    '<div class="more-list" id="moreList" hidden>' + ISLANDS.filter(function(i){ return i.extra; }).map(chipHTML).join('') + '</div>';
-  moreList = $('#moreList');
-  var moreBtnI = $('#moreIslands');
-  moreBtnI.addEventListener('click', function(){
-    var open = moreList.hidden; setAnimatedVisibility(moreList, open); moreBtnI.setAttribute('aria-expanded', String(open));
-    if (open) setTimeout(function(){ moreList.querySelector('.chip').focus(); }, calm() ? 0 : 240);
-  });
+  chipsBox.innerHTML = ISLANDS.map(chipHTML).join('');
 
-  ISLANDS.filter(function(i){ return !i.extra; }).forEach(function(i){
+  ISLANDS.forEach(function(i){
     var label = i.markerName || i.name;
     var marker = L.marker(i.coords, {
       title:label,
@@ -1670,18 +1689,17 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   });
 
   function renderCard(i){
+    var coverage = i.tawelcoListed
+      ? '<span class="badge coverage-listed">TAWELCO area · verify account</span>'
+      : '<span class="badge coverage-check">Confirm your utility provider</span>';
+    var note = i.tawelcoListed
+      ? 'Public references list this municipality in TAWELCO’s service area. Check the utility and feeder shown on your latest bill before requesting service.'
+      : 'This municipality is not listed among TAWELCO’s nine commonly referenced service municipalities. Mapun and Turtle Islands are commonly associated with CASELCO; confirm your provider on your bill.';
     card.innerHTML =
-      '<div class="title-row"><h3>' + i.name + '</h3><span class="badge ' + i.status + '">' + STATUS[i.status] + ' (sample)</span></div>' +
-      (i.id === 'taganak' ? '<p class="small muted">Taganak is an island within Turtle Islands municipality, not a separate municipality or confirmed service system.</p>' : '') +
-      '<dl>' +
-      '<dt>Power source</dt><dd>' + i.source + ' <span class="sample">(sample)</span></dd>' +
-      '<dt>Rate per kWh</dt><dd>₱' + i.rate.toFixed(2) + ' <span class="sample">(sample)</span></dd>' +
-      '<dt>Hours of supply</dt><dd>' + i.hours + ' <span class="sample">(sample)</span></dd>' +
-      '<dt>Office</dt><dd>' + i.office + ' <span class="sample">(sample)</span></dd>' +
-      '<dt>Hotline</dt><dd>Not verified — consult your bill or an authorized office.</dd>' +
-      '</dl>' +
-      '<p class="small muted">Hotline and office address appear here once confirmed by the cooperative.</p>' +
-      '<div class="card-actions"><a class="btn btn-secondary" href="#bills" id="cardEstimate">Estimate my bill</a><button class="btn btn-secondary" type="button" data-report="' + i.id + '">Report an outage</button></div>';
+      '<div class="title-row"><h3>' + i.name + '</h3>' + coverage + '</div>' +
+      '<p>' + note + '</p>' +
+      '<p class="small muted">Geographic reference only. No live outage, account, rate or service status is available here.</p>' +
+      '<div class="card-actions"><a class="btn btn-secondary" href="#tawiSources">Coverage notes</a><button class="btn btn-secondary" type="button" data-report="' + i.id + '">Prepare an outage note</button></div>';
   }
   var fadeT;
   function selectIsland(id, animate, moveMap){
@@ -1693,7 +1711,6 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       if (pin) pin.classList.toggle('is-selected', markerId === id);
     });
     if (moveMap && islandMarkers[id]) map.panTo(i.coords, {animate:!calm(), duration:.5});
-    if (i.extra && moreList.hidden) { setAnimatedVisibility(moreList, true); moreBtnI.setAttribute('aria-expanded','true'); }
     clearTimeout(fadeT);
     if (animate && !calm()) {
       card.classList.add('fading');
@@ -1719,9 +1736,9 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     var v = +kwh.value;
     $('#kwhLabel').textContent = v + ' kWh per month';
     $('#estIsland').textContent = selected.name;
-    $('#estResult').textContent = peso(v * selected.rate);
-    $('#estNote').textContent = 'Sample rate of ₱' + selected.rate.toFixed(2) + '/kWh for ' + selected.name + '. Excludes fees and taxes. Not an official bill.';
-    kwh.setAttribute('aria-valuetext', v + ' kWh, about ' + peso(v * selected.rate));
+    $('#estResult').textContent = peso(v * SAMPLE_ESTIMATOR_RATE);
+    $('#estNote').textContent = 'Illustrative rate of ₱' + SAMPLE_ESTIMATOR_RATE.toFixed(2) + '/kWh for planning only. Actual rates vary by utility and billing period; check your bill.';
+    kwh.setAttribute('aria-valuetext', v + ' kWh, about ' + peso(v * SAMPLE_ESTIMATOR_RATE) + ' at an illustrative rate');
   }
   kwh.addEventListener('input', updateEstimate);
   $$('[data-kwh]').forEach(function(b){ b.addEventListener('click', function(){ kwh.value = b.getAttribute('data-kwh'); updateEstimate(); }); });
@@ -1814,8 +1831,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     if (href === '#report') { e.preventDefault(); openOutage(null, a); return; }
     if (a.hasAttribute('data-open-cookie')) { e.preventDefault(); showCookie(true); return; }
     if (a.hasAttribute('data-island')) { selectIsland(a.getAttribute('data-island'), false); }
-    if (a.hasAttribute('data-more-islands') && moreList.hidden) { setAnimatedVisibility(moreList, true); moreBtnI.setAttribute('aria-expanded','true'); }
-  });
+    });
 
   /* ---------- Forms: pay + print ---------- */
   var PAY_CHANNELS = [
