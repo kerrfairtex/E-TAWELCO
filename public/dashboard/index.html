@@ -76,8 +76,9 @@ textarea.input{padding:10px 12px;min-height:90px;resize:vertical}
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--brand);font-family:var(--font-head);font-weight:800;font-size:1.1rem;letter-spacing:-.04em;margin-right:auto}
 .logo img{width:46px;height:46px;object-fit:cover;border-radius:50%;background:#fff;border:2px solid #fff;padding:2px;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
 .logo small{display:block;font-size:.72rem;font-weight:600;color:var(--muted);letter-spacing:0}
-.who{display:flex;align-items:center;gap:12px;font-size:.92rem}
+.who{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.92rem}
 .who-name{font-weight:700;max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logout-error{flex-basis:100%;text-align:right;color:var(--err);font-size:.85rem;font-weight:600}
 
 /* Shell */
 .shell{display:grid;grid-template-columns:220px 1fr;gap:32px;max-width:1400px;margin:0 auto;padding:32px 24px 72px}.shell:has(#view .member-hero){padding-top:24px}
@@ -250,6 +251,7 @@ dl.facts dd{margin:0}
       <span class="who-name" id="whoName"></span>
       <span class="badge" id="whoRole"></span>
       <button class="btn btn-secondary btn-small" id="logoutBtn" type="button">Log out</button>
+      <span class="logout-error" id="logoutError" role="status" aria-live="polite" hidden></span>
     </div>
   </div>
 </header>

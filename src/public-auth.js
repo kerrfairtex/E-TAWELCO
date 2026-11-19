@@ -24,6 +24,10 @@ function bind(formId, identifierId, passwordId, messageId, identifierErrId, pwEr
   const button = form.querySelector('button[type="submit"]')
   const toggle = form.querySelector('.pw-toggle')
   const label = button.textContent
+  const setMessage = (message = '') => {
+    msgEl.textContent = message
+    msgEl.hidden = !message
+  }
   let busy = false
 
   if (toggle) {
@@ -61,13 +65,13 @@ function bind(formId, identifierId, passwordId, messageId, identifierErrId, pwEr
     const pwMsg = password ? '' : 'Enter your password.'
     setInvalid(identifierEl, identifierErr, identifierMsg)
     setInvalid(pwEl, pwErr, pwMsg)
-    msgEl.textContent = ''
+    setMessage()
     if (identifierMsg || pwMsg) {
       ;(identifierMsg ? identifierEl : pwEl).focus()
       return
     }
     if (!supabase) {
-      msgEl.textContent = 'Sign-in is not available right now. Please contact support.'
+      setMessage('Sign-in is not available right now. Please contact support.')
       return
     }
 
@@ -75,12 +79,12 @@ function bind(formId, identifierId, passwordId, messageId, identifierErrId, pwEr
     button.disabled = true
     button.setAttribute('aria-busy', 'true')
     button.textContent = 'Signing in…'
-    msgEl.textContent = 'Signing you in…'
+    setMessage('Signing you in…')
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password })
       if (error) throw error
     } catch (error) {
-      msgEl.textContent = friendly(error)
+      setMessage(friendly(error))
       busy = false
       button.disabled = false
       button.removeAttribute('aria-busy')
