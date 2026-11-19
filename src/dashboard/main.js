@@ -190,13 +190,26 @@ $('#setPwForm').addEventListener('submit', (e) => {
   })
 })
 
-$('#logoutBtn').addEventListener('click', async () => {
-  try { await logout() } catch {}
-  location.hash = ''
-  showAuth()
+$('#logoutBtn').addEventListener('click', async (event) => {
+  const button = event.currentTarget
+  const status = $('#logoutError')
+  button.disabled = true
+  status.hidden = true
+  status.textContent = ''
+  try {
+    const { error } = await logout()
+    if (error) throw error
+    window.location.replace('/')
+  } catch {
+    button.disabled = false
+    status.textContent = 'Could not sign out. Check your connection and try again.'
+    status.hidden = false
+  }
 })
 
-onAuthChange((event) => { if (event === 'logout' && state.session) showAuth() })
+onAuthChange((event) => {
+  if (event === 'signed_out' && state.session) window.location.replace('/')
+})
 
 // ---------- Charts ----------
 // Single-series column chart (one hue), baseline-anchored with 4px rounded tops and a hover tooltip per column.
