@@ -1611,6 +1611,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     loginCloseTimer = window.setTimeout(function(){ loginOverlay.hidden = true; loginBtn.focus({preventScroll:true}); }, delay);
   }
   loginBtn.addEventListener('click', function(e){ e.stopPropagation(); openLogin(); });
+  if (new URLSearchParams(window.location.search).get('login') === '1') openLogin();
   loginClose.addEventListener('click', closeLogin);
   loginOverlay.addEventListener('click', function(e){
     e.stopPropagation();

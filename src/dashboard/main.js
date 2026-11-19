@@ -199,7 +199,7 @@ $('#logoutBtn').addEventListener('click', async (event) => {
   try {
     const { error } = await logout()
     if (error) throw error
-    window.location.replace('/')
+    window.location.replace('/?login=1')
   } catch {
     button.disabled = false
     status.textContent = 'Could not sign out. Check your connection and try again.'
@@ -208,7 +208,7 @@ $('#logoutBtn').addEventListener('click', async (event) => {
 })
 
 onAuthChange((event) => {
-  if (event === 'signed_out' && state.session) window.location.replace('/')
+  if (event === 'signed_out' && state.session) window.location.replace('/?login=1')
 })
 
 // ---------- Charts ----------
