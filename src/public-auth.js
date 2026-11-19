@@ -13,13 +13,13 @@ function friendly(error) {
   return 'We could not sign you in right now. Please try again.'
 }
 
-function bind(formId, emailId, passwordId, messageId, role, emailErrId, pwErrId) {
+function bind(formId, identifierId, passwordId, messageId, identifierErrId, pwErrId) {
   const form = document.getElementById(formId)
   if (!form) return
-  const emailEl = document.getElementById(emailId)
+  const identifierEl = document.getElementById(identifierId)
   const pwEl = document.getElementById(passwordId)
   const msgEl = document.getElementById(messageId)
-  const emailErr = document.getElementById(emailErrId)
+  const identifierErr = document.getElementById(identifierErrId)
   const pwErr = document.getElementById(pwErrId)
   const button = form.querySelector('button[type="submit"]')
   const toggle = form.querySelector('.pw-toggle')
@@ -46,15 +46,24 @@ function bind(formId, emailId, passwordId, messageId, role, emailErrId, pwErrId)
     event.stopImmediatePropagation()
     if (busy) return
 
-    const email = emailEl.value.trim()
+    const identifier = identifierEl.value.trim()
+    const normalizedId = identifier.replace(/\s/g, '')
+    const accountId = /^\d{8}$/.test(normalizedId) || /^\d{11}$/.test(normalizedId)
+    const loginEmail = accountId
+      ? `${normalizedId}@${normalizedId.length === 8 ? 'admin' : 'member'}.tawelco.local`
+      : identifier
+    const identifierMsg = !identifier
+      ? 'Enter your email or account ID.'
+      : !accountId && !EMAIL_RE.test(identifier)
+        ? 'Enter a valid email or account ID.'
+        : ''
     const password = pwEl.value
-    const emailMsg = !email ? 'Enter your email address.' : !EMAIL_RE.test(email) ? 'Enter a valid email, like name@gmail.com.' : ''
     const pwMsg = password ? '' : 'Enter your password.'
-    setInvalid(emailEl, emailErr, emailMsg)
+    setInvalid(identifierEl, identifierErr, identifierMsg)
     setInvalid(pwEl, pwErr, pwMsg)
     msgEl.textContent = ''
-    if (emailMsg || pwMsg) {
-      ;(emailMsg ? emailEl : pwEl).focus()
+    if (identifierMsg || pwMsg) {
+      ;(identifierMsg ? identifierEl : pwEl).focus()
       return
     }
     if (!supabase) {
@@ -68,7 +77,7 @@ function bind(formId, emailId, passwordId, messageId, role, emailErrId, pwErrId)
     button.textContent = 'Signing in…'
     msgEl.textContent = 'Signing you in…'
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password })
       if (error) throw error
     } catch (error) {
       msgEl.textContent = friendly(error)
@@ -78,12 +87,11 @@ function bind(formId, emailId, passwordId, messageId, role, emailErrId, pwErrId)
       button.textContent = label
       return
     }
-    window.location.assign(`/dashboard/?login=${role}`)
+    window.location.assign('/dashboard/?login=unified')
   }, true)
 }
 
-bind('adminLoginForm', 'adminId', 'adminPw', 'adminLoginMsg', 'admin', 'adminIdErr', 'adminPwErr')
-bind('loginForm', 'acct', 'pw', 'loginMsg', 'member', 'acctErr', 'pwErr')
+bind('loginForm', 'acct', 'pw', 'loginMsg', 'acctErr', 'pwErr')
 
 function bindOutage() {
   const form = document.getElementById('outageForm')

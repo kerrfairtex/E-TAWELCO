@@ -14,7 +14,6 @@ const identityForLogin = (value) => {
   return id
 }
 const authError = (error) => ({ status: error?.status, message: error?.message })
-const requestedRole = new URLSearchParams(location.search).get('login')
 const login = async (identifier, password) => {
   const { data, error } = await authClient().auth.signInWithPassword({ email: identityForLogin(identifier), password })
   if (error) throw authError(error)
@@ -130,9 +129,9 @@ function showAuth(tab = 'login') {
   $$('#authTabs [data-tab]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)))
   $$('[data-tab-go]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tabGo)))
   const loginIntent = new URLSearchParams(location.search).get('login')
-  if (loginIntent === 'admin' || loginIntent === 'member') {
-  showTab('login')
-  $('#lEmail').focus()
+  if (new URLSearchParams(location.search).has('login')) {
+    showTab('login')
+    $('#lEmail').focus()
   }
   
   $('#loginForm').addEventListener('submit', (e) => {
@@ -1134,11 +1133,6 @@ async function start() {
   if (!user) return showAuth()
   const { profile } = await api('/api/me')
   if (!profile) throw new Error('Your account profile is not available yet.')
-  if (requestedRole && requestedRole !== profile.role) {
-    await logout().catch(() => null)
-    const adminAccount = profile.role === 'admin' || profile.role === 'master_admin'
-    throw new Error(`This is a ${adminAccount ? ROLE_LABEL[profile.role] : ROLE_LABEL.member} account. Use the ${adminAccount ? 'Admin' : 'Members'} login.`)
-  }
   state.profile = { ...profile, email: user.email }
   const areaResponse = await api('/api/areas')
   state.areas = Array.isArray(areaResponse?.areas) ? areaResponse.areas : []

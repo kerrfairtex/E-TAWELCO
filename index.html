@@ -139,9 +139,7 @@ main:focus{outline:none}
 .login-heading p{margin:0;color:var(--muted);font-size:.95rem}
 .login-seal{width:48px;height:48px;flex:none;border-radius:50%;object-fit:cover;background:#fff}
 .login-close{position:absolute;top:14px;right:14px;min-width:44px;min-height:44px}
-.login-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin-bottom:20px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
-.login-tab{min-height:44px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);font-weight:700;cursor:pointer}
-.login-tab[aria-selected="true"]{border-color:var(--line);background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+
 .login-dialog .field{gap:7px;margin-bottom:16px}
 .login-dialog .input,.login-dialog select.input{min-height:48px;font-size:16px}
 .login-dialog .input[aria-invalid="true"]{border-color:var(--err)}
@@ -780,15 +778,11 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
       <img class="login-seal" src="/assets/tawelco-seal-transparent.png" alt="" aria-hidden="true" width="48" height="48">
       <div><h2 id="loginTitle" data-i18n="login.welcome">Welcome back</h2><p data-i18n="login.subtitle">Sign in to manage your account.</p></div>
     </header>
-    <div class="login-tabs" role="tablist" aria-label="Login type" data-i18n-aria-label="login.tabs">
-      <button class="login-tab" id="loginTabMember" type="button" role="tab" aria-selected="true" aria-controls="memberPanel" tabindex="0" data-login-tab="member" data-i18n="login.member">Member</button>
-      <button class="login-tab" id="loginTabAdmin" type="button" role="tab" aria-selected="false" aria-controls="adminPanel" tabindex="-1" data-login-tab="admin" data-i18n="login.admin">Admin</button>
-    </div>
-    <div class="login-panel" id="memberPanel" role="tabpanel" aria-labelledby="loginTabMember">
+    <div class="login-panel">
       <form id="loginForm" novalidate>
         <div class="field">
-          <label for="acct" data-i18n="login.email">Email</label>
-          <input class="input" id="acct" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="loginMsg" required>
+          <label for="acct" data-i18n="login.identifier">Email or account ID</label>
+          <input class="input" id="acct" name="identifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Email or account ID" aria-describedby="loginMsg" required>
           <span class="error visually-hidden" id="acctErr"></span>
         </div>
         <div class="field">
@@ -796,35 +790,11 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
           <div class="pw-wrap"><input class="input" id="pw" name="pw" type="password" autocomplete="current-password" aria-describedby="loginMsg" required><button type="button" class="pw-toggle" aria-label="Show password" data-i18n-aria-label="login.show" aria-pressed="false" aria-controls="pw" data-i18n="login.show">Show</button></div>
           <span class="error visually-hidden" id="pwErr"></span>
         </div>
-        <div class="field">
-          <label for="loginIsland"><span data-i18n="login.island">Which island?</span> <span class="sample" data-i18n="login.optional">(optional)</span></label>
-          <select class="input" id="loginIsland"><option value="" data-i18n="login.chooseIsland">Choose your island</option></select>
-        </div>
         <div class="form-links"><a href="#footer" data-i18n="login.forgot">Forgot password?</a><a href="#connect" data-i18n="login.create">Create an account</a></div>
         <button class="btn btn-primary" type="submit" data-login-submit>
           <span class="login-submit-content"><span class="login-spinner" aria-hidden="true" hidden></span><span data-login-label data-i18n="login.btn">Log in</span></span>
         </button>
         <p class="form-msg" id="loginMsg" role="status" aria-live="polite" hidden></p>
-      </form>
-    </div>
-    <div class="login-panel" id="adminPanel" role="tabpanel" aria-labelledby="loginTabAdmin" hidden>
-      <p class="login-notice" data-i18n="login.authorized">Authorized staff only.</p>
-      <form id="adminLoginForm" novalidate>
-        <div class="field">
-          <label for="adminId" data-i18n="login.email">Email</label>
-          <input class="input" id="adminId" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com" aria-describedby="adminLoginMsg" required>
-          <span class="error visually-hidden" id="adminIdErr"></span>
-        </div>
-        <div class="field">
-          <label for="adminPw" data-i18n="login.password">Password</label>
-          <div class="pw-wrap"><input class="input" id="adminPw" name="adminPw" type="password" autocomplete="current-password" aria-describedby="adminLoginMsg" required><button type="button" class="pw-toggle" aria-label="Show password" data-i18n-aria-label="login.show" aria-pressed="false" aria-controls="adminPw" data-i18n="login.show">Show</button></div>
-          <span class="error visually-hidden" id="adminPwErr"></span>
-        </div>
-        <div class="form-links"><a href="#footer" data-i18n="login.needAccess">Need access?</a><a href="#footer" data-i18n="login.contactIT">Contact IT support</a></div>
-        <button class="btn btn-primary" type="submit" data-login-submit>
-          <span class="login-submit-content"><span class="login-spinner" aria-hidden="true" hidden></span><span data-login-label data-i18n="login.btn">Log in</span></span>
-        </button>
-        <p class="form-msg" id="adminLoginMsg" role="status" aria-live="polite" hidden></p>
       </form>
     </div>
   </section>
@@ -1480,7 +1450,7 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   var FIL = {
     'skip':'Lumaktaw sa pangunahing nilalaman','more':'Iba pa','careers':'Trabaho','contact':'Makipag-ugnayan','members':'Mga miyembro',
     'lowdata':'Tipid data','search':'Hanapin','search.label':'Hanapin sa site','lang.title':'Pumili ng wika',
-    'login.entry':'Mag-log in','login.welcome':'Maligayang pagbabalik','login.subtitle':'Mag-sign in upang pamahalaan ang iyong account.','login.tabs':'Uri ng pag-log in','login.member':'Miyembro','login.admin':'Admin','login.email':'Email','login.password':'Password','login.show':'Ipakita','login.hide':'Itago','login.island':'Aling isla?','login.optional':'(opsyonal)','login.chooseIsland':'Piliin ang iyong isla','login.forgot':'Nakalimutan ang password?','login.create':'Gumawa ng account','login.needAccess':'Kailangan ng access?','login.contactIT':'Makipag-ugnayan sa IT support','login.authorized':'Para sa awtorisadong kawani lamang.','login.btn':'Mag-log in','login.loading':'Nagsa-sign in…','login.error':'Hindi tama ang email o password.','login.close':'Isara ang pag-log in','pay':'Bayaran ang iyong bill',
+    'login.entry':'Mag-log in','login.welcome':'Maligayang pagbabalik','login.subtitle':'Mag-sign in upang pamahalaan ang iyong account.','login.tabs':'Uri ng pag-log in','login.member':'Miyembro','login.admin':'Admin','login.email':'Email','login.identifier':'Email o account ID','login.password':'Password','login.show':'Ipakita','login.hide':'Itago','login.island':'Aling isla?','login.optional':'(opsyonal)','login.chooseIsland':'Piliin ang iyong isla','login.forgot':'Nakalimutan ang password?','login.create':'Gumawa ng account','login.needAccess':'Kailangan ng access?','login.contactIT':'Makipag-ugnayan sa IT support','login.authorized':'Para sa awtorisadong kawani lamang.','login.btn':'Mag-log in','login.loading':'Nagsa-sign in…','login.error':'Hindi tama ang email o password.','login.close':'Isara ang pag-log in','pay':'Bayaran ang iyong bill',
     'nav.home':'Para sa iyong tahanan','nav.bills':'Bill at singil','nav.outages':'Brownout at kaligtasan','nav.islands':'Mga isla',
     'nav.help':'Tulong','nav.about':'Tungkol sa amin','nav.news':'Balita',
     'islands.title':'Piliin ang inyong munisipalidad',
@@ -1607,28 +1577,9 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     b.addEventListener('click', function(){ setLang(b.getAttribute('data-lang'), true); closeCurrent(true); });
   });
 
-  var loginIsland = $('#loginIsland');
-  ISLANDS.forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name; loginIsland.appendChild(o); });
-
   var loginBtn = $('#loginBtn'), loginOverlay = $('#loginOverlay'), loginDialog = $('#loginDialog');
-  var loginClose = $('#loginClose'), loginTabs = $$('.login-tab'), loginPanels = {member:$('#memberPanel'), admin:$('#adminPanel')};
+  var loginClose = $('#loginClose');
   var loginPreviousBodyStyles = null, loginScrollY = 0, loginIsOpen = false, loginCloseTimer = null;
-  function loginCopy(key){ return (currentLang === 'fil' ? FIL[key] : null) || EN[key] || key; }
-  function setLoginTab(name, focusTab, remember){
-    var selected = name === 'admin' ? 'admin' : 'member';
-    loginTabs.forEach(function(tab){
-      var active = tab.getAttribute('data-login-tab') === selected;
-      tab.setAttribute('aria-selected', String(active));
-      tab.setAttribute('tabindex', active ? '0' : '-1');
-      if (active && focusTab) tab.focus();
-    });
-    loginPanels.member.hidden = selected !== 'member';
-    loginPanels.admin.hidden = selected !== 'admin';
-    if (remember) { try { window.sessionStorage.setItem('etawelco-login-tab', selected); } catch(e){} }
-  }
-  var initialLoginTab = 'member';
-  try { if (window.sessionStorage.getItem('etawelco-login-tab') === 'admin') initialLoginTab = 'admin'; } catch(e){}
-  setLoginTab(initialLoginTab, false, false);
   function openLogin(){
     if (loginIsOpen) return;
     closeCurrent(false);
@@ -1667,21 +1618,6 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
   });
   loginDialog.addEventListener('click', function(e){ e.stopPropagation(); });
   loginDialog.querySelectorAll('a[href^="#"]').forEach(function(link){ link.addEventListener('click', closeLogin); });
-  loginTabs.forEach(function(tab){
-    tab.addEventListener('click', function(){ setLoginTab(tab.getAttribute('data-login-tab'), false, true); });
-  });
-  $('.login-tabs').addEventListener('keydown', function(e){
-    var activeIndex = loginTabs.indexOf(document.activeElement);
-    if (activeIndex < 0) return;
-    var nextIndex = activeIndex;
-    if (e.key === 'ArrowRight') nextIndex = (activeIndex + 1) % loginTabs.length;
-    else if (e.key === 'ArrowLeft') nextIndex = (activeIndex + loginTabs.length - 1) % loginTabs.length;
-    else if (e.key === 'Home') nextIndex = 0;
-    else if (e.key === 'End') nextIndex = loginTabs.length - 1;
-    else return;
-    e.preventDefault();
-    setLoginTab(loginTabs[nextIndex].getAttribute('data-login-tab'), true, true);
-  });
   loginDialog.addEventListener('keydown', function(e){
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeLogin(); return; }
     if (e.key !== 'Tab') return;
@@ -1690,49 +1626,6 @@ a,.text-link{color:var(--gold);text-decoration-thickness:1px}a:hover,.text-link:
     var first = focusable[0], last = focusable[focusable.length - 1];
     if (e.shiftKey && (document.activeElement === first || !loginDialog.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && (document.activeElement === last || !loginDialog.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
-  });
-  $$('.pw-toggle').forEach(function(toggle){
-    toggle.addEventListener('click', function(){
-      var input = $('#' + toggle.getAttribute('aria-controls'));
-      var showing = input.type === 'password';
-      input.type = showing ? 'text' : 'password';
-      toggle.setAttribute('aria-pressed', String(showing));
-      toggle.setAttribute('data-i18n', showing ? 'login.hide' : 'login.show');
-      toggle.setAttribute('data-i18n-aria-label', showing ? 'login.hide' : 'login.show');
-      toggle.setAttribute('aria-label', loginCopy(showing ? 'login.hide' : 'login.show'));
-      toggle.textContent = loginCopy(showing ? 'login.hide' : 'login.show');
-    });
-  });
-  function submitLogin(form, emailInput, passwordInput, status, target){
-    var legacyIdPattern = form.id === 'loginForm' ? /^\d{11}$/ : /^\d{8}$/;
-    var identifier = emailInput.value.trim();
-    var legacyIdentifier = form.id === 'loginForm' ? identifier.replace(/\s/g, '') : identifier;
-    var emailOkay = emailInput.checkValidity() || legacyIdPattern.test(legacyIdentifier);
-    var passwordOkay = passwordInput.value.length > 0;
-    var okay = emailOkay && passwordOkay;
-    emailInput.setAttribute('aria-invalid', String(!okay));
-    passwordInput.setAttribute('aria-invalid', String(!okay));
-    if (!okay) {
-      status.textContent = loginCopy('login.error');
-      status.hidden = false;
-      return;
-    }
-    status.textContent = loginCopy('login.loading');
-    status.hidden = false;
-    var button = form.querySelector('[data-login-submit]');
-    button.disabled = true;
-    button.setAttribute('aria-busy','true');
-    button.querySelector('.login-spinner').hidden = false;
-    button.querySelector('[data-login-label]').textContent = loginCopy('login.loading');
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.location.href = target; }); });
-  }
-  $('#loginForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    submitLogin(e.currentTarget, $('#acct'), $('#pw'), $('#loginMsg'), '/dashboard/?login=member');
-  });
-  $('#adminLoginForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    submitLogin(e.currentTarget, $('#adminId'), $('#adminPw'), $('#adminLoginMsg'), '/dashboard/?login=admin');
   });
 
   // Low data
